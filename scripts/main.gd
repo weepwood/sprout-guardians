@@ -315,7 +315,7 @@ func _start_next_wave() -> void:
 func _spawn_enemy(enemy_data: EnemyData, path_index: int) -> void:
     var enemy: SproutEnemy = SproutEnemy.new()
     add_child(enemy)
-    enemy.configure(level_data.get_path(path_index), enemy_data)
+    enemy.configure(level_data.get_enemy_path(path_index), enemy_data)
     enemy_registry.register_enemy(enemy)
     enemy.defeated.connect(_on_enemy_defeated)
     enemy.escaped.connect(_on_enemy_escaped)
