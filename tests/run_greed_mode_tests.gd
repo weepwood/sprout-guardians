@@ -100,6 +100,25 @@ func _run() -> void:
         familiar.call("_attack", enemy)
     _assert_true(_spawned_projectiles.size() > projectile_count_before_familiar, "Floating familiar also launches a physical projectile")
 
+    var feedback: GreedCombatFeedback = GreedCombatFeedback.new()
+    root.add_child(feedback)
+    feedback.spawn_damage(Vector2(320.0, 180.0), 18.0, false)
+    feedback.spawn_damage(Vector2(320.0, 180.0), 42.0, true)
+    _assert_equal_int(feedback.get_active_number_count(), 2, "Normal and critical hits create distinct damage numbers")
+    for index: int in range(GreedCombatFeedback.MAX_DAMAGE_NUMBERS + 12):
+        feedback.spawn_damage(Vector2(280.0 + float(index % 8), 160.0), float(index + 1), index % 7 == 0)
+    _assert_true(
+        feedback.get_active_number_count() <= GreedCombatFeedback.MAX_DAMAGE_NUMBERS,
+        "Damage-number feedback remains within its strict display budget"
+    )
+
+    var original_time_scale: float = Engine.time_scale
+    feedback.request_hit_stop(0.03)
+    _assert_true(feedback.is_hit_stop_active(), "Major-hit feedback activates a micro hit stop")
+    _assert_true(Engine.time_scale < original_time_scale, "Hit stop temporarily reduces simulation time scale")
+    feedback.cancel_hit_stop()
+    _assert_float_close(Engine.time_scale, original_time_scale, 0.001, "Cancelling hit stop restores the previous game speed")
+
     hero.clear_focus_target()
     if is_instance_valid(enemy):
         _assert_true(not enemy.priority_targeted, "Clearing focus removes the enemy target marker")
@@ -107,6 +126,7 @@ func _run() -> void:
     for projectile: GreedProjectile in _spawned_projectiles:
         if projectile != null and is_instance_valid(projectile):
             projectile.queue_free()
+    feedback.queue_free()
     familiar.queue_free()
     if is_instance_valid(enemy):
         enemy.queue_free()
