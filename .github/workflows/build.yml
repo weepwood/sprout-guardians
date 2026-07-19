@@ -1,0 +1,99 @@
+name: Build and Package
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sprout-guardians-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.6.3"
+  GODOT_RELEASE: "stable"
+
+jobs:
+  export:
+    name: Validate and export
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Godot editor and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          GODOT_FILE="Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64"
+          BASE_URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}"
+
+          curl --fail --location --retry 3 \
+            "${BASE_URL}/${GODOT_FILE}.zip" \
+            --output /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x "/tmp/godot/${GODOT_FILE}"
+          echo "/tmp/godot" >> "$GITHUB_PATH"
+          ln -s "/tmp/godot/${GODOT_FILE}" /tmp/godot/godot
+
+          curl --fail --location --retry 3 \
+            "${BASE_URL}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_export_templates.tpz" \
+            --output /tmp/export_templates.tpz
+          unzip -q /tmp/export_templates.tpz -d /tmp/export_templates
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_RELEASE}"
+          mkdir -p "$TEMPLATE_DIR"
+          cp -R /tmp/export_templates/templates/. "$TEMPLATE_DIR/"
+
+      - name: Import project and validate scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path "$GITHUB_WORKSPACE" --editor --quit
+
+      - name: Export Windows, Linux, and Web builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/windows build/linux build/web
+          godot --headless --path "$GITHUB_WORKSPACE" --export-release "Windows Desktop" build/windows/SproutGuardians.exe
+          godot --headless --path "$GITHUB_WORKSPACE" --export-release "Linux" build/linux/SproutGuardians.x86_64
+          godot --headless --path "$GITHUB_WORKSPACE" --export-release "Web" build/web/index.html
+          chmod +x build/linux/SproutGuardians.x86_64
+
+      - name: Package exports
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd build/windows && zip -q -r ../SproutGuardians-Windows-x86_64.zip .)
+          tar -C build/linux -czf build/SproutGuardians-Linux-x86_64.tar.gz .
+          (cd build/web && zip -q -r ../SproutGuardians-Web.zip .)
+
+      - name: Upload downloadable artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SproutGuardians-${{ github.sha }}
+          path: |
+            build/SproutGuardians-Windows-x86_64.zip
+            build/SproutGuardians-Linux-x86_64.tar.gz
+            build/SproutGuardians-Web.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            build/SproutGuardians-Windows-x86_64.zip \
+            build/SproutGuardians-Linux-x86_64.tar.gz \
+            build/SproutGuardians-Web.zip \
+            --generate-notes \
+            --title "Sprout Guardians ${GITHUB_REF_NAME}"
