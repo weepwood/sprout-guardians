@@ -9,6 +9,7 @@ var attack_range: float = 92.0
 var total_spent: int = 75
 var slot_index: int = -1
 var is_selected: bool = false
+var disabled_time: float = 0.0
 
 var _projectile_pool: ProjectilePool
 var _enemy_registry: EnemyRegistry
@@ -36,9 +37,13 @@ func configure(
 
 
 func _process(delta: float) -> void:
-    _cooldown -= delta
     _shot_time = maxf(0.0, _shot_time - delta)
+    if disabled_time > 0.0:
+        disabled_time = maxf(0.0, disabled_time - delta)
+        queue_redraw()
+        return
 
+    _cooldown -= delta
     if _cooldown <= 0.0:
         var target: SproutEnemy = _select_target()
         if target != null:
@@ -58,6 +63,15 @@ func _process(delta: float) -> void:
 
     if _shot_time > 0.0:
         queue_redraw()
+
+
+func disable_for(duration: float) -> void:
+    disabled_time = maxf(disabled_time, duration)
+    queue_redraw()
+
+
+func is_disabled() -> bool:
+    return disabled_time > 0.0
 
 
 func _select_target() -> SproutEnemy:
@@ -193,6 +207,12 @@ func _draw() -> void:
         var shot_color: Color = Color("d9ff8c") if data == null else data.projectile_color
         shot_color.a = 0.35
         draw_line(_get_attack_origin(), _shot_target, shot_color, 1.0)
+
+    if disabled_time > 0.0:
+        draw_rect(Rect2(-13.0, -13.0, 26.0, 26.0), Color(0.25, 0.32, 0.38, 0.42), false, 2.0)
+        draw_line(Vector2(-9.0, -11.0), Vector2(0.0, -4.0), Color("ffe07a"), 2.0)
+        draw_line(Vector2(0.0, -4.0), Vector2(-3.0, 3.0), Color("ffe07a"), 2.0)
+        draw_line(Vector2(-3.0, 3.0), Vector2(8.0, 10.0), Color("ffe07a"), 2.0)
 
 
 func _draw_pea_tower() -> void:
