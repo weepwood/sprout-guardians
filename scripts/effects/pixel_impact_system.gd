@@ -13,7 +13,6 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 func _ready() -> void:
     _rng.seed = 0x51A7C0DE
     z_index = 80
-    mouse_filter = Control.MOUSE_FILTER_IGNORE if self is Control else 0
 
 
 func _process(delta: float) -> void:
@@ -102,7 +101,7 @@ func _spawn_radial(
             "size": size_value + float(_rng.randi_range(0, 2)),
             "drag": speed * 1.4,
             "gravity": 85.0,
-            "tail": critical_tail(index),
+            "tail": _uses_tail(index),
         })
 
 
@@ -145,7 +144,7 @@ func _push_particle(particle: Dictionary) -> void:
     queue_redraw()
 
 
-func critical_tail(index: int) -> bool:
+func _uses_tail(index: int) -> bool:
     return index % 3 == 0
 
 
