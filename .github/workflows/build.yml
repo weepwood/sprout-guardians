@@ -68,15 +68,6 @@ jobs:
           echo "$TEST_STATUS" > build/diagnostics/core-tests.status
           cat build/diagnostics/core-tests.log
 
-      - name: Upload test diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: SproutGuardians-test-diagnostics-${{ github.sha }}
-          path: build/diagnostics/
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Enforce core test result
         shell: bash
         run: |
@@ -97,6 +88,32 @@ jobs:
           godot --headless --path "$GITHUB_WORKSPACE" --export-release "Web" build/web/index.html
           chmod +x build/linux/SproutGuardians.x86_64
 
+      - name: Launch exported Linux build
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          timeout 20s build/linux/SproutGuardians.x86_64 \
+            --headless \
+            --audio-driver Dummy \
+            --quit-after 30 \
+            --verbose \
+            > build/diagnostics/exported-runtime.log 2>&1
+          RUNTIME_STATUS=$?
+          set -e
+          echo "$RUNTIME_STATUS" > build/diagnostics/exported-runtime.status
+          cat build/diagnostics/exported-runtime.log
+
+          if [ "$RUNTIME_STATUS" != "0" ]; then
+            echo "Exported Linux build failed to start cleanly with exit code $RUNTIME_STATUS"
+            exit "$RUNTIME_STATUS"
+          fi
+
+          if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script" build/diagnostics/exported-runtime.log; then
+            echo "Exported build contains script loading errors"
+            exit 1
+          fi
+
       - name: Package exports
         shell: bash
         run: |
@@ -104,6 +121,15 @@ jobs:
           (cd build/windows && zip -q -r ../SproutGuardians-Windows-x86_64.zip .)
           tar -C build/linux -czf build/SproutGuardians-Linux-x86_64.tar.gz .
           (cd build/web && zip -q -r ../SproutGuardians-Web.zip .)
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SproutGuardians-test-diagnostics-${{ github.sha }}
+          path: build/diagnostics/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload downloadable artifacts
         uses: actions/upload-artifact@v4
