@@ -1,6 +1,7 @@
 extends Node2D
 class_name SproutEnemy
 
+signal damaged(enemy: SproutEnemy, amount: float, critical: bool, fatal: bool)
 signal defeated(enemy: SproutEnemy, reward: int)
 signal escaped(enemy: SproutEnemy, damage: int)
 signal phase_changed(enemy: SproutEnemy, phase_index: int)
@@ -28,6 +29,7 @@ var _body_color: Color = Color("86c85a")
 var _body_size: Vector2 = Vector2(12.0, 12.0)
 var _phase_speed_multiplier: float = 1.0
 var _phase_armor_bonus: float = 0.0
+var _squash_time: float = 0.0
 
 
 func configure(points: PackedVector2Array, enemy_data: EnemyData) -> void:
@@ -39,6 +41,7 @@ func configure(points: PackedVector2Array, enemy_data: EnemyData) -> void:
     current_phase = 0
     _phase_speed_multiplier = 1.0
     _phase_armor_bonus = 0.0
+    _squash_time = 0.0
 
     if data != null:
         max_health = data.max_health
@@ -71,6 +74,8 @@ func _process(delta: float) -> void:
         _flash_time = maxf(0.0, _flash_time - delta)
     if _phase_flash_time > 0.0:
         _phase_flash_time = maxf(0.0, _phase_flash_time - delta)
+    if _squash_time > 0.0:
+        _squash_time = maxf(0.0, _squash_time - delta)
 
     var target_point: Vector2 = path_points[path_index]
     var distance_to_target: float = global_position.distance_to(target_point)
@@ -92,16 +97,19 @@ func _process(delta: float) -> void:
     queue_redraw()
 
 
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, critical: bool = false) -> void:
     if _finished or amount <= 0.0:
         return
     var armor: float = (0.0 if data == null else data.armor) + _phase_armor_bonus
     var final_damage: float = maxf(1.0, amount - armor)
     health -= final_damage
-    _flash_time = 0.08
+    _flash_time = 0.11 if critical else 0.08
+    _squash_time = 0.12 if critical else 0.07
+    var fatal: bool = health <= 0.0
+    damaged.emit(self, final_damage, critical, fatal)
     _update_boss_phase()
     queue_redraw()
-    if health <= 0.0:
+    if fatal:
         _die()
 
 
@@ -112,6 +120,14 @@ func apply_status(effect: StatusEffectData) -> void:
 
 func get_health_ratio() -> float:
     return clampf(health / maxf(1.0, max_health), 0.0, 1.0)
+
+
+func get_body_color() -> Color:
+    return _body_color
+
+
+func get_body_size() -> Vector2:
+    return _body_size
 
 
 func _update_boss_phase() -> void:
@@ -168,11 +184,13 @@ func _calculate_path_length() -> float:
 
 func _draw() -> void:
     var color: Color = Color.WHITE if _flash_time > 0.0 else _body_color
-    var half_size: Vector2 = _body_size * 0.5
+    var squash: float = 0.78 if _squash_time > 0.0 else 1.0
+    var draw_size: Vector2 = Vector2(_body_size.x * (2.0 - squash), _body_size.y * squash)
+    var half_size: Vector2 = draw_size * 0.5
     if _phase_flash_time > 0.0:
         draw_circle(Vector2.ZERO, maxf(_body_size.x, _body_size.y) * 0.9, Color(1.0, 0.85, 0.35, 0.32))
-    draw_rect(Rect2(-half_size - Vector2(2.0, 2.0), _body_size + Vector2(4.0, 4.0)), Color("274c35"))
-    draw_rect(Rect2(-half_size, _body_size), color)
+    draw_rect(Rect2(-half_size - Vector2(2.0, 2.0), draw_size + Vector2(4.0, 4.0)), Color("274c35"))
+    draw_rect(Rect2(-half_size, draw_size), color)
     draw_rect(Rect2(-5.0, -4.0, 3.0, 3.0), Color("183225"))
     draw_rect(Rect2(2.0, -4.0, 3.0, 3.0), Color("183225"))
 
