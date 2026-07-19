@@ -75,7 +75,7 @@ func apply_runtime(audio_manager: ProceduralAudioManager = null) -> void:
         AudioServer.set_bus_volume_db(sfx_bus, sfx_volume_db)
         AudioServer.set_bus_mute(sfx_bus, not sfx_enabled)
 
-    if OS.has_feature("web"):
+    if OS.has_feature("web") or DisplayServer.get_name().to_lower() == "headless":
         return
     DisplayServer.window_set_mode(
         DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
