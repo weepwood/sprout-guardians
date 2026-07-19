@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="WaveData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/wave_data.gd" id="1_wave"]
+[ext_resource type="Script" path="res://scripts/data/spawn_group_data.gd" id="2_group"]
+[ext_resource type="Resource" path="res://data/enemies/stone_beast.tres" id="3_stone"]
+[ext_resource type="Resource" path="res://data/enemies/beetle.tres" id="4_beetle"]
+
+[sub_resource type="Resource" id="StoneGroup"]
+script = ExtResource("2_group")
+enemy = ExtResource("3_stone")
+count = 5
+spawn_interval = 1.15
+start_delay = 0.1
+path_index = 0
+
+[sub_resource type="Resource" id="BeetleGroup"]
+script = ExtResource("2_group")
+enemy = ExtResource("4_beetle")
+count = 10
+spawn_interval = 0.42
+start_delay = 0.9
+path_index = 0
+
+[resource]
+script = ExtResource("1_wave")
+id = &"wave_06"
+display_name = "Armored Column"
+tactical_hint = "Armor reduces each hit. Splash poison remains effective while Ice Flowers buy time."
+spawn_groups = Array[Resource]([SubResource("StoneGroup"), SubResource("BeetleGroup")])
+clear_reward = 88
+early_start_bonus = 12
