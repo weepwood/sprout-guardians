@@ -13,6 +13,7 @@ var contact_damage: int = 1
 var coin_reward: int = 1
 var elite: bool = false
 var boss: bool = false
+var priority_targeted: bool = false
 var body_color: Color = Color("dd6d63")
 var body_size: float = 12.0
 
@@ -36,6 +37,7 @@ func configure(core: GreedCore, config: Dictionary, health_scale: float = 1.0) -
     coin_reward = 4 if boss else (2 if elite else 1)
     body_size = 28.0 if boss else (18.0 if elite else 12.0)
     body_color = Color("a557d4") if boss else (Color("e39b4b") if elite else Color("dd6d63"))
+    priority_targeted = false
     _slow_time = 0.0
     _slow_multiplier = 1.0
     add_to_group("greed_enemies")
@@ -101,6 +103,15 @@ func apply_knockback(origin: Vector2, force: float) -> void:
     _knock_velocity += direction * force
 
 
+func set_priority_targeted(value: bool) -> void:
+    priority_targeted = value
+    queue_redraw()
+
+
+func is_point_inside(position_value: Vector2) -> bool:
+    return global_position.distance_to(position_value) <= body_size * 0.65 + 8.0
+
+
 func get_health_ratio() -> float:
     return clampf(health / maxf(1.0, max_health), 0.0, 1.0)
 
@@ -109,6 +120,7 @@ func _die() -> void:
     if _finished:
         return
     _finished = true
+    priority_targeted = false
     defeated.emit(self, coin_reward, elite or boss)
     queue_free()
 
@@ -140,6 +152,12 @@ func _draw() -> void:
     draw_rect(Rect2(half.x - 6.0, -3.0, 3.0, 3.0), Color("241a24"))
     if elite or boss:
         draw_arc(Vector2.ZERO, body_size * 0.72, 0.0, TAU, 20, Color(1.0, 0.82, 0.32, 0.66), 2.0)
+    if priority_targeted:
+        var reticle_radius: float = body_size * 0.82 + 7.0
+        draw_arc(Vector2.ZERO, reticle_radius, 0.0, TAU, 28, Color("ff6b58"), 2.0)
+        for angle: float in [0.0, PI * 0.5, PI, PI * 1.5]:
+            var direction: Vector2 = Vector2.from_angle(angle)
+            draw_line(direction * (reticle_radius - 4.0), direction * (reticle_radius + 5.0), Color("ffd2c9"), 2.0)
     var bar_width: float = 42.0 if boss else (26.0 if elite else 18.0)
     draw_rect(Rect2(-bar_width * 0.5, -half.y - 8.0, bar_width, 3.0), Color("201824"))
     draw_rect(Rect2(-bar_width * 0.5, -half.y - 8.0, bar_width * get_health_ratio(), 3.0), Color("f16f67"))
