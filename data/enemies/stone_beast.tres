@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_enemy"]
+
+[resource]
+script = ExtResource("1_enemy")
+id = &"stone_beast"
+display_name = "Stone Beast"
+description = "A slow armored creature that resists light attacks and rewards focused fire."
+move_speed = 30.0
+is_flying = false
+max_health = 185.0
+armor = 7.0
+magic_resistance = 0.08
+reward = 28
+goal_damage = 2
+body_color = Color(0.47451, 0.517647, 0.513725, 1)
+body_size = Vector2(16, 16)

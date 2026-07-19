@@ -9,6 +9,9 @@ var _depletion_count: int = 0
 func _initialize() -> void:
     print("Running Sprout Guardians core tests...")
     _test_level_resources()
+    _test_tower_roles()
+    _test_enemy_and_boss_content()
+    _test_localization()
     _test_economy_system()
     _test_base_health_system()
     _test_wave_manager()
@@ -27,16 +30,73 @@ func _test_level_resources() -> void:
     _assert_true(level != null, "Morning Forest LevelData loads")
     if level == null:
         return
-    _assert_equal_int(level.starting_coins, 220, "Starting sunlight remains unchanged")
+    _assert_equal_int(level.starting_coins, 260, "Morning Forest starts with content-slice sunlight")
     _assert_equal_int(level.base_health, 10, "Starting sprout health remains unchanged")
-    _assert_equal_int(level.get_wave_count(), 4, "Prototype still contains four waves")
-    _assert_equal_int(level.build_slots.size(), 6, "Prototype still contains six build slots")
+    _assert_equal_int(level.get_wave_count(), 10, "Morning Forest contains ten complete waves")
+    _assert_equal_int(level.build_slots.size(), 6, "Morning Forest contains six build slots")
+    _assert_equal_int(level.available_towers.size(), 3, "Morning Forest exposes three tower roles")
 
     var tower: TowerData = level.get_tower(0)
     _assert_true(tower != null, "Pea Tower resource is linked from the level")
     if tower != null:
         _assert_equal_int(tower.build_cost, 75, "Pea Tower build cost remains unchanged")
-        _assert_equal_int(tower.get_upgrade_cost(1), 55, "First upgrade cost remains unchanged")
+        _assert_equal_int(tower.get_upgrade_cost(1), 55, "First Pea Tower upgrade cost remains unchanged")
+
+    var final_wave: WaveData = level.get_wave(9)
+    _assert_true(final_wave != null, "Final wave resource loads")
+    if final_wave != null:
+        _assert_true(final_wave.get_total_enemy_count() >= 5, "Final wave includes boss support enemies")
+        _assert_true(not final_wave.get_preview_text().is_empty(), "Final wave exposes an enemy preview")
+
+
+func _test_tower_roles() -> void:
+    var pea: TowerData = load("res://data/towers/pea_tower.tres") as TowerData
+    var mushroom: TowerData = load("res://data/towers/mushroom_lamp.tres") as TowerData
+    var ice: TowerData = load("res://data/towers/ice_flower.tres") as TowerData
+
+    _assert_true(pea != null, "Pea Tower data loads")
+    _assert_true(mushroom != null, "Mushroom Lamp data loads")
+    _assert_true(ice != null, "Ice Flower data loads")
+    if mushroom != null:
+        _assert_true(mushroom.splash_radius > 0.0, "Mushroom Lamp has splash damage")
+        _assert_true(mushroom.status_effect != null, "Mushroom Lamp applies poison")
+    if ice != null:
+        _assert_true(ice.status_effect != null, "Ice Flower applies a status effect")
+        if ice.status_effect != null:
+            _assert_true(ice.status_effect.speed_multiplier < 1.0, "Ice Flower status slows enemies")
+
+
+func _test_enemy_and_boss_content() -> void:
+    var stone_beast: EnemyData = load("res://data/enemies/stone_beast.tres") as EnemyData
+    var golem: EnemyData = load("res://data/enemies/forest_golem.tres") as EnemyData
+    _assert_true(stone_beast != null, "Stone Beast data loads")
+    _assert_true(golem != null, "Forest Golem data loads")
+    if stone_beast != null:
+        _assert_true(stone_beast.armor >= 5.0, "Stone Beast has meaningful armor")
+    if golem != null:
+        _assert_equal_int(golem.phase_health_thresholds.size(), 2, "Forest Golem defines two phase thresholds")
+        _assert_true(golem.phase_pulse_radius > 0.0, "Forest Golem phase pulse has a radius")
+        _assert_true(golem.phase_tower_disable_duration > 0.0, "Forest Golem phase pulse disables towers")
+
+
+func _test_localization() -> void:
+    var localization: LocalizationService = LocalizationService.new()
+    localization.set_locale("zh_CN", false)
+    _assert_equal_string(localization.text("ui.start_wave"), "开始波次", "Chinese start-wave text is available")
+
+    var pea: TowerData = load("res://data/towers/pea_tower.tres") as TowerData
+    _assert_equal_string(localization.tower_name(pea), "豌豆塔", "Pea Tower has a Chinese name")
+
+    var level: LevelData = load("res://data/levels/morning_forest.tres") as LevelData
+    var stone_wave: WaveData = null if level == null else level.get_wave(3)
+    _assert_true(stone_wave != null, "Stone Beast wave is available for localization")
+    if stone_wave != null:
+        _assert_true(localization.wave_preview(stone_wave).contains("岩石兽"), "Chinese wave preview translates enemy names")
+        _assert_true(not localization.wave_hint(stone_wave).is_empty(), "Chinese tactical hint is available")
+
+    localization.set_locale("en", false)
+    _assert_equal_string(localization.text("ui.start_wave"), "Start Wave", "English remains available after switching locale")
+    _assert_equal_string(localization.tower_name(pea), "Pea Tower", "English tower names remain available")
 
 
 func _test_economy_system() -> void:
@@ -122,3 +182,7 @@ func _assert_true(condition: bool, message: String) -> void:
 
 func _assert_equal_int(actual: int, expected: int, message: String) -> void:
     _assert_true(actual == expected, "%s (expected %d, got %d)" % [message, expected, actual])
+
+
+func _assert_equal_string(actual: String, expected: String, message: String) -> void:
+    _assert_true(actual == expected, "%s (expected '%s', got '%s')" % [message, expected, actual])

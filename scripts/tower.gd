@@ -9,6 +9,7 @@ var attack_range: float = 92.0
 var total_spent: int = 75
 var slot_index: int = -1
 var is_selected: bool = false
+var disabled_time: float = 0.0
 
 var _projectile_pool: ProjectilePool
 var _enemy_registry: EnemyRegistry
@@ -36,13 +37,24 @@ func configure(
 
 
 func _process(delta: float) -> void:
-    _cooldown -= delta
     _shot_time = maxf(0.0, _shot_time - delta)
+    if disabled_time > 0.0:
+        disabled_time = maxf(0.0, disabled_time - delta)
+        queue_redraw()
+        return
 
+    _cooldown -= delta
     if _cooldown <= 0.0:
         var target: SproutEnemy = _select_target()
         if target != null:
-            _attack_strategy.fire(global_position + Vector2(12.0, -5.0), target, data, damage, _projectile_pool)
+            _attack_strategy.fire(
+                global_position + _get_attack_origin(),
+                target,
+                data,
+                damage,
+                _projectile_pool,
+                _enemy_registry
+            )
             _shot_target = to_local(target.global_position)
             _shot_time = 0.08
             _cooldown = attack_interval
@@ -51,6 +63,15 @@ func _process(delta: float) -> void:
 
     if _shot_time > 0.0:
         queue_redraw()
+
+
+func disable_for(duration: float) -> void:
+    disabled_time = maxf(disabled_time, duration)
+    queue_redraw()
+
+
+func is_disabled() -> bool:
+    return disabled_time > 0.0
 
 
 func _select_target() -> SproutEnemy:
@@ -148,20 +169,84 @@ func _apply_level_stats() -> void:
     attack_range = data.get_range_for_level(level)
 
 
-func _draw() -> void:
-    if is_selected:
-        draw_circle(Vector2.ZERO, attack_range, Color(0.45, 0.9, 0.55, 0.10))
-        draw_arc(Vector2.ZERO, attack_range, 0.0, TAU, 64, Color(0.55, 0.95, 0.65, 0.55), 1.0)
+func _get_attack_origin() -> Vector2:
+    if data == null:
+        return Vector2(12.0, -5.0)
+    match data.id:
+        &"mushroom_lamp":
+            return Vector2(0.0, -10.0)
+        &"ice_flower":
+            return Vector2(0.0, -12.0)
+        _:
+            return Vector2(12.0, -5.0)
 
-    draw_rect(Rect2(-12.0, 5.0, 24.0, 7.0), Color("3e6a3f"))
-    draw_rect(Rect2(-4.0, -2.0, 8.0, 10.0), Color("5ca653"))
-    draw_rect(Rect2(-8.0, -10.0, 16.0, 11.0), Color("8bd35f"))
-    draw_rect(Rect2(5.0, -7.0, 10.0 + float(level - 1) * 2.0, 5.0), Color("69b84d"))
-    draw_rect(Rect2(-4.0, -7.0, 2.0, 2.0), Color("203a2a"))
-    draw_rect(Rect2(2.0, -7.0, 2.0, 2.0), Color("203a2a"))
+
+func _draw() -> void:
+    var accent: Color = Color("69b84d") if data == null else data.accent_color
+    if is_selected:
+        var range_fill: Color = accent
+        range_fill.a = 0.10
+        var range_line: Color = accent
+        range_line.a = 0.62
+        draw_circle(Vector2.ZERO, attack_range, range_fill)
+        draw_arc(Vector2.ZERO, attack_range, 0.0, TAU, 64, range_line, 1.0)
+
+    if data == null or data.id == &"pea_tower":
+        _draw_pea_tower()
+    elif data.id == &"mushroom_lamp":
+        _draw_mushroom_lamp()
+    elif data.id == &"ice_flower":
+        _draw_ice_flower()
+    else:
+        _draw_pea_tower()
 
     for marker: int in range(level):
         draw_rect(Rect2(-7.0 + marker * 6.0, 14.0, 4.0, 3.0), Color("f5d76e"))
 
     if _shot_time > 0.0:
-        draw_line(Vector2(12.0, -5.0), _shot_target, Color(0.85, 1.0, 0.55, 0.30), 1.0)
+        var shot_color: Color = Color("d9ff8c") if data == null else data.projectile_color
+        shot_color.a = 0.35
+        draw_line(_get_attack_origin(), _shot_target, shot_color, 1.0)
+
+    if disabled_time > 0.0:
+        draw_rect(Rect2(-13.0, -13.0, 26.0, 26.0), Color(0.25, 0.32, 0.38, 0.42), false, 2.0)
+        draw_line(Vector2(-9.0, -11.0), Vector2(0.0, -4.0), Color("ffe07a"), 2.0)
+        draw_line(Vector2(0.0, -4.0), Vector2(-3.0, 3.0), Color("ffe07a"), 2.0)
+        draw_line(Vector2(-3.0, 3.0), Vector2(8.0, 10.0), Color("ffe07a"), 2.0)
+
+
+func _draw_pea_tower() -> void:
+    var base: Color = Color("3e6a3f") if data == null else data.base_color
+    var body: Color = Color("8bd35f") if data == null else data.body_color
+    var accent: Color = Color("69b84d") if data == null else data.accent_color
+    draw_rect(Rect2(-12.0, 5.0, 24.0, 7.0), base)
+    draw_rect(Rect2(-4.0, -2.0, 8.0, 10.0), accent)
+    draw_rect(Rect2(-8.0, -10.0, 16.0, 11.0), body)
+    draw_rect(Rect2(5.0, -7.0, 10.0 + float(level - 1) * 2.0, 5.0), accent)
+    draw_rect(Rect2(-4.0, -7.0, 2.0, 2.0), Color("203a2a"))
+    draw_rect(Rect2(2.0, -7.0, 2.0, 2.0), Color("203a2a"))
+
+
+func _draw_mushroom_lamp() -> void:
+    var base: Color = data.base_color
+    var body: Color = data.body_color
+    var accent: Color = data.accent_color
+    draw_rect(Rect2(-11.0, 7.0, 22.0, 5.0), base)
+    draw_rect(Rect2(-4.0, -2.0, 8.0, 11.0), accent)
+    draw_circle(Vector2(0.0, -5.0), 11.0 + float(level - 1), body)
+    draw_circle(Vector2(-4.0, -7.0), 2.0, Color("f3dcff"))
+    draw_circle(Vector2(4.0, -4.0), 2.0, Color("f3dcff"))
+    draw_rect(Rect2(-3.0, 0.0, 2.0, 2.0), Color("30213b"))
+    draw_rect(Rect2(2.0, 0.0, 2.0, 2.0), Color("30213b"))
+
+
+func _draw_ice_flower() -> void:
+    var base: Color = data.base_color
+    var body: Color = data.body_color
+    var accent: Color = data.accent_color
+    draw_rect(Rect2(-10.0, 7.0, 20.0, 5.0), base)
+    for direction: Vector2 in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+        draw_circle(direction * 7.0, 5.0 + float(level - 1) * 0.5, body)
+    draw_circle(Vector2.ZERO, 6.0, accent)
+    draw_rect(Rect2(-3.0, -2.0, 2.0, 2.0), Color("18354f"))
+    draw_rect(Rect2(2.0, -2.0, 2.0, 2.0), Color("18354f"))
