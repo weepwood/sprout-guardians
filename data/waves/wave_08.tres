@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="WaveData" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/wave_data.gd" id="1_wave"]
+[ext_resource type="Script" path="res://scripts/data/spawn_group_data.gd" id="2_group"]
+[ext_resource type="Resource" path="res://data/enemies/stone_beast.tres" id="3_stone"]
+[ext_resource type="Resource" path="res://data/enemies/corrupted_slime.tres" id="4_slime"]
+[ext_resource type="Resource" path="res://data/enemies/jump_mushroom.tres" id="5_jump"]
+
+[sub_resource type="Resource" id="StoneGroup"]
+script = ExtResource("2_group")
+enemy = ExtResource("3_stone")
+count = 6
+spawn_interval = 1.0
+start_delay = 0.1
+path_index = 0
+
+[sub_resource type="Resource" id="SlimeGroup"]
+script = ExtResource("2_group")
+enemy = ExtResource("4_slime")
+count = 8
+spawn_interval = 0.64
+start_delay = 0.8
+path_index = 0
+
+[sub_resource type="Resource" id="JumpGroup"]
+script = ExtResource("2_group")
+enemy = ExtResource("5_jump")
+count = 10
+spawn_interval = 0.35
+start_delay = 2.0
+path_index = 0
+
+[resource]
+script = ExtResource("1_wave")
+id = &"wave_08"
+display_name = "Mist Convergence"
+tactical_hint = "Dense mixed groups reward well-placed Mushroom Lamps near turns."
+spawn_groups = Array[Resource]([SubResource("StoneGroup"), SubResource("SlimeGroup"), SubResource("JumpGroup")])
+clear_reward = 108
+early_start_bonus = 16
