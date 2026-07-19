@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_enemy"]
+
+[resource]
+script = ExtResource("1_enemy")
+id = &"beetle"
+display_name = "Beetle"
+description = "A basic corrupted forest creature."
+move_speed = 42.0
+is_flying = false
+max_health = 42.0
+armor = 0.0
+magic_resistance = 0.0
+reward = 12
+goal_damage = 1
+body_color = Color(0.52549, 0.784314, 0.352941, 1)
+body_size = Vector2(12, 12)
