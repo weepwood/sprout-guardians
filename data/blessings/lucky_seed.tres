@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BlessingData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/blessing_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"lucky_seed"
+rarity = 2
+effect_type = 6
+name_en = "Lucky Seed"
+name_zh = "幸运种子"
+description_en = "All towers gain 8% critical-hit chance per stack."
+description_zh = "每层使所有防御塔获得 8% 暴击率。"
+value_per_stack = 0.08
+max_stacks = 5
+base_weight = 1.2
