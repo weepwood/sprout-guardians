@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/tower_data.gd" id="1_tower"]
+[ext_resource type="Resource" path="res://data/status_effects/frost_slow.tres" id="2_slow"]
+
+[resource]
+script = ExtResource("1_tower")
+id = &"ice_flower"
+display_name = "Ice Flower"
+description = "Slows priority targets with crystal shards, buying time for damage towers."
+build_cost = 95
+sell_ratio = 0.7
+upgrade_costs = PackedInt32Array(70, 130)
+attack_style = 0
+damage = 5.0
+attack_interval = 0.9
+attack_range = 104.0
+projectile_speed = 230.0
+projectile_color = Color(0.705882, 0.929412, 1, 1)
+projectile_size = 5.0
+splash_radius = 0.0
+status_effect = ExtResource("2_slow")
+target_mode = 0
+can_attack_ground = true
+can_attack_flying = true
+body_color = Color(0.619608, 0.85098, 0.968627, 1)
+accent_color = Color(0.811765, 0.968627, 1, 1)
+base_color = Color(0.227451, 0.419608, 0.529412, 1)
+max_level = 3
+damage_multiplier_per_level = 1.35
+interval_multiplier_per_level = 0.9
+range_bonus_per_level = 9.0
+splash_bonus_per_level = 0.0
