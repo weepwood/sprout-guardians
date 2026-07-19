@@ -58,32 +58,42 @@ const WAVE_TABLE: Array[Dictionary] = [
 
 
 static func starter_sustained_dps() -> float:
-    var total: float = 0.0
-    for plant: Dictionary in STARTER_PLANTS:
-        total += plant_sustained_dps(plant, 1)
+    var total: float = main_plant_sustained_dps(1)
+    total += familiar_sustained_dps(1, 1)
+    total += familiar_sustained_dps(2, 1)
     return total
 
 
-static func plant_sustained_dps(plant: Dictionary, level: int) -> float:
-    var damage_value: float = float(plant["damage"]) * (1.0 + float(maxi(0, level - 1)) * 0.24)
-    var interval_value: float = float(plant["interval"]) * pow(0.92, float(maxi(0, level - 1)))
+static func main_plant_sustained_dps(level: int) -> float:
+    return _plant_sustained_dps(STARTER_PLANTS[0], level, 0.28, 0.91)
+
+
+static func familiar_sustained_dps(config_index: int, level: int) -> float:
+    if config_index < 1 or config_index >= STARTER_PLANTS.size():
+        return 0.0
+    return _plant_sustained_dps(STARTER_PLANTS[config_index], level, 0.22, 0.93)
+
+
+static func _plant_sustained_dps(plant: Dictionary, level: int, damage_step: float, interval_factor: float) -> float:
+    var effective_level: int = maxi(1, level)
+    var damage_value: float = float(plant["damage"]) * (1.0 + float(effective_level - 1) * damage_step)
+    var interval_value: float = float(plant["interval"]) * pow(interval_factor, float(effective_level - 1))
     var direct: float = damage_value * float(plant.get("projectile_count", 1)) / maxf(0.08, interval_value)
     var splash_bonus: float = 1.25 if float(plant.get("splash_radius", 0.0)) > 0.0 else 1.0
     return direct * splash_bonus
 
 
 static func minimum_progression_dps(rewards_received: int) -> float:
-    var levels: Array[int] = []
-    for _index: int in range(STARTER_PLANTS.size()):
-        levels.append(1)
-    for reward_index: int in range(maxi(0, rewards_received)):
-        var target_index: int = reward_index % STARTER_PLANTS.size()
-        levels[target_index] += 1
+    var reward_count: int = maxi(0, rewards_received)
+    var hero_level: int = 1 + reward_count
+    var familiar_levels: Array[int] = [1, 1]
+    var familiar_upgrades: int = int(floor(float(hero_level) / 3.0))
+    for upgrade_index: int in range(familiar_upgrades):
+        familiar_levels[upgrade_index % familiar_levels.size()] += 1
 
-    var total: float = 0.0
-    for index: int in range(STARTER_PLANTS.size()):
-        total += plant_sustained_dps(STARTER_PLANTS[index], levels[index])
-    return total
+    return main_plant_sustained_dps(hero_level) \
+        + familiar_sustained_dps(1, familiar_levels[0]) \
+        + familiar_sustained_dps(2, familiar_levels[1])
 
 
 static func wave_health_spawn_rate(index: int) -> float:
