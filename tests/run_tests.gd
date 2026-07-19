@@ -9,6 +9,7 @@ var _depletion_count: int = 0
 func _initialize() -> void:
     print("Running Sprout Guardians core tests...")
     _test_level_resources()
+    _test_tower_roles()
     _test_economy_system()
     _test_base_health_system()
     _test_wave_manager()
@@ -27,16 +28,34 @@ func _test_level_resources() -> void:
     _assert_true(level != null, "Morning Forest LevelData loads")
     if level == null:
         return
-    _assert_equal_int(level.starting_coins, 220, "Starting sunlight remains unchanged")
+    _assert_equal_int(level.starting_coins, 260, "Morning Forest starts with content-slice sunlight")
     _assert_equal_int(level.base_health, 10, "Starting sprout health remains unchanged")
-    _assert_equal_int(level.get_wave_count(), 4, "Prototype still contains four waves")
-    _assert_equal_int(level.build_slots.size(), 6, "Prototype still contains six build slots")
+    _assert_equal_int(level.get_wave_count(), 4, "Initial content branch still contains four waves")
+    _assert_equal_int(level.build_slots.size(), 6, "Morning Forest contains six build slots")
+    _assert_equal_int(level.available_towers.size(), 3, "Morning Forest exposes three tower roles")
 
     var tower: TowerData = level.get_tower(0)
     _assert_true(tower != null, "Pea Tower resource is linked from the level")
     if tower != null:
         _assert_equal_int(tower.build_cost, 75, "Pea Tower build cost remains unchanged")
-        _assert_equal_int(tower.get_upgrade_cost(1), 55, "First upgrade cost remains unchanged")
+        _assert_equal_int(tower.get_upgrade_cost(1), 55, "First Pea Tower upgrade cost remains unchanged")
+
+
+func _test_tower_roles() -> void:
+    var pea: TowerData = load("res://data/towers/pea_tower.tres") as TowerData
+    var mushroom: TowerData = load("res://data/towers/mushroom_lamp.tres") as TowerData
+    var ice: TowerData = load("res://data/towers/ice_flower.tres") as TowerData
+
+    _assert_true(pea != null, "Pea Tower data loads")
+    _assert_true(mushroom != null, "Mushroom Lamp data loads")
+    _assert_true(ice != null, "Ice Flower data loads")
+    if mushroom != null:
+        _assert_true(mushroom.splash_radius > 0.0, "Mushroom Lamp has splash damage")
+        _assert_true(mushroom.status_effect != null, "Mushroom Lamp applies poison")
+    if ice != null:
+        _assert_true(ice.status_effect != null, "Ice Flower applies a status effect")
+        if ice.status_effect != null:
+            _assert_true(ice.status_effect.speed_multiplier < 1.0, "Ice Flower status slows enemies")
 
 
 func _test_economy_system() -> void:
