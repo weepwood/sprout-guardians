@@ -12,13 +12,17 @@ var settings_button: Button
 var collection_button: Button
 var quit_button: Button
 var language_button: Button
+var progress_label: Label
+
+var settings_backdrop: ColorRect
 var settings_panel: Panel
+var settings_title_label: Label
+var settings_language_button: Button
 var music_button: Button
 var sfx_button: Button
 var fullscreen_button: Button
 var flash_button: Button
 var settings_back_button: Button
-var progress_label: Label
 
 
 func _ready() -> void:
@@ -37,6 +41,12 @@ func _ready() -> void:
     _create_ui()
     _apply_locale()
     queue_redraw()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+    if event.is_action_pressed("ui_cancel") and settings_panel != null and settings_panel.visible:
+        _hide_settings()
+        get_viewport().set_input_as_handled()
 
 
 func _draw() -> void:
@@ -80,17 +90,31 @@ func _create_ui() -> void:
     progress_label = _make_label(canvas, Vector2(106.0, 322.0), Vector2(428.0, 24.0), 12)
     progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
-    settings_panel = _make_panel(canvas, Vector2(152.0, 88.0), Vector2(336.0, 220.0))
+    settings_backdrop = ColorRect.new()
+    settings_backdrop.position = Vector2.ZERO
+    settings_backdrop.size = Vector2(640.0, 360.0)
+    settings_backdrop.color = Color(0.015, 0.045, 0.05, 0.92)
+    settings_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+    settings_backdrop.visible = false
+    canvas.add_child(settings_backdrop)
+
+    settings_panel = _make_panel(canvas, Vector2(140.0, 24.0), Vector2(360.0, 312.0))
     settings_panel.visible = false
-    music_button = _make_button(canvas, Vector2(182.0, 116.0), Vector2(276.0, 32.0))
+
+    settings_title_label = _make_label(canvas, Vector2(164.0, 38.0), Vector2(312.0, 30.0), 21)
+    settings_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+    settings_language_button = _make_button(canvas, Vector2(170.0, 76.0), Vector2(300.0, 34.0))
+    settings_language_button.pressed.connect(_toggle_language)
+    music_button = _make_button(canvas, Vector2(170.0, 116.0), Vector2(300.0, 34.0))
     music_button.pressed.connect(_toggle_music)
-    sfx_button = _make_button(canvas, Vector2(182.0, 154.0), Vector2(276.0, 32.0))
+    sfx_button = _make_button(canvas, Vector2(170.0, 156.0), Vector2(300.0, 34.0))
     sfx_button.pressed.connect(_toggle_sfx)
-    fullscreen_button = _make_button(canvas, Vector2(182.0, 192.0), Vector2(276.0, 32.0))
+    fullscreen_button = _make_button(canvas, Vector2(170.0, 196.0), Vector2(300.0, 34.0))
     fullscreen_button.pressed.connect(_toggle_fullscreen)
-    flash_button = _make_button(canvas, Vector2(182.0, 230.0), Vector2(276.0, 32.0))
+    flash_button = _make_button(canvas, Vector2(170.0, 236.0), Vector2(300.0, 34.0))
     flash_button.pressed.connect(_toggle_flash)
-    settings_back_button = _make_button(canvas, Vector2(250.0, 270.0), Vector2(140.0, 28.0))
+    settings_back_button = _make_button(canvas, Vector2(250.0, 286.0), Vector2(140.0, 30.0))
     settings_back_button.pressed.connect(_hide_settings)
     _set_settings_controls_visible(false)
 
@@ -102,17 +126,23 @@ func _open_level_select() -> void:
 
 func _show_settings() -> void:
     audio_manager.play_event(&"ui_click")
+    settings_backdrop.visible = true
     settings_panel.visible = true
+    _set_main_chrome_visible(false)
     _set_main_controls_visible(false)
     _set_settings_controls_visible(true)
     _refresh_settings_buttons()
+    settings_language_button.grab_focus()
 
 
 func _hide_settings() -> void:
     audio_manager.play_event(&"ui_click")
+    settings_backdrop.visible = false
     settings_panel.visible = false
     _set_settings_controls_visible(false)
+    _set_main_chrome_visible(true)
     _set_main_controls_visible(true)
+    settings_button.grab_focus()
 
 
 func _show_collection_summary() -> void:
@@ -168,6 +198,8 @@ func _apply_locale() -> void:
     collection_button.text = _t("COLLECTION", "图鉴与收集")
     quit_button.text = _t("QUIT", "退出游戏")
     language_button.text = "中文" if localization.locale_code == "en" else "EN"
+    settings_title_label.text = _t("GAME SETTINGS", "游戏设置")
+    settings_language_button.text = _t("Language: English", "语言：简体中文")
     settings_back_button.text = _t("BACK", "返回")
     var stars: int = save_game.get_level_stars(&"morning_forest")
     progress_label.text = _t("Campaign progress · Morning Forest %d/3 stars", "战役进度 · 晨光森林 %d/3 星") % stars
@@ -183,6 +215,13 @@ func _refresh_settings_buttons() -> void:
     flash_button.text = _t("Screen flash: %s", "屏幕闪烁：%s") % _on_off(settings.screen_flash_enabled)
 
 
+func _set_main_chrome_visible(value: bool) -> void:
+    title_label.visible = value
+    subtitle_label.visible = value
+    language_button.visible = value
+    progress_label.visible = value
+
+
 func _set_main_controls_visible(value: bool) -> void:
     play_button.visible = value
     settings_button.visible = value
@@ -191,6 +230,8 @@ func _set_main_controls_visible(value: bool) -> void:
 
 
 func _set_settings_controls_visible(value: bool) -> void:
+    settings_title_label.visible = value
+    settings_language_button.visible = value
     music_button.visible = value
     sfx_button.visible = value
     fullscreen_button.visible = value and not OS.has_feature("web")
@@ -223,7 +264,7 @@ func _make_panel(parent: Node, position_value: Vector2, size_value: Vector2) -> 
     panel.position = position_value
     panel.size = size_value
     var style: StyleBoxFlat = StyleBoxFlat.new()
-    style.bg_color = Color(0.04, 0.10, 0.11, 0.98)
+    style.bg_color = Color(0.04, 0.10, 0.11, 0.99)
     style.border_color = Color("8eb46e")
     style.set_border_width_all(3)
     panel.add_theme_stylebox_override("panel", style)
@@ -247,9 +288,12 @@ func _make_button(parent: Node, position_value: Vector2, size_value: Vector2) ->
     var pressed: StyleBoxFlat = normal.duplicate() as StyleBoxFlat
     pressed.bg_color = Color("182f2b")
     pressed.border_color = Color("f0cf75")
+    var focus: StyleBoxFlat = hover.duplicate() as StyleBoxFlat
+    focus.border_color = Color("f0cf75")
     button.add_theme_stylebox_override("normal", normal)
     button.add_theme_stylebox_override("hover", hover)
     button.add_theme_stylebox_override("pressed", pressed)
+    button.add_theme_stylebox_override("focus", focus)
     button.add_theme_color_override("font_color", Color("f4f0d1"))
     parent.add_child(button)
     return button
