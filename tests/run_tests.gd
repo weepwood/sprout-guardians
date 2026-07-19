@@ -4,15 +4,19 @@ var _failures: int = 0
 var _spawn_count: int = 0
 var _campaign_completed: bool = false
 var _depletion_count: int = 0
+var _phase_count: int = 0
 
 
 func _initialize() -> void:
     print("Running Sprout Guardians core tests...")
     _test_level_resources()
     _test_tower_roles()
+    _test_enemy_roles()
+    _test_wave_previews()
     _test_economy_system()
     _test_base_health_system()
     _test_wave_manager()
+    _test_boss_phases()
 
     if _failures > 0:
         push_error("Core tests failed: %d" % _failures)
@@ -30,7 +34,7 @@ func _test_level_resources() -> void:
         return
     _assert_equal_int(level.starting_coins, 260, "Morning Forest starts with content-slice sunlight")
     _assert_equal_int(level.base_health, 10, "Starting sprout health remains unchanged")
-    _assert_equal_int(level.get_wave_count(), 4, "Initial content branch still contains four waves")
+    _assert_equal_int(level.get_wave_count(), 10, "Morning Forest contains ten complete waves")
     _assert_equal_int(level.build_slots.size(), 6, "Morning Forest contains six build slots")
     _assert_equal_int(level.available_towers.size(), 3, "Morning Forest exposes three tower roles")
 
@@ -56,6 +60,35 @@ func _test_tower_roles() -> void:
         _assert_true(ice.status_effect != null, "Ice Flower applies a status effect")
         if ice.status_effect != null:
             _assert_true(ice.status_effect.speed_multiplier < 1.0, "Ice Flower status slows enemies")
+
+
+func _test_enemy_roles() -> void:
+    var stone: EnemyData = load("res://data/enemies/stone_beast.tres") as EnemyData
+    var boss: EnemyData = load("res://data/enemies/forest_golem.tres") as EnemyData
+    _assert_true(stone != null, "Stone Beast data loads")
+    _assert_true(boss != null, "Forest Golem data loads")
+    if stone != null:
+        _assert_true(stone.armor >= 7.0, "Stone Beast has meaningful armor")
+        _assert_equal_int(stone.goal_damage, 2, "Stone Beast deals two base damage")
+    if boss != null:
+        _assert_true(boss.is_boss, "Forest Golem is marked as a boss")
+        _assert_equal_int(boss.phase_thresholds.size(), 2, "Forest Golem has two phase thresholds")
+        _assert_true(boss.phase_tower_disable_duration > 0.0, "Boss phase pulse disables towers")
+
+
+func _test_wave_previews() -> void:
+    var level: LevelData = load("res://data/levels/morning_forest.tres") as LevelData
+    if level == null:
+        return
+    var stone_wave: WaveData = level.get_wave(3)
+    var boss_wave: WaveData = level.get_wave(9)
+    _assert_true(stone_wave != null, "Stonewall wave loads")
+    _assert_true(boss_wave != null, "Boss finale wave loads")
+    if stone_wave != null:
+        _assert_true(stone_wave.get_preview_text().contains("Stone Beast"), "Wave preview names Stone Beast")
+    if boss_wave != null:
+        _assert_true(boss_wave.get_preview_text().contains("Forest Golem"), "Final preview names Forest Golem")
+        _assert_true(not boss_wave.tactical_hint.is_empty(), "Boss wave includes a tactical hint")
 
 
 func _test_economy_system() -> void:
@@ -119,6 +152,23 @@ func _test_wave_manager() -> void:
     manager.free()
 
 
+func _test_boss_phases() -> void:
+    _phase_count = 0
+    var boss_data: EnemyData = load("res://data/enemies/forest_golem.tres") as EnemyData
+    if boss_data == null:
+        return
+    var boss: SproutEnemy = SproutEnemy.new()
+    root.add_child(boss)
+    boss.phase_changed.connect(_on_test_phase_changed)
+    boss.configure(PackedVector2Array([Vector2.ZERO, Vector2(100.0, 0.0)]), boss_data)
+    boss.take_damage(360.0)
+    _assert_equal_int(boss.current_phase, 1, "Forest Golem enters phase two below 70 percent health")
+    _assert_equal_int(_phase_count, 1, "Boss emits one phase transition signal")
+    boss.take_damage(350.0)
+    _assert_true(boss.current_phase >= 2, "Forest Golem enters final phase below 40 percent health")
+    boss.free()
+
+
 func _on_test_spawn_requested(_enemy: EnemyData, _path_index: int) -> void:
     _spawn_count += 1
 
@@ -129,6 +179,10 @@ func _on_test_campaign_completed() -> void:
 
 func _on_test_depleted() -> void:
     _depletion_count += 1
+
+
+func _on_test_phase_changed(_enemy: SproutEnemy, _phase_index: int) -> void:
+    _phase_count += 1
 
 
 func _assert_true(condition: bool, message: String) -> void:
