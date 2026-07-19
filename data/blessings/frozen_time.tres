@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BlessingData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/blessing_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"frozen_time"
+rarity = 1
+effect_type = 5
+name_en = "Frozen Time"
+name_zh = "凝霜时刻"
+description_en = "Slow effects reduce enemy speed by an additional 5% per stack."
+description_zh = "每层使减速效果额外降低敌人 5% 的速度。"
+value_per_stack = 0.05
+max_stacks = 4
+base_weight = 2.6

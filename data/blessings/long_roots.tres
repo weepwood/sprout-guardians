@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BlessingData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/blessing_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"long_roots"
+rarity = 0
+effect_type = 2
+name_en = "Long Roots"
+name_zh = "深长根系"
+description_en = "All towers gain 12% range per stack."
+description_zh = "每层使所有防御塔射程提高 12%。"
+value_per_stack = 0.12
+max_stacks = 4
+base_weight = 5.5

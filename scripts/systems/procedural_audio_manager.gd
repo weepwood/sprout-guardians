@@ -101,6 +101,14 @@ func _event_config(event_id: StringName) -> Dictionary:
             return {"frequency": 440.0, "duration": 0.18, "gain": 0.28, "pitch": 1.0}
         &"wave_clear":
             return {"frequency": 720.0, "duration": 0.20, "gain": 0.26, "pitch": 1.0}
+        &"combo":
+            return {"frequency": 760.0, "duration": 0.075, "gain": 0.28, "pitch": 1.12}
+        &"critical":
+            return {"frequency": 1040.0, "duration": 0.095, "gain": 0.32, "pitch": 1.18}
+        &"chest_open":
+            return {"frequency": 330.0, "duration": 0.34, "gain": 0.36, "pitch": 0.92}
+        &"blessing":
+            return {"frequency": 920.0, "duration": 0.24, "gain": 0.31, "pitch": 1.05}
         &"base_hit":
             return {"frequency": 150.0, "duration": 0.22, "gain": 0.34, "pitch": 0.85}
         &"boss_phase":

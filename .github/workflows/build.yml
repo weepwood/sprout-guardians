@@ -54,12 +54,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          godot --headless --path "$GITHUB_WORKSPACE" --editor --quit
+          mkdir -p build/diagnostics
+          godot --headless --path "$GITHUB_WORKSPACE" --editor --quit \
+            > build/diagnostics/import.log 2>&1
+          cat build/diagnostics/import.log
+          if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance" build/diagnostics/import.log; then
+            echo "Project import contains runtime or script errors"
+            exit 1
+          fi
 
       - name: Run core gameplay tests
         shell: bash
         run: |
-          mkdir -p build/diagnostics
           set +e
           godot --headless --audio-driver Dummy --path "$GITHUB_WORKSPACE" --script res://tests/run_tests.gd \
             > build/diagnostics/core-tests.log 2>&1
@@ -67,6 +73,17 @@ jobs:
           set -e
           echo "$TEST_STATUS" > build/diagnostics/core-tests.status
           cat build/diagnostics/core-tests.log
+
+      - name: Run reward-loop tests
+        shell: bash
+        run: |
+          set +e
+          godot --headless --audio-driver Dummy --path "$GITHUB_WORKSPACE" --script res://tests/run_reward_tests.gd \
+            > build/diagnostics/reward-tests.log 2>&1
+          REWARD_STATUS=$?
+          set -e
+          echo "$REWARD_STATUS" > build/diagnostics/reward-tests.status
+          cat build/diagnostics/reward-tests.log
 
       - name: Run UI scene smoke tests
         shell: bash
@@ -84,15 +101,28 @@ jobs:
         run: |
           set -euo pipefail
           TEST_STATUS="$(cat build/diagnostics/core-tests.status)"
+          REWARD_STATUS="$(cat build/diagnostics/reward-tests.status)"
           UI_STATUS="$(cat build/diagnostics/ui-smoke.status)"
           if [ "$TEST_STATUS" != "0" ]; then
             echo "Core gameplay tests failed with exit code $TEST_STATUS"
             exit "$TEST_STATUS"
           fi
+          if [ "$REWARD_STATUS" != "0" ]; then
+            echo "Reward-loop tests failed with exit code $REWARD_STATUS"
+            exit "$REWARD_STATUS"
+          fi
           if [ "$UI_STATUS" != "0" ]; then
             echo "UI scene smoke tests failed with exit code $UI_STATUS"
             exit "$UI_STATUS"
           fi
+
+          ERROR_PATTERN="SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance"
+          for LOG_FILE in build/diagnostics/core-tests.log build/diagnostics/reward-tests.log build/diagnostics/ui-smoke.log; do
+            if grep -E "$ERROR_PATTERN" "$LOG_FILE"; then
+              echo "Hidden Godot script/runtime error detected in $LOG_FILE"
+              exit 1
+            fi
+          done
 
       - name: Export Windows, Web, and internal Linux smoke build
         shell: bash
@@ -125,8 +155,8 @@ jobs:
             exit "$RUNTIME_STATUS"
           fi
 
-          if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script" build/diagnostics/exported-runtime.log; then
-            echo "Exported build contains script loading errors"
+          if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance" build/diagnostics/exported-runtime.log; then
+            echo "Exported build contains script loading or runtime errors"
             exit 1
           fi
 

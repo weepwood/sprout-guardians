@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BlessingData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/blessing_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"golden_rain"
+rarity = 3
+effect_type = 7
+name_en = "Golden Rain"
+name_zh = "黄金之雨"
+description_en = "Immediately gain 160 sunlight."
+description_zh = "立即获得 160 点阳光。"
+value_per_stack = 160.0
+max_stacks = 99
+base_weight = 0.45

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BlessingData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/blessing_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"spore_bloom"
+rarity = 1
+effect_type = 4
+name_en = "Spore Bloom"
+name_zh = "孢子绽放"
+description_en = "Damage-over-time effects gain 25% power and last longer per stack."
+description_zh = "每层使持续伤害效果提高 25%，并延长持续时间。"
+value_per_stack = 0.25
+max_stacks = 4
+base_weight = 2.8

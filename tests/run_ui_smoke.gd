@@ -110,11 +110,42 @@ func _test_gameplay_scene() -> void:
     var towers_by_slot: Dictionary = game.get("towers_by_slot") as Dictionary
     _assert_equal_int(towers_by_slot.size(), 1, "Gameplay can build a tower after scene startup")
 
+    game.call("_toggle_auto_battle")
+    await process_frame
+    var auto_director: AutoBattleDirector = game.get("auto_battle_director") as AutoBattleDirector
+    var auto_button: Button = game.get("auto_button") as Button
+    _assert_true(auto_director != null and auto_director.auto_enabled, "Auto-battle toggle enables automatic waves")
+    _assert_control_inside_viewport(auto_button, "Auto-battle button stays inside viewport")
+
     game.call("_start_next_wave")
-    for frame: int in range(6):
+    for _frame: int in range(6):
         await process_frame
     var wave_manager: WaveManager = game.get("wave_manager") as WaveManager
     _assert_true(wave_manager.current_wave_index >= 0, "Gameplay can start the first wave")
+
+    var rewards: CombatRewardSystem = game.get("combat_reward_system") as CombatRewardSystem
+    for _kill: int in range(12):
+        rewards.register_kill(false)
+    await process_frame
+    await process_frame
+
+    var chest_panel: Panel = game.get("chest_panel") as Panel
+    var chest_buttons: Array = game.get("chest_choice_buttons") as Array
+    _assert_true(chest_panel.visible, "Golden chest opens after the reward meter fills")
+    _assert_true(paused, "Golden chest pauses combat")
+    _assert_equal_int(chest_buttons.size(), 3, "Golden chest presents three blessing choices")
+    _assert_control_inside_viewport(chest_panel, "Golden chest panel stays inside viewport")
+
+    var choices: Array = game.get("_current_choices") as Array
+    _assert_equal_int(choices.size(), 3, "Golden chest contains three valid blessing data entries")
+    var selected: BlessingData = choices[0] as BlessingData
+    game.call("_select_blessing", 0)
+    await process_frame
+
+    var blessings: BlessingSystem = game.get("blessing_system") as BlessingSystem
+    _assert_true(not chest_panel.visible, "Choosing a blessing closes the golden chest")
+    _assert_true(not paused, "Choosing a blessing resumes combat")
+    _assert_equal_int(blessings.get_blessing_stack(selected.id), 1, "Chosen blessing is applied to the run")
 
     var language_button: Button = game.get("language_button") as Button
     var menu_button: Button = game.get("menu_button") as Button
