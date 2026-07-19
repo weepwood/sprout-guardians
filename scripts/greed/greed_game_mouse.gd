@@ -2,7 +2,15 @@ extends "res://scripts/greed/greed_game_balanced.gd"
 
 var hero_plant: GreedHeroPlant
 var control_label: Label
+var combat_feedback: GreedCombatFeedback
 var launched_projectiles: int = 0
+
+
+func _create_services() -> void:
+    super._create_services()
+    combat_feedback = GreedCombatFeedback.new()
+    combat_feedback.name = "GreedCombatFeedback"
+    add_child(combat_feedback)
 
 
 func _create_arena() -> void:
@@ -224,9 +232,20 @@ func _on_plant_fired(_plant: GreedPlant, target: GreedEnemy, critical: bool, _da
         audio_manager.play_event(&"critical")
 
 
+func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void:
+    super._on_enemy_damaged(enemy, damage, critical)
+    if combat_feedback == null or enemy == null or not is_instance_valid(enemy):
+        return
+    combat_feedback.spawn_damage(enemy.global_position, damage, critical)
+    if critical:
+        combat_feedback.request_hit_stop(0.025)
+
+
 func _on_enemy_defeated(enemy: GreedEnemy, coin_reward: int, elite: bool) -> void:
     if hero_plant != null and is_instance_valid(hero_plant) and hero_plant.get_focus_target() == enemy:
         hero_plant.clear_focus_target()
+    if elite and combat_feedback != null:
+        combat_feedback.request_hit_stop(0.045)
     super._on_enemy_defeated(enemy, coin_reward, elite)
 
 
