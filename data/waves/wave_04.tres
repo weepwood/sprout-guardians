@@ -1,21 +1,31 @@
-[gd_resource type="Resource" script_class="WaveData" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="WaveData" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/wave_data.gd" id="1_wave"]
 [ext_resource type="Script" path="res://scripts/data/spawn_group_data.gd" id="2_group"]
-[ext_resource type="Resource" path="res://data/enemies/forest_golem.tres" id="3_enemy"]
+[ext_resource type="Resource" path="res://data/enemies/stone_beast.tres" id="3_stone"]
+[ext_resource type="Resource" path="res://data/enemies/beetle.tres" id="4_beetle"]
 
-[sub_resource type="Resource" id="SpawnGroup_wave_04"]
+[sub_resource type="Resource" id="StoneGroup"]
 script = ExtResource("2_group")
-enemy = ExtResource("3_enemy")
-count = 1
-spawn_interval = 1.0
+enemy = ExtResource("3_stone")
+count = 3
+spawn_interval = 1.45
 start_delay = 0.1
+path_index = 0
+
+[sub_resource type="Resource" id="BeetleGroup"]
+script = ExtResource("2_group")
+enemy = ExtResource("4_beetle")
+count = 6
+spawn_interval = 0.55
+start_delay = 2.2
 path_index = 0
 
 [resource]
 script = ExtResource("1_wave")
 id = &"wave_04"
-display_name = "Forest Golem"
-spawn_groups = Array[Resource]([SubResource("SpawnGroup_wave_04")])
-clear_reward = 65
-early_start_bonus = 0
+display_name = "Stonewall"
+tactical_hint = "Stone Beasts have armor. Use Mushroom poison or upgraded Pea Towers."
+spawn_groups = Array[Resource]([SubResource("StoneGroup"), SubResource("BeetleGroup")])
+clear_reward = 70
+early_start_bonus = 8
