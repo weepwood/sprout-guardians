@@ -34,7 +34,7 @@ func roll_choices(count: int = 3) -> Array[BlessingData]:
     for data: BlessingData in pool:
         if data == null:
             continue
-        if data.effect_type == BlessingData.EffectType.SUNLIGHT or get_stack(data.id) < data.max_stacks:
+        if data.effect_type == BlessingData.EffectType.SUNLIGHT or get_blessing_stack(data.id) < data.max_stacks:
             candidates.append(data)
 
     if candidates.is_empty():
@@ -61,7 +61,7 @@ func roll_choices(count: int = 3) -> Array[BlessingData]:
 func apply_blessing(data: BlessingData) -> int:
     if data == null:
         return 0
-    var current: int = get_stack(data.id)
+    var current: int = get_blessing_stack(data.id)
     var next_stack: int = mini(data.max_stacks, current + 1)
     stacks[String(data.id)] = next_stack
     if data.effect_type == BlessingData.EffectType.SUNLIGHT:
@@ -71,7 +71,7 @@ func apply_blessing(data: BlessingData) -> int:
     return next_stack
 
 
-func get_stack(blessing_id: StringName) -> int:
+func get_blessing_stack(blessing_id: StringName) -> int:
     return int(stacks.get(String(blessing_id), 0))
 
 
@@ -117,12 +117,12 @@ func modify_status_effect(source: StatusEffectData) -> StatusEffectData:
     return result
 
 
-func _effect_total(effect: BlessingData.EffectType) -> float:
+func _effect_total(effect: int) -> float:
     var total: float = 0.0
     for data: BlessingData in pool:
         if data == null or data.effect_type != effect:
             continue
-        total += data.value_per_stack * float(get_stack(data.id))
+        total += data.value_per_stack * float(get_blessing_stack(data.id))
     return total
 
 
