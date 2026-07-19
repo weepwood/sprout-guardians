@@ -12,6 +12,8 @@ var projectile_pool: ProjectilePool
 
 var towers_by_slot: Dictionary = {}
 var selected_tower: SproutTower = null
+var selected_build_tower_index: int = 0
+var tower_build_buttons: Array[Button] = []
 
 var coins_label: Label
 var lives_label: Label
@@ -36,6 +38,7 @@ func _ready() -> void:
     economy_system.setup(level_data.starting_coins)
     base_health_system.setup(level_data.base_health)
     _refresh_hud()
+    _refresh_build_buttons()
     queue_redraw()
 
 
@@ -164,10 +167,14 @@ func _create_ui() -> void:
     speed_button = _make_button(canvas, "1x", Vector2(567.0, 5.0), Vector2(58.0, 32.0))
     speed_button.pressed.connect(_cycle_speed)
 
-    hint_label = _make_label(canvas, Vector2(12.0, 326.0), Vector2(392.0, 26.0))
-    var tower_data: TowerData = level_data.get_tower(0)
-    var tower_cost: int = 0 if tower_data == null else tower_data.build_cost
-    hint_label.text = "Click a green build slot to plant a Pea Tower (%d). F3: debug." % tower_cost
+    var build_panel: ColorRect = ColorRect.new()
+    build_panel.color = Color(0.07, 0.14, 0.14, 0.90)
+    build_panel.position = Vector2(8.0, 289.0)
+    build_panel.size = Vector2(396.0, 63.0)
+    canvas.add_child(build_panel)
+
+    _create_build_buttons(canvas)
+    hint_label = _make_label(canvas, Vector2(14.0, 325.0), Vector2(384.0, 24.0))
 
     var tower_panel: ColorRect = ColorRect.new()
     tower_panel.color = Color(0.07, 0.14, 0.14, 0.90)
@@ -197,6 +204,20 @@ func _create_ui() -> void:
     _update_tower_panel()
 
 
+func _create_build_buttons(parent: Node) -> void:
+    tower_build_buttons.clear()
+    var count: int = mini(3, level_data.available_towers.size())
+    for index: int in range(count):
+        var button: Button = _make_button(
+            parent,
+            "Tower",
+            Vector2(14.0 + float(index) * 128.0, 294.0),
+            Vector2(122.0, 27.0)
+        )
+        button.pressed.connect(_select_build_tower.bind(index))
+        tower_build_buttons.append(button)
+
+
 func _make_label(parent: Node, position_value: Vector2, size_value: Vector2) -> Label:
     var label: Label = Label.new()
     label.position = position_value
@@ -218,10 +239,40 @@ func _make_button(parent: Node, text_value: String, position_value: Vector2, siz
     return button
 
 
+func _select_build_tower(index: int) -> void:
+    if index < 0 or index >= level_data.available_towers.size():
+        return
+    selected_build_tower_index = index
+    _select_tower(null)
+    _refresh_build_buttons()
+
+    var tower_data: TowerData = level_data.get_tower(index)
+    if tower_data != null:
+        hint_label.text = "%s selected: %s" % [tower_data.display_name, tower_data.description]
+
+
+func _refresh_build_buttons() -> void:
+    for index: int in range(tower_build_buttons.size()):
+        var button: Button = tower_build_buttons[index]
+        var tower_data: TowerData = level_data.get_tower(index)
+        if tower_data == null:
+            button.disabled = true
+            button.text = "Unavailable"
+            continue
+        var short_name: String = tower_data.display_name
+        short_name = short_name.replace(" Tower", "").replace(" Lamp", "").replace(" Flower", "")
+        var prefix: String = "> " if index == selected_build_tower_index else ""
+        button.text = "%s%s %d" % [prefix, short_name, tower_data.build_cost]
+
+    var selected_data: TowerData = level_data.get_tower(selected_build_tower_index)
+    if hint_label != null and selected_data != null and hint_label.text.is_empty():
+        hint_label.text = "Choose a tower, then click a green build slot. F3: debug."
+
+
 func _build_tower(slot_index: int) -> void:
-    var tower_data: TowerData = level_data.get_tower(0)
+    var tower_data: TowerData = level_data.get_tower(selected_build_tower_index)
     if tower_data == null:
-        hint_label.text = "No tower data is configured for this level."
+        hint_label.text = "No tower data is configured for this build option."
         return
     if not economy_system.spend(tower_data.build_cost, &"build_tower"):
         return
