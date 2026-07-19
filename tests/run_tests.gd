@@ -77,7 +77,7 @@ func _test_enemy_and_boss_content() -> void:
     if stone_beast != null:
         _assert_true(stone_beast.armor >= 5.0, "Stone Beast has meaningful armor")
     if golem != null:
-        _assert_equal_int(golem.phase_health_thresholds.size(), 2, "Forest Golem defines two phase thresholds")
+        _assert_equal_int(golem.phase_thresholds.size(), 2, "Forest Golem defines two phase thresholds")
         _assert_true(golem.phase_pulse_radius > 0.0, "Forest Golem phase pulse has a radius")
         _assert_true(golem.phase_tower_disable_duration > 0.0, "Forest Golem phase pulse disables towers")
 
