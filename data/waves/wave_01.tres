@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="WaveData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/wave_data.gd" id="1_wave"]
+[ext_resource type="Script" path="res://scripts/data/spawn_group_data.gd" id="2_group"]
+[ext_resource type="Resource" path="res://data/enemies/beetle.tres" id="3_enemy"]
+
+[sub_resource type="Resource" id="SpawnGroup_wave_01"]
+script = ExtResource("2_group")
+enemy = ExtResource("3_enemy")
+count = 6
+spawn_interval = 0.85
+start_delay = 0.1
+path_index = 0
+
+[resource]
+script = ExtResource("1_wave")
+id = &"wave_01"
+display_name = "Beetle Scouts"
+spawn_groups = Array[Resource]([SubResource("SpawnGroup_wave_01")])
+clear_reward = 35
+early_start_bonus = 0
