@@ -34,7 +34,6 @@ var greed_label: Label
 var status_label: Label
 var power_label: Label
 var language_button: Button
-var pause_button: Button
 var speed_button: Button
 var menu_button: Button
 
@@ -104,7 +103,9 @@ func _draw() -> void:
     draw_rect(ARENA_RECT, Color("273129"))
     for x_value: int in range(int(ARENA_RECT.position.x), int(ARENA_RECT.end.x), 24):
         for y_value: int in range(int(ARENA_RECT.position.y), int(ARENA_RECT.end.y), 24):
-            var alternating: bool = (x_value / 24 + y_value / 24) as int % 2 == 0
+            var grid_x: int = int(x_value / 24)
+            var grid_y: int = int(y_value / 24)
+            var alternating: bool = (grid_x + grid_y) % 2 == 0
             draw_rect(Rect2(float(x_value), float(y_value), 24.0, 24.0), Color("2d382e") if alternating else Color("293329"))
     draw_rect(ARENA_RECT, Color("8f7351"), false, 5.0)
 
@@ -245,8 +246,7 @@ func _spawn_enemy() -> void:
     enemy.name = "GreedEnemy"
     enemy.global_position = _door_spawn_position()
     add_child(enemy)
-    var floor_scale: float = 1.0
-    enemy.configure(core, config, floor_scale)
+    enemy.configure(core, config, 1.0)
     enemy.damaged.connect(_on_enemy_damaged)
     enemy.defeated.connect(_on_enemy_defeated)
     enemy.core_contact.connect(_on_enemy_core_contact)
@@ -343,9 +343,9 @@ func _lowest_level_plant() -> GreedPlant:
 func _on_plant_fired(_plant: GreedPlant, target: GreedEnemy, critical: bool, damage: float) -> void:
     if target == null or not is_instance_valid(target):
         return
-    impact_system.spawn_hit(target.global_position, target.body_color, damage, critical)
     if critical:
         audio_manager.play_event(&"critical")
+        impact_system.spawn_hit(target.global_position, target.body_color, damage, true)
 
 
 func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void:
@@ -355,9 +355,13 @@ func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void
 
 
 func _on_enemy_defeated(enemy: GreedEnemy, coin_reward: int, elite: bool) -> void:
-    var position_value: Vector2 = enemy.global_position if enemy != null else ARENA_RECT.get_center()
-    var color_value: Color = enemy.body_color if enemy != null else Color("dd6d63")
-    var size_value: Vector2 = Vector2.ONE * (enemy.body_size if enemy != null else 12.0)
+    var position_value: Vector2 = ARENA_RECT.get_center()
+    var color_value: Color = Color("dd6d63")
+    var size_value: Vector2 = Vector2(12.0, 12.0)
+    if enemy != null and is_instance_valid(enemy):
+        position_value = enemy.global_position
+        color_value = enemy.body_color
+        size_value = Vector2.ONE * enemy.body_size
     impact_system.spawn_kill(position_value, color_value, size_value)
     coins += blessing_system.modify_reward(coin_reward)
     greed_score += 2 if elite else 1
@@ -386,7 +390,7 @@ func _on_core_defeated() -> void:
 
 func _on_coin_jackpot(amount: int) -> void:
     coins += amount
-    greed_score += amount / 4
+    greed_score += int(amount / 4)
     impact_system.spawn_reward(ARENA_RECT.get_center(), Color("ffd45e"))
     _refresh_hud()
 
@@ -400,13 +404,17 @@ func _finish_run(victory: bool) -> void:
     choice_backdrop.visible = true
     result_label.visible = true
     result_button.visible = true
-    result_label.text = _t("GREED FLOOR CLEARED\n%d COINS · %d DEFEATED", "贪婪楼层完成\n%d 金币 · 击败 %d") % [coins, enemies_defeated] if victory else _t("THE GARDEN FELL\nTRY A NEW MUTATION PATH", "花园核心倒下\n尝试新的变异路线")
+    if victory:
+        result_label.text = _t("GREED FLOOR CLEARED\n%d COINS · %d DEFEATED", "贪婪楼层完成\n%d 金币 · 击败 %d") % [coins, enemies_defeated]
+        audio_manager.play_event(&"victory")
+    else:
+        result_label.text = _t("THE GARDEN FELL\nTRY A NEW MUTATION PATH", "花园核心倒下\n尝试新的变异路线")
+        audio_manager.play_event(&"defeat")
     result_button.text = _t("RESTART RUN", "重新开始")
-    audio_manager.play_event(&"victory" if victory else &"defeat")
 
 
 func _set_combat_frozen(value: bool) -> void:
-    var mode: ProcessMode = Node.PROCESS_MODE_DISABLED if value else Node.PROCESS_MODE_INHERIT
+    var mode: int = Node.PROCESS_MODE_DISABLED if value else Node.PROCESS_MODE_INHERIT
     if core != null:
         core.process_mode = mode
     for plant: GreedPlant in plants:
@@ -455,7 +463,9 @@ func _refresh_hud() -> void:
     if wave_label == null:
         return
     wave_label.text = _t("GREED WAVE %d/%d", "贪婪波次 %d/%d") % [maxi(0, wave_index + 1), GreedBalance.WAVE_TABLE.size()]
-    health_label.text = _t("CORE %d/%d", "核心 %d/%d") % [core.health if core != null else 0, core.max_health if core != null else 0]
+    var current_health: int = core.health if core != null else 0
+    var maximum_health: int = core.max_health if core != null else 0
+    health_label.text = _t("CORE %d/%d", "核心 %d/%d") % [current_health, maximum_health]
     coins_label.text = _t("COINS %d", "金币 %d") % coins
     greed_label.text = _t("GREED %d", "贪婪 %d") % greed_score
     var lines: PackedStringArray = PackedStringArray()
