@@ -8,7 +8,8 @@ func fire(
         tower_data: TowerData,
         damage: float,
         projectile_pool: ProjectilePool,
-        enemy_registry: EnemyRegistry
+        enemy_registry: EnemyRegistry,
+        status_effect_override: StatusEffectData = null
 ) -> void:
     if target == null or tower_data == null or projectile_pool == null:
         return
@@ -20,6 +21,6 @@ func fire(
         tower_data.projectile_color,
         tower_data.projectile_size,
         tower_data.splash_radius,
-        tower_data.status_effect,
+        status_effect_override if status_effect_override != null else tower_data.status_effect,
         enemy_registry
     )
