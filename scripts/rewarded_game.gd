@@ -15,6 +15,7 @@ var chest_title_label: Label
 var chest_choice_buttons: Array[Button] = []
 var _current_choices: Array[BlessingData] = []
 var _resume_after_chest: bool = false
+var _chest_open_scheduled: bool = false
 
 
 func _create_systems() -> void:
@@ -182,7 +183,15 @@ func _on_chest_progress_changed(_progress: int, _target: int) -> void:
 
 
 func _on_chest_ready(_pending_chests: int) -> void:
-    if chest_panel == null or chest_panel.visible:
+    if chest_panel == null or chest_panel.visible or _chest_open_scheduled:
+        return
+    _chest_open_scheduled = true
+    call_deferred("_open_pending_chest")
+
+
+func _open_pending_chest() -> void:
+    _chest_open_scheduled = false
+    if chest_panel == null or chest_panel.visible or game_manager.game_ended:
         return
     if not combat_reward_system.consume_chest():
         return
@@ -223,7 +232,7 @@ func _select_blessing(index: int) -> void:
         get_tree().paused = false
 
     if combat_reward_system.pending_chests > 0:
-        call_deferred("_on_chest_ready", combat_reward_system.pending_chests)
+        _on_chest_ready(combat_reward_system.pending_chests)
     elif auto_battle_director.auto_enabled and game_manager.state == GameManager.State.PREPARING and not auto_battle_director.waiting:
         auto_battle_director.arm()
 
@@ -266,7 +275,7 @@ func _refresh_chest_choices() -> void:
             continue
         var data: BlessingData = _current_choices[index]
         var next_stack: int = blessing_system.get_blessing_stack(data.id) + 1
-        button.text = "%s · %s\n%s" % [data.rarity_name(i18n.locale_code), data.localized_name(i18n.locale_code), data.localized_description(i18n.locale_code, next_stack)]
+        button.text = "%s · %s · Lv.%d\n%s" % [data.rarity_name(i18n.locale_code), data.localized_name(i18n.locale_code), next_stack, data.localized_description(i18n.locale_code, next_stack)]
         button.add_theme_color_override("font_color", data.rarity_color())
 
 
