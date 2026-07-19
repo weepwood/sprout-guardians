@@ -4,6 +4,7 @@ class_name GreedPlant
 signal fired(plant: GreedPlant, target: GreedEnemy, critical: bool, damage: float)
 
 var core: GreedCore
+var focus_source: GreedHeroPlant
 var blessing_system: BlessingSystem
 var config: Dictionary = {}
 var orbit_index: int = 0
@@ -29,20 +30,25 @@ func configure(
     config = plant_config.duplicate(true)
     orbit_index = index
     blessing_system = blessings
-    orbit_radius = 42.0 + float(index % 2) * 18.0
-    orbit_speed = 0.66 + float(index) * 0.07
-    _orbit_phase = TAU * float(index) / 3.0
+    orbit_radius = 38.0 + float(index % 2) * 20.0
+    orbit_speed = 0.82 + float(index) * 0.12
+    _orbit_phase = TAU * float(index) / 2.0
     _cooldown = 0.12 + float(index) * 0.06
     add_to_group("greed_plants")
+    add_to_group("greed_familiars")
     queue_redraw()
+
+
+func set_focus_source(hero: GreedHeroPlant) -> void:
+    focus_source = hero
 
 
 func _process(delta: float) -> void:
     if core == null or not is_instance_valid(core):
         return
     _orbit_phase += delta * orbit_speed
-    var target_position: Vector2 = core.global_position + Vector2.from_angle(_orbit_phase + float(orbit_index) * 2.05) * orbit_radius
-    global_position = global_position.lerp(target_position, clampf(delta * 7.5, 0.0, 1.0))
+    var target_position: Vector2 = core.global_position + Vector2.from_angle(_orbit_phase + float(orbit_index) * PI) * orbit_radius
+    global_position = global_position.lerp(target_position, clampf(delta * 8.5, 0.0, 1.0))
 
     _cooldown -= delta
     _shot_time = maxf(0.0, _shot_time - delta)
@@ -58,12 +64,12 @@ func _process(delta: float) -> void:
 
 func upgrade() -> void:
     level += 1
-    orbit_radius = minf(86.0, orbit_radius + 3.0)
+    orbit_radius = minf(78.0, orbit_radius + 2.0)
     queue_redraw()
 
 
 func get_display_name(locale_code: String) -> String:
-    return String(config.get("name_zh", "植物")) if locale_code == "zh_CN" else String(config.get("name_en", "Plant"))
+    return String(config.get("name_zh", "浮游宠物")) if locale_code == "zh_CN" else String(config.get("name_en", "Familiar"))
 
 
 func get_sustained_dps() -> float:
@@ -79,6 +85,11 @@ func _find_target() -> GreedEnemy:
         effective_range *= blessing_system.get_range_multiplier()
     if rescue_active:
         effective_range *= 1.6
+
+    if focus_source != null and is_instance_valid(focus_source):
+        var priority: GreedEnemy = focus_source.get_focus_target()
+        if priority != null and global_position.distance_to(priority.global_position) <= effective_range:
+            return priority
 
     for node: Node in get_tree().get_nodes_in_group("greed_enemies"):
         var enemy: GreedEnemy = node as GreedEnemy
@@ -140,7 +151,7 @@ func _alternate_target(primary: GreedEnemy) -> GreedEnemy:
 
 func _effective_damage(critical: bool) -> float:
     var result: float = float(config.get("damage", 10.0))
-    result *= 1.0 + float(level - 1) * 0.24
+    result *= 1.0 + float(level - 1) * 0.22
     result *= fury_multiplier
     if blessing_system != null:
         result *= blessing_system.get_damage_multiplier()
@@ -151,7 +162,7 @@ func _effective_damage(critical: bool) -> float:
 
 func _effective_interval() -> float:
     var result: float = float(config.get("interval", 0.6))
-    result *= pow(0.92, float(level - 1))
+    result *= pow(0.93, float(level - 1))
     if blessing_system != null:
         result *= blessing_system.get_attack_interval_multiplier()
     if rescue_active:
@@ -162,14 +173,15 @@ func _effective_interval() -> float:
 func _draw() -> void:
     var body_color: Color = Color(String(config.get("color_hex", "8fe45f")))
     var base_color: Color = body_color.darkened(0.35)
-    draw_circle(Vector2.ZERO, 11.0 + float(level - 1) * 0.7, Color(0.06, 0.12, 0.09, 0.72))
-    draw_circle(Vector2.ZERO, 8.0 + float(level - 1) * 0.5, body_color)
-    draw_rect(Rect2(-3.0, -4.0, 2.0, 2.0), Color("173026"))
-    draw_rect(Rect2(2.0, -4.0, 2.0, 2.0), Color("173026"))
-    draw_line(Vector2(-5.0, 7.0), Vector2(-9.0, 12.0), base_color, 2.0)
-    draw_line(Vector2(5.0, 7.0), Vector2(9.0, 12.0), base_color, 2.0)
-    for marker: int in range(level):
-        draw_rect(Rect2(-6.0 + float(marker) * 4.0, 12.0, 3.0, 2.0), Color("ffe071"))
+    draw_circle(Vector2.ZERO, 10.0 + float(level - 1) * 0.45, Color(0.06, 0.12, 0.09, 0.72))
+    draw_circle(Vector2.ZERO, 6.5 + float(level - 1) * 0.35, body_color)
+    draw_arc(Vector2.ZERO, 11.5, 0.0, TAU, 18, Color(body_color, 0.28), 1.0)
+    draw_rect(Rect2(-2.5, -3.0, 2.0, 2.0), Color("173026"))
+    draw_rect(Rect2(1.0, -3.0, 2.0, 2.0), Color("173026"))
+    draw_line(Vector2(-4.0, 6.0), Vector2(-8.0, 10.0), base_color, 2.0)
+    draw_line(Vector2(4.0, 6.0), Vector2(8.0, 10.0), base_color, 2.0)
+    for marker: int in range(mini(level, 6)):
+        draw_rect(Rect2(-8.0 + float(marker) * 3.0, 11.0, 2.0, 2.0), Color("ffe071"))
     if _shot_time > 0.0:
         var beam_color: Color = body_color
         beam_color.a = 0.78
