@@ -20,7 +20,7 @@ env:
 
 jobs:
   export:
-    name: Validate and export
+    name: Validate, test, and export
     runs-on: ubuntu-latest
 
     steps:
@@ -55,6 +55,12 @@ jobs:
         run: |
           set -euo pipefail
           godot --headless --path "$GITHUB_WORKSPACE" --editor --quit
+
+      - name: Run core gameplay tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path "$GITHUB_WORKSPACE" --script res://tests/run_tests.gd
 
       - name: Export Windows, Linux, and Web builds
         shell: bash
