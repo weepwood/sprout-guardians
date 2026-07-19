@@ -57,6 +57,7 @@ func _run() -> void:
 
     var familiar: GreedPlant = GreedPlant.new()
     root.add_child(familiar)
+    familiar.global_position = hero.global_position + Vector2(34.0, 0.0)
     familiar.configure(hero, GreedBalance.STARTER_PLANTS[1], 0, blessings)
     familiar.set_focus_source(hero)
     _assert_true(familiar.focus_source == hero, "Floating familiar follows the main plant focus source")
