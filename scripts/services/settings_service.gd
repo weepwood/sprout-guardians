@@ -65,7 +65,15 @@ func apply_runtime(audio_manager: ProceduralAudioManager = null) -> void:
         audio_manager.sfx_volume_db = sfx_volume_db
         audio_manager.set_music_enabled(music_enabled)
         audio_manager.set_sfx_enabled(sfx_enabled)
-        audio_manager.apply_volume_settings()
+
+    var music_bus: int = AudioServer.get_bus_index("Music")
+    if music_bus >= 0:
+        AudioServer.set_bus_volume_db(music_bus, music_volume_db)
+        AudioServer.set_bus_mute(music_bus, not music_enabled)
+    var sfx_bus: int = AudioServer.get_bus_index("SFX")
+    if sfx_bus >= 0:
+        AudioServer.set_bus_volume_db(sfx_bus, sfx_volume_db)
+        AudioServer.set_bus_mute(sfx_bus, not sfx_enabled)
 
     if OS.has_feature("web"):
         return
