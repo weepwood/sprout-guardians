@@ -60,9 +60,29 @@ const WAVE_TABLE: Array[Dictionary] = [
 static func starter_sustained_dps() -> float:
     var total: float = 0.0
     for plant: Dictionary in STARTER_PLANTS:
-        var direct: float = float(plant["damage"]) * float(plant.get("projectile_count", 1)) / maxf(0.08, float(plant["interval"]))
-        var splash_bonus: float = 1.25 if float(plant.get("splash_radius", 0.0)) > 0.0 else 1.0
-        total += direct * splash_bonus
+        total += plant_sustained_dps(plant, 1)
+    return total
+
+
+static func plant_sustained_dps(plant: Dictionary, level: int) -> float:
+    var damage_value: float = float(plant["damage"]) * (1.0 + float(maxi(0, level - 1)) * 0.24)
+    var interval_value: float = float(plant["interval"]) * pow(0.92, float(maxi(0, level - 1)))
+    var direct: float = damage_value * float(plant.get("projectile_count", 1)) / maxf(0.08, interval_value)
+    var splash_bonus: float = 1.25 if float(plant.get("splash_radius", 0.0)) > 0.0 else 1.0
+    return direct * splash_bonus
+
+
+static func minimum_progression_dps(rewards_received: int) -> float:
+    var levels: Array[int] = []
+    for _index: int in range(STARTER_PLANTS.size()):
+        levels.append(1)
+    for reward_index: int in range(maxi(0, rewards_received)):
+        var target_index: int = reward_index % STARTER_PLANTS.size()
+        levels[target_index] += 1
+
+    var total: float = 0.0
+    for index: int in range(STARTER_PLANTS.size()):
+        total += plant_sustained_dps(STARTER_PLANTS[index], levels[index])
     return total
 
 
@@ -84,7 +104,15 @@ static func projected_wave_clear_seconds(index: int) -> float:
     var count: int = int(wave.get("count", 0))
     var spawn_tail: float = maxf(0.0, float(count - 1)) * float(wave.get("spawn_interval", 0.0))
     var total_health: float = float(count) * float(wave.get("health", 0.0))
-    return spawn_tail + total_health / maxf(1.0, starter_sustained_dps())
+    var guaranteed_dps: float = minimum_progression_dps(index)
+    return spawn_tail + total_health / maxf(1.0, guaranteed_dps)
+
+
+static func maximum_projected_wave_seconds() -> float:
+    var worst: float = 0.0
+    for index: int in range(WAVE_TABLE.size()):
+        worst = maxf(worst, projected_wave_clear_seconds(index))
+    return worst
 
 
 static func fury_multiplier(elapsed_seconds: float) -> float:
