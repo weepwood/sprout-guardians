@@ -12,6 +12,9 @@ func _initialize() -> void:
     _test_tower_roles()
     _test_enemy_and_boss_content()
     _test_localization()
+    _test_campaign_scenes()
+    _test_settings_persistence()
+    _test_save_game_service()
     _test_economy_system()
     _test_base_health_system()
     _test_wave_manager()
@@ -99,6 +102,82 @@ func _test_localization() -> void:
     _assert_equal_string(localization.tower_name(pea), "Pea Tower", "English tower names remain available")
 
 
+func _test_campaign_scenes() -> void:
+    _assert_true(load("res://scenes/main_menu.tscn") is PackedScene, "Main menu scene loads")
+    _assert_true(load("res://scenes/level_select.tscn") is PackedScene, "Level select scene loads")
+    _assert_true(load("res://scenes/main.tscn") is PackedScene, "Campaign gameplay scene loads")
+
+
+func _test_settings_persistence() -> void:
+    var path: String = "user://sprout_test_settings.cfg"
+    _remove_test_file(path)
+
+    var settings: SettingsService = SettingsService.new()
+    settings.settings_path = path
+    settings.load_settings()
+    settings.locale = "zh_CN"
+    settings.music_enabled = false
+    settings.sfx_enabled = false
+    settings.screen_flash_enabled = false
+    _assert_true(settings.save_settings(), "Settings service writes a configuration file")
+
+    var reloaded: SettingsService = SettingsService.new()
+    reloaded.settings_path = path
+    reloaded.load_settings()
+    _assert_equal_string(reloaded.locale, "zh_CN", "Locale survives settings reload")
+    _assert_true(not reloaded.music_enabled, "Music preference survives settings reload")
+    _assert_true(not reloaded.sfx_enabled, "SFX preference survives settings reload")
+    _assert_true(not reloaded.screen_flash_enabled, "Effects preference survives settings reload")
+    _remove_test_file(path)
+
+
+func _test_save_game_service() -> void:
+    var save_path: String = "user://sprout_test_save.json"
+    var backup_path: String = "user://sprout_test_save.backup.json"
+    _remove_test_file(save_path)
+    _remove_test_file(backup_path)
+
+    var save: SaveGameService = SaveGameService.new()
+    save.save_path = save_path
+    save.backup_path = backup_path
+    save.load_game()
+    _assert_true(save.is_level_unlocked(&"morning_forest"), "Morning Forest is unlocked in a new save")
+    save.record_level_result(&"morning_forest", 2, 7)
+
+    var reloaded: SaveGameService = SaveGameService.new()
+    reloaded.save_path = save_path
+    reloaded.backup_path = backup_path
+    reloaded.load_game()
+    _assert_equal_int(reloaded.get_level_stars(&"morning_forest"), 2, "Level stars survive save reload")
+
+    reloaded.record_level_result(&"morning_forest", 3, 10)
+    _write_test_file(save_path, "{broken json")
+    var recovered: SaveGameService = SaveGameService.new()
+    recovered.save_path = save_path
+    recovered.backup_path = backup_path
+    recovered.load_game()
+    _assert_true(recovered.recovered_from_backup, "Corrupted primary save recovers from backup")
+    _assert_true(recovered.get_level_stars(&"morning_forest") >= 2, "Backup recovery preserves completed-level progress")
+
+    _remove_test_file(save_path)
+    _remove_test_file(backup_path)
+    _write_test_file(save_path, JSON.stringify({
+        "version": 1,
+        "completed_levels": ["morning_forest"],
+        "stars": {"morning_forest": 3},
+        "unlocked_levels": ["morning_forest"],
+    }))
+    var migrated: SaveGameService = SaveGameService.new()
+    migrated.save_path = save_path
+    migrated.backup_path = backup_path
+    migrated.load_game()
+    _assert_equal_int(int(migrated.data.get("schema_version", 0)), SaveGameService.CURRENT_VERSION, "Legacy save migrates to current schema")
+    _assert_equal_int(migrated.get_level_stars(&"morning_forest"), 3, "Legacy stars survive migration")
+
+    _remove_test_file(save_path)
+    _remove_test_file(backup_path)
+
+
 func _test_economy_system() -> void:
     var economy: EconomySystem = EconomySystem.new()
     economy.setup(220)
@@ -158,6 +237,20 @@ func _test_wave_manager() -> void:
     manager.notify_enemy_removed()
     _assert_true(_campaign_completed, "Final wave completion emits campaign completion")
     manager.free()
+
+
+func _write_test_file(path: String, content: String) -> void:
+    var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+    if file == null:
+        _assert_true(false, "Test file can be opened: %s" % path)
+        return
+    file.store_string(content)
+    file.close()
+
+
+func _remove_test_file(path: String) -> void:
+    if FileAccess.file_exists(path):
+        DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
 func _on_test_spawn_requested(_enemy: EnemyData, _path_index: int) -> void:
