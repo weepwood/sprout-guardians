@@ -5,7 +5,7 @@ signal locale_changed(locale_code: String)
 
 const SETTINGS_PATH: String = "user://settings.cfg"
 const DEFAULT_LOCALE: String = "en"
-const SUPPORTED_LOCALES: PackedStringArray = PackedStringArray(["en", "zh_CN"])
+const CHINESE_LOCALE: String = "zh_CN"
 
 const TEXT: Dictionary = {
     "language.en": {"en": "English", "zh_CN": "英文"},
@@ -121,7 +121,7 @@ func set_locale(value: String, persist: bool = true) -> void:
 
 
 func toggle_locale() -> void:
-    set_locale("zh_CN" if locale_code == "en" else "en")
+    set_locale(CHINESE_LOCALE if locale_code == DEFAULT_LOCALE else DEFAULT_LOCALE)
 
 
 func text(key: String, values: Array = []) -> String:
@@ -193,14 +193,14 @@ func wave_preview(data: WaveData) -> String:
 
 func _detect_locale() -> String:
     var language: String = OS.get_locale_language().to_lower()
-    return "zh_CN" if language.begins_with("zh") else DEFAULT_LOCALE
+    return CHINESE_LOCALE if language.begins_with("zh") else DEFAULT_LOCALE
 
 
 func _normalize_locale(value: String) -> String:
     var normalized: String = value.strip_edges()
     if normalized.to_lower().begins_with("zh"):
-        return "zh_CN"
-    return normalized if SUPPORTED_LOCALES.has(normalized) else DEFAULT_LOCALE
+        return CHINESE_LOCALE
+    return DEFAULT_LOCALE
 
 
 func _save_preference() -> void:

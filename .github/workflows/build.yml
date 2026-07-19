@@ -61,14 +61,83 @@ jobs:
         run: |
           mkdir -p build/diagnostics
           set +e
-          godot --headless --path "$GITHUB_WORKSPACE" --script res://tests/run_tests.gd \
+          godot --headless --audio-driver Dummy --path "$GITHUB_WORKSPACE" --script res://tests/run_tests.gd \
             > build/diagnostics/core-tests.log 2>&1
           TEST_STATUS=$?
           set -e
           echo "$TEST_STATUS" > build/diagnostics/core-tests.status
           cat build/diagnostics/core-tests.log
 
-      - name: Upload test diagnostics
+      - name: Run UI scene smoke tests
+        shell: bash
+        run: |
+          set +e
+          godot --headless --audio-driver Dummy --path "$GITHUB_WORKSPACE" --script res://tests/run_ui_smoke.gd \
+            > build/diagnostics/ui-smoke.log 2>&1
+          UI_STATUS=$?
+          set -e
+          echo "$UI_STATUS" > build/diagnostics/ui-smoke.status
+          cat build/diagnostics/ui-smoke.log
+
+      - name: Enforce test results
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEST_STATUS="$(cat build/diagnostics/core-tests.status)"
+          UI_STATUS="$(cat build/diagnostics/ui-smoke.status)"
+          if [ "$TEST_STATUS" != "0" ]; then
+            echo "Core gameplay tests failed with exit code $TEST_STATUS"
+            exit "$TEST_STATUS"
+          fi
+          if [ "$UI_STATUS" != "0" ]; then
+            echo "UI scene smoke tests failed with exit code $UI_STATUS"
+            exit "$UI_STATUS"
+          fi
+
+      - name: Export Windows, Web, and internal Linux smoke build
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/windows build/linux-smoke build/web
+          godot --headless --path "$GITHUB_WORKSPACE" --export-release "Windows Desktop" build/windows/SproutGuardians.exe
+          godot --headless --path "$GITHUB_WORKSPACE" --export-release "Web" build/web/index.html
+          godot --headless --path "$GITHUB_WORKSPACE" --export-release "Linux" build/linux-smoke/SproutGuardians.x86_64
+          chmod +x build/linux-smoke/SproutGuardians.x86_64
+
+      - name: Launch internal Linux smoke build
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          timeout 20s build/linux-smoke/SproutGuardians.x86_64 \
+            --headless \
+            --audio-driver Dummy \
+            --quit-after 30 \
+            --verbose \
+            > build/diagnostics/exported-runtime.log 2>&1
+          RUNTIME_STATUS=$?
+          set -e
+          echo "$RUNTIME_STATUS" > build/diagnostics/exported-runtime.status
+          cat build/diagnostics/exported-runtime.log
+
+          if [ "$RUNTIME_STATUS" != "0" ]; then
+            echo "Exported Linux smoke build failed to start cleanly with exit code $RUNTIME_STATUS"
+            exit "$RUNTIME_STATUS"
+          fi
+
+          if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script" build/diagnostics/exported-runtime.log; then
+            echo "Exported build contains script loading errors"
+            exit 1
+          fi
+
+      - name: Package player-facing exports
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd build/windows && zip -q -r ../SproutGuardians-Windows-x86_64.zip .)
+          (cd build/web && zip -q -r ../SproutGuardians-Web.zip .)
+
+      - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -77,41 +146,12 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Enforce core test result
-        shell: bash
-        run: |
-          set -euo pipefail
-          TEST_STATUS="$(cat build/diagnostics/core-tests.status)"
-          if [ "$TEST_STATUS" != "0" ]; then
-            echo "Core gameplay tests failed with exit code $TEST_STATUS"
-            exit "$TEST_STATUS"
-          fi
-
-      - name: Export Windows, Linux, and Web builds
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p build/windows build/linux build/web
-          godot --headless --path "$GITHUB_WORKSPACE" --export-release "Windows Desktop" build/windows/SproutGuardians.exe
-          godot --headless --path "$GITHUB_WORKSPACE" --export-release "Linux" build/linux/SproutGuardians.x86_64
-          godot --headless --path "$GITHUB_WORKSPACE" --export-release "Web" build/web/index.html
-          chmod +x build/linux/SproutGuardians.x86_64
-
-      - name: Package exports
-        shell: bash
-        run: |
-          set -euo pipefail
-          (cd build/windows && zip -q -r ../SproutGuardians-Windows-x86_64.zip .)
-          tar -C build/linux -czf build/SproutGuardians-Linux-x86_64.tar.gz .
-          (cd build/web && zip -q -r ../SproutGuardians-Web.zip .)
-
       - name: Upload downloadable artifacts
         uses: actions/upload-artifact@v4
         with:
           name: SproutGuardians-${{ github.sha }}
           path: |
             build/SproutGuardians-Windows-x86_64.zip
-            build/SproutGuardians-Linux-x86_64.tar.gz
             build/SproutGuardians-Web.zip
           if-no-files-found: error
           retention-days: 14
@@ -124,7 +164,6 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             build/SproutGuardians-Windows-x86_64.zip \
-            build/SproutGuardians-Linux-x86_64.tar.gz \
             build/SproutGuardians-Web.zip \
             --generate-notes \
             --title "Sprout Guardians ${GITHUB_REF_NAME}"
