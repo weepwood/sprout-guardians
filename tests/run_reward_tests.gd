@@ -53,7 +53,7 @@ func _test_pity_and_stacking() -> void:
     var verdant: BlessingData = load("res://data/blessings/verdant_force.tres") as BlessingData
     system.apply_blessing(verdant)
     system.apply_blessing(verdant)
-    _assert_equal_int(system.get_stack(&"verdant_force"), 2, "Duplicate blessings increase stack count")
+    _assert_equal_int(system.get_blessing_stack(&"verdant_force"), 2, "Duplicate blessings increase stack count")
     _assert_near(system.get_damage_multiplier(), 1.30, 0.001, "Two Verdant Force stacks increase damage by 30%")
 
 
