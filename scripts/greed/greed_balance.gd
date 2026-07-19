@@ -13,7 +13,7 @@ const STARTER_PLANTS: Array[Dictionary] = [
         "projectile_count": 1,
         "splash_radius": 0.0,
         "slow_ratio": 0.0,
-        "color": Color("8fe45f"),
+        "color_hex": "8fe45f",
     },
     {
         "id": &"spore_bloom",
@@ -26,7 +26,7 @@ const STARTER_PLANTS: Array[Dictionary] = [
         "projectile_count": 1,
         "splash_radius": 46.0,
         "slow_ratio": 0.0,
-        "color": Color("d28cff"),
+        "color_hex": "d28cff",
     },
     {
         "id": &"frost_petal",
@@ -39,7 +39,7 @@ const STARTER_PLANTS: Array[Dictionary] = [
         "projectile_count": 1,
         "splash_radius": 0.0,
         "slow_ratio": 0.28,
-        "color": Color("80dfff"),
+        "color_hex": "80dfff",
     },
 ]
 
@@ -75,6 +75,16 @@ static func wave_health_spawn_rate(index: int) -> float:
 
 static func starter_margin_ratio() -> float:
     return starter_sustained_dps() / maxf(1.0, wave_health_spawn_rate(0))
+
+
+static func projected_wave_clear_seconds(index: int) -> float:
+    if index < 0 or index >= WAVE_TABLE.size():
+        return INF
+    var wave: Dictionary = WAVE_TABLE[index]
+    var count: int = int(wave.get("count", 0))
+    var spawn_tail: float = maxf(0.0, float(count - 1)) * float(wave.get("spawn_interval", 0.0))
+    var total_health: float = float(count) * float(wave.get("health", 0.0))
+    return spawn_tail + total_health / maxf(1.0, starter_sustained_dps())
 
 
 static func fury_multiplier(elapsed_seconds: float) -> float:
