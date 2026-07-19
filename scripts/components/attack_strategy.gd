@@ -8,6 +8,7 @@ func fire(
         tower_data: TowerData,
         damage: float,
         projectile_pool: ProjectilePool,
-        enemy_registry: EnemyRegistry
+        enemy_registry: EnemyRegistry,
+        status_effect_override: StatusEffectData = null
 ) -> void:
     push_error("AttackStrategy.fire must be implemented by a concrete strategy.")
