@@ -1,6 +1,8 @@
 extends Node2D
 class_name SproutTower
 
+signal critical_shot(damage_value: float)
+
 var data: TowerData
 var level: int = 1
 var damage: float = 12.0
@@ -13,6 +15,8 @@ var disabled_time: float = 0.0
 
 var _projectile_pool: ProjectilePool
 var _enemy_registry: EnemyRegistry
+var _blessing_system: BlessingSystem
+var _effective_status_effect: StatusEffectData
 var _attack_strategy: AttackStrategy = ProjectileAttackStrategy.new()
 var _cooldown: float = 0.15
 var _shot_time: float = 0.0
@@ -36,6 +40,16 @@ func configure(
     queue_redraw()
 
 
+func attach_blessing_system(system: BlessingSystem) -> void:
+    if _blessing_system != null and _blessing_system.modifiers_changed.is_connected(_on_blessing_modifiers_changed):
+        _blessing_system.modifiers_changed.disconnect(_on_blessing_modifiers_changed)
+    _blessing_system = system
+    if _blessing_system != null and not _blessing_system.modifiers_changed.is_connected(_on_blessing_modifiers_changed):
+        _blessing_system.modifiers_changed.connect(_on_blessing_modifiers_changed)
+    _apply_level_stats()
+    queue_redraw()
+
+
 func _process(delta: float) -> void:
     _shot_time = maxf(0.0, _shot_time - delta)
     if disabled_time > 0.0:
@@ -47,13 +61,18 @@ func _process(delta: float) -> void:
     if _cooldown <= 0.0:
         var target: SproutEnemy = _select_target()
         if target != null:
+            var shot_damage: float = damage
+            if _blessing_system != null and _blessing_system.roll_critical():
+                shot_damage *= BlessingSystem.CRITICAL_DAMAGE_MULTIPLIER
+                critical_shot.emit(shot_damage)
             _attack_strategy.fire(
                 global_position + _get_attack_origin(),
                 target,
                 data,
-                damage,
+                shot_damage,
                 _projectile_pool,
-                _enemy_registry
+                _enemy_registry,
+                _effective_status_effect
             )
             _shot_target = to_local(target.global_position)
             _shot_time = 0.08
@@ -167,6 +186,17 @@ func _apply_level_stats() -> void:
     damage = data.get_damage_for_level(level)
     attack_interval = data.get_interval_for_level(level)
     attack_range = data.get_range_for_level(level)
+    _effective_status_effect = data.status_effect
+    if _blessing_system != null:
+        damage *= _blessing_system.get_damage_multiplier()
+        attack_interval = maxf(0.08, attack_interval * _blessing_system.get_attack_interval_multiplier())
+        attack_range *= _blessing_system.get_range_multiplier()
+        _effective_status_effect = _blessing_system.modify_status_effect(data.status_effect)
+
+
+func _on_blessing_modifiers_changed() -> void:
+    _apply_level_stats()
+    queue_redraw()
 
 
 func _get_attack_origin() -> Vector2:
