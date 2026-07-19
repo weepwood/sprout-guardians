@@ -14,10 +14,6 @@ var chest_progress: int = 0
 var pending_chests: int = 0
 
 
-func _ready() -> void:
-    process_mode = Node.PROCESS_MODE_PAUSABLE
-
-
 func setup(target: int = 12, window: float = 3.2) -> void:
     chest_target = maxi(3, target)
     combo_window = maxf(0.5, window)
@@ -34,10 +30,12 @@ func reset_run() -> void:
 
 
 func _process(delta: float) -> void:
+    if is_inside_tree() and get_tree().paused:
+        return
     if combo <= 0 or combo_time_remaining <= 0.0:
         return
-    var speed: float = maxf(0.01, Engine.time_scale)
-    combo_time_remaining = maxf(0.0, combo_time_remaining - delta / speed)
+    var real_delta: float = delta / maxf(0.001, Engine.time_scale)
+    combo_time_remaining = maxf(0.0, combo_time_remaining - real_delta)
     if combo_time_remaining <= 0.0:
         combo = 0
     combo_changed.emit(combo, get_combo_tier(), combo_time_remaining)
@@ -55,6 +53,12 @@ func register_kill(is_elite: bool = false) -> void:
 
 func register_wave_clear() -> void:
     _add_chest_progress(3)
+
+
+func grant_surprise_drop(count: int = 1) -> void:
+    pending_chests += maxi(0, count)
+    if pending_chests > 0:
+        chest_ready.emit(pending_chests)
 
 
 func register_escape() -> void:

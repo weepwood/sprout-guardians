@@ -21,7 +21,8 @@ func launch(
         projectile_size: float = 4.0,
         splash_radius: float = 0.0,
         status_effect: StatusEffectData = null,
-        enemy_registry: EnemyRegistry = null
+        enemy_registry: EnemyRegistry = null,
+        critical_hit: bool = false
 ) -> SproutProjectile:
     var projectile: SproutProjectile
     if _available.is_empty():
@@ -38,7 +39,8 @@ func launch(
         projectile_size,
         splash_radius,
         status_effect,
-        enemy_registry
+        enemy_registry,
+        critical_hit
     )
     return projectile
 

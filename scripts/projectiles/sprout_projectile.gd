@@ -11,6 +11,7 @@ var projectile_size: float = 4.0
 var splash_radius: float = 0.0
 var status_effect: StatusEffectData
 var enemy_registry: EnemyRegistry
+var critical_hit: bool = false
 var active: bool = false
 
 
@@ -23,7 +24,8 @@ func launch(
         size_value: float = 4.0,
         splash_radius_value: float = 0.0,
         status_effect_value: StatusEffectData = null,
-        enemy_registry_value: EnemyRegistry = null
+        enemy_registry_value: EnemyRegistry = null,
+        critical_hit_value: bool = false
 ) -> void:
     global_position = start_position
     target = target_value
@@ -34,6 +36,7 @@ func launch(
     splash_radius = maxf(0.0, splash_radius_value)
     status_effect = status_effect_value
     enemy_registry = enemy_registry_value
+    critical_hit = critical_hit_value
     active = true
     visible = true
     set_process(true)
@@ -47,6 +50,7 @@ func reset() -> void:
     status_effect = null
     enemy_registry = null
     splash_radius = 0.0
+    critical_hit = false
     visible = false
     set_process(false)
 
@@ -82,7 +86,7 @@ func _impact() -> void:
     for enemy: SproutEnemy in impacted:
         if enemy == null or not is_instance_valid(enemy):
             continue
-        enemy.take_damage(damage)
+        enemy.take_damage(damage, critical_hit)
         if status_effect != null and is_instance_valid(enemy):
             enemy.apply_status(status_effect)
 
@@ -96,5 +100,6 @@ func _request_recycle() -> void:
 
 func _draw() -> void:
     var half_width: float = projectile_size * 0.5
-    draw_rect(Rect2(-half_width - 1.0, -2.0, projectile_size + 2.0, 4.0), Color("365f3b"))
+    var trail_color: Color = Color("fff1a3") if critical_hit else Color("365f3b")
+    draw_rect(Rect2(-half_width - 1.0, -2.0, projectile_size + 2.0, 4.0), trail_color)
     draw_rect(Rect2(-half_width, -1.0, projectile_size, 2.0), body_color)

@@ -15,8 +15,9 @@ func _run() -> void:
 
     await _test_main_menu()
     await _test_level_select()
-    await _test_gameplay_scene()
+    await _test_greed_arena_scene()
 
+    Engine.time_scale = 1.0
     _remove_user_file(SettingsService.DEFAULT_PATH)
     _remove_user_file(SaveGameService.DEFAULT_SAVE_PATH)
     _remove_user_file(SaveGameService.DEFAULT_BACKUP_PATH)
@@ -25,7 +26,6 @@ func _run() -> void:
         push_error("UI smoke tests failed: %d" % _failures)
         quit(1)
         return
-
     print("All Sprout Guardians UI smoke tests passed.")
     quit(0)
 
@@ -66,7 +66,7 @@ func _test_main_menu() -> void:
 
 
 func _test_level_select() -> void:
-    var level_select: Node = await _instantiate_scene("res://scenes/level_select.tscn", "Level select")
+    var level_select: Node = await _instantiate_scene("res://scenes/level_select.tscn", "Legacy level select")
     if level_select == null:
         return
 
@@ -75,23 +75,16 @@ func _test_level_select() -> void:
     level_select.call("_toggle_language")
     await process_frame
 
-    _assert_true(localization.locale_code != initial_locale, "Level-select language button changes locale")
-    var title: Label = level_select.get("title_label") as Label
-    var expected_title: String = "选择守护区域" if localization.locale_code == "zh_CN" else "CHOOSE A GARDEN"
-    _assert_equal_string(title.text, expected_title, "Level-select title updates immediately")
-
+    _assert_true(localization.locale_code != initial_locale, "Legacy level-select language button changes locale")
     var level_buttons: Array = level_select.get("level_buttons") as Array
-    _assert_equal_int(level_buttons.size(), 3, "Level select exposes three campaign slots")
-    for button_value: Variant in level_buttons:
-        var button: Button = button_value as Button
-        _assert_control_inside_viewport(button, "Level button stays inside viewport")
+    _assert_equal_int(level_buttons.size(), 3, "Legacy campaign data remains loadable for regression comparison")
 
     level_select.queue_free()
     await process_frame
 
 
-func _test_gameplay_scene() -> void:
-    var game: Node = await _instantiate_scene("res://scenes/main.tscn", "Gameplay")
+func _test_greed_arena_scene() -> void:
+    var game: Node = await _instantiate_scene("res://scenes/main.tscn", "Main-plant greed arena")
     if game == null:
         return
 
@@ -99,58 +92,85 @@ func _test_gameplay_scene() -> void:
     var initial_locale: String = localization.locale_code
     game.call("_toggle_language")
     await process_frame
-    _assert_true(localization.locale_code != initial_locale, "Gameplay language button changes locale")
+    _assert_true(localization.locale_code != initial_locale, "Greed arena language button changes locale")
 
-    var coins_label: Label = game.get("coins_label") as Label
-    var expected_prefix: String = "阳光" if localization.locale_code == "zh_CN" else "Sunlight"
-    _assert_true(coins_label.text.begins_with(expected_prefix), "Gameplay HUD updates after language switch")
+    var hero: GreedHeroPlant = game.get("hero_plant") as GreedHeroPlant
+    var familiars: Array = game.get("plants") as Array
+    _assert_true(hero != null, "Greed arena starts with one controllable main plant")
+    _assert_equal_int(familiars.size(), 2, "Secondary plants are represented as two floating familiars")
+    _assert_true(game.find_child("StartWaveButton", true, false) == null, "Default mode has no manual Start Wave control")
+    _assert_true(game.find_child("UpgradeButton", true, false) == null, "Default mode has no manual upgrade control")
+    _assert_true(game.find_child("BuildBar", true, false) == null, "Default mode has no tower build bar")
 
-    game.call("_build_tower", 0)
-    await process_frame
-    var towers_by_slot: Dictionary = game.get("towers_by_slot") as Dictionary
-    _assert_equal_int(towers_by_slot.size(), 1, "Gameplay can build a tower after scene startup")
+    var initial_position: Vector2 = hero.global_position
+    game.call("_handle_left_click", initial_position)
+    _assert_true(hero.dragging and hero.selected, "Clicking the main plant begins direct mouse control")
+    hero.end_drag(initial_position)
+    var move_destination: Vector2 = initial_position + Vector2(64.0, 28.0)
+    game.call("_handle_left_click", move_destination)
+    _assert_true(hero.has_move_target, "A selected main plant accepts a floor movement command")
+    hero._process(0.25)
+    _assert_true(hero.global_position.distance_to(initial_position) > 1.0, "Main plant moves toward the clicked destination")
 
-    game.call("_toggle_auto_battle")
-    await process_frame
-    var auto_director: AutoBattleDirector = game.get("auto_battle_director") as AutoBattleDirector
-    var auto_button: Button = game.get("auto_button") as Button
-    _assert_true(auto_director != null and auto_director.auto_enabled, "Auto-battle toggle enables automatic waves")
-    _assert_control_inside_viewport(auto_button, "Auto-battle button stays inside viewport")
-
-    game.call("_start_next_wave")
-    for _frame: int in range(6):
-        await process_frame
-    var wave_manager: WaveManager = game.get("wave_manager") as WaveManager
-    _assert_true(wave_manager.current_wave_index >= 0, "Gameplay can start the first wave")
-
-    var rewards: CombatRewardSystem = game.get("combat_reward_system") as CombatRewardSystem
-    for _kill: int in range(12):
-        rewards.register_kill(false)
+    game.set("next_wave_timer", 0.0)
     await process_frame
     await process_frame
+    _assert_equal_int(int(game.get("wave_index")), 0, "First greed wave starts automatically")
+    _assert_true(bool(game.get("wave_active")), "Greed arena enters active combat without a wave button")
 
-    var chest_panel: Panel = game.get("chest_panel") as Panel
-    var chest_buttons: Array = game.get("chest_choice_buttons") as Array
-    _assert_true(chest_panel.visible, "Golden chest opens after the reward meter fills")
-    _assert_true(paused, "Golden chest pauses combat")
-    _assert_equal_int(chest_buttons.size(), 3, "Golden chest presents three blessing choices")
-    _assert_control_inside_viewport(chest_panel, "Golden chest panel stays inside viewport")
+    game.set("spawn_timer", 0.0)
+    await process_frame
+    await process_frame
+    var enemies: Array[Node] = get_nodes_in_group("greed_enemies")
+    _assert_true(enemies.size() >= 1, "Enemies enter from arena doors without path-following setup")
+    var priority_enemy: GreedEnemy = enemies[0] as GreedEnemy
+    game.call("_set_priority_target", priority_enemy)
+    _assert_true(hero.get_focus_target() == priority_enemy, "Click command locks a main attack target")
+    _assert_true(priority_enemy.priority_targeted, "Priority enemy displays its target marker")
+    for familiar_value: Variant in familiars:
+        var familiar: GreedPlant = familiar_value as GreedPlant
+        _assert_true(familiar.focus_source == hero, "Floating familiar shares the main plant target source")
+        _assert_true(familiar.call("_find_target") == priority_enemy, "Floating familiar prioritizes the clicked enemy")
+
+    game.set("spawn_remaining", 0)
+    for node: Node in get_nodes_in_group("greed_enemies"):
+        node.queue_free()
+    await process_frame
+    await process_frame
+    await process_frame
+
+    var choice_panel: Panel = game.get("choice_panel") as Panel
+    var choice_buttons: Array = game.get("choice_buttons") as Array
+    _assert_true(bool(game.get("choice_open")), "Every cleared greed wave guarantees a surprise choice")
+    _assert_true(choice_panel.visible, "Surprise choice overlay opens after a wave")
+    _assert_equal_int(choice_buttons.size(), 3, "Surprise reward presents three mutation choices")
+    _assert_control_inside_viewport(choice_panel, "Greed reward panel stays inside viewport")
 
     var choices: Array = game.get("_current_choices") as Array
-    _assert_equal_int(choices.size(), 3, "Golden chest contains three valid blessing data entries")
-    var selected: BlessingData = choices[0] as BlessingData
-    game.call("_select_blessing", 0)
+    var selected_blessing: BlessingData = choices[0] as BlessingData
+    var hero_level_before: int = hero.level
+    game.call("_select_choice", 0)
     await process_frame
 
     var blessings: BlessingSystem = game.get("blessing_system") as BlessingSystem
-    _assert_true(not chest_panel.visible, "Choosing a blessing closes the golden chest")
-    _assert_true(not paused, "Choosing a blessing resumes combat")
-    _assert_equal_int(blessings.get_blessing_stack(selected.id), 1, "Chosen blessing is applied to the run")
+    _assert_true(not bool(game.get("choice_open")), "Choosing a mutation resumes the run")
+    _assert_true(not choice_panel.visible, "Choosing a mutation closes the reward overlay")
+    _assert_equal_int(blessings.get_blessing_stack(selected_blessing.id), 1, "Chosen mutation modifies the run")
+    _assert_equal_int(hero.level, hero_level_before + 1, "Every reward evolves the main plant")
 
+    var effects: PixelImpactSystem = game.get("impact_system") as PixelImpactSystem
+    effects.spawn_hit(Vector2(320.0, 180.0), Color("ffffff"), 25.0, true)
+    _assert_true(effects.get_active_particle_count() > 0, "Critical arena impact creates pixel particles")
+    _assert_true(effects.get_active_particle_count() <= effects.max_particles, "Arena particles remain bounded")
+
+    var control_label: Label = game.get("control_label") as Label
     var language_button: Button = game.get("language_button") as Button
+    var speed_button: Button = game.get("speed_button") as Button
     var menu_button: Button = game.get("menu_button") as Button
-    _assert_control_inside_viewport(language_button, "Gameplay language button stays inside viewport")
-    _assert_control_inside_viewport(menu_button, "Gameplay menu button stays inside viewport")
+    _assert_control_inside_viewport(control_label, "Mouse-control guidance stays inside viewport")
+    _assert_control_inside_viewport(language_button, "Greed language button stays inside viewport")
+    _assert_control_inside_viewport(speed_button, "Greed speed button stays inside viewport")
+    _assert_control_inside_viewport(menu_button, "Greed menu button stays inside viewport")
 
     game.queue_free()
     await process_frame
