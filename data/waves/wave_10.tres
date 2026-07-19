@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="WaveData" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/wave_data.gd" id="1_wave"]
+[ext_resource type="Script" path="res://scripts/data/spawn_group_data.gd" id="2_group"]
+[ext_resource type="Resource" path="res://data/enemies/forest_golem.tres" id="3_boss"]
+[ext_resource type="Resource" path="res://data/enemies/beetle.tres" id="4_beetle"]
+[ext_resource type="Resource" path="res://data/enemies/jump_mushroom.tres" id="5_jump"]
+
+[sub_resource type="Resource" id="BossGroup"]
+script = ExtResource("2_group")
+enemy = ExtResource("3_boss")
+count = 1
+spawn_interval = 1.0
+start_delay = 0.1
+path_index = 0
+
+[sub_resource type="Resource" id="BeetleGroup"]
+script = ExtResource("2_group")
+enemy = ExtResource("4_beetle")
+count = 8
+spawn_interval = 0.45
+start_delay = 2.5
+path_index = 0
+
+[sub_resource type="Resource" id="JumpGroup"]
+script = ExtResource("2_group")
+enemy = ExtResource("5_jump")
+count = 5
+spawn_interval = 0.55
+start_delay = 5.5
+path_index = 0
+
+[resource]
+script = ExtResource("1_wave")
+id = &"wave_10"
+display_name = "Forest Golem"
+tactical_hint = "The boss changes phase at 70% and 40% health, disrupting nearby towers each time."
+spawn_groups = Array[Resource]([SubResource("BossGroup"), SubResource("BeetleGroup"), SubResource("JumpGroup")])
+clear_reward = 0
+early_start_bonus = 0
