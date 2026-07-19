@@ -1,44 +1,14 @@
 extends Node2D
 
-const TOWER_COST: int = 75
-const STARTING_COINS: int = 220
-const STARTING_LIVES: int = 10
+const DEFAULT_LEVEL: LevelData = preload("res://data/levels/morning_forest.tres")
 
-var path_points: PackedVector2Array = PackedVector2Array([
-    Vector2(-16.0, 92.0),
-    Vector2(152.0, 92.0),
-    Vector2(152.0, 224.0),
-    Vector2(348.0, 224.0),
-    Vector2(348.0, 108.0),
-    Vector2(656.0, 108.0),
-])
-
-var slot_positions: Array[Vector2] = [
-    Vector2(84.0, 154.0),
-    Vector2(214.0, 148.0),
-    Vector2(272.0, 278.0),
-    Vector2(414.0, 174.0),
-    Vector2(486.0, 62.0),
-    Vector2(558.0, 166.0),
-]
-
-var waves: Array[Dictionary] = [
-    {"count": 6, "health": 42.0, "speed": 42.0, "reward": 12, "interval": 0.85, "color": Color("86c85a")},
-    {"count": 9, "health": 58.0, "speed": 49.0, "reward": 13, "interval": 0.68, "color": Color("d3a34f")},
-    {"count": 12, "health": 82.0, "speed": 46.0, "reward": 15, "interval": 0.58, "color": Color("9e73c8")},
-    {"count": 1, "health": 620.0, "speed": 31.0, "reward": 160, "interval": 1.0, "color": Color("c76464")},
-]
-
-var coins: int = STARTING_COINS
-var lives: int = STARTING_LIVES
-var current_wave: int = -1
-var active_enemies: int = 0
-var spawn_remaining: int = 0
-var spawn_cooldown: float = 0.0
-var wave_active: bool = false
-var game_ended: bool = false
-var speed_index: int = 0
-var speed_values: Array[float] = [1.0, 2.0, 3.0]
+var level_data: LevelData
+var game_manager: GameManager
+var economy_system: EconomySystem
+var base_health_system: BaseHealthSystem
+var wave_manager: WaveManager
+var enemy_registry: EnemyRegistry
+var projectile_pool: ProjectilePool
 
 var towers_by_slot: Dictionary = {}
 var selected_tower: SproutTower = null
@@ -58,29 +28,63 @@ var restart_button: Button
 
 
 func _ready() -> void:
-    Engine.time_scale = 1.0
+    level_data = DEFAULT_LEVEL
+    _create_systems()
     _create_ui()
+    game_manager.reset()
+    wave_manager.setup(level_data)
+    economy_system.setup(level_data.starting_coins)
+    base_health_system.setup(level_data.base_health)
     _refresh_hud()
     queue_redraw()
 
 
-func _process(delta: float) -> void:
-    if not wave_active or game_ended:
-        return
+func _create_systems() -> void:
+    game_manager = GameManager.new()
+    game_manager.name = "GameManager"
+    add_child(game_manager)
 
-    if spawn_remaining > 0:
-        spawn_cooldown -= delta
-        if spawn_cooldown <= 0.0:
-            _spawn_enemy()
-            spawn_remaining -= 1
-            var wave: Dictionary = waves[current_wave]
-            spawn_cooldown = float(wave["interval"])
+    economy_system = EconomySystem.new()
+    economy_system.name = "EconomySystem"
+    add_child(economy_system)
 
-    _check_wave_complete()
+    base_health_system = BaseHealthSystem.new()
+    base_health_system.name = "BaseHealthSystem"
+    add_child(base_health_system)
+
+    wave_manager = WaveManager.new()
+    wave_manager.name = "WaveManager"
+    add_child(wave_manager)
+
+    enemy_registry = EnemyRegistry.new()
+    enemy_registry.name = "EnemyRegistry"
+    add_child(enemy_registry)
+
+    projectile_pool = ProjectilePool.new()
+    projectile_pool.name = "ProjectilePool"
+    projectile_pool.initial_capacity = 32
+    add_child(projectile_pool)
+
+    var debug_overlay: DebugPerformanceOverlay = DebugPerformanceOverlay.new()
+    debug_overlay.name = "DebugPerformanceOverlay"
+    debug_overlay.configure(enemy_registry, projectile_pool)
+    add_child(debug_overlay)
+
+    economy_system.coins_changed.connect(_on_coins_changed)
+    economy_system.transaction_rejected.connect(_on_transaction_rejected)
+    base_health_system.health_changed.connect(_on_health_changed)
+    base_health_system.depleted.connect(_on_base_depleted)
+    wave_manager.wave_started.connect(_on_wave_started)
+    wave_manager.enemy_spawn_requested.connect(_spawn_enemy)
+    wave_manager.wave_completed.connect(_on_wave_completed)
+    wave_manager.campaign_completed.connect(_on_campaign_completed)
+    game_manager.pause_changed.connect(_on_pause_changed)
+    game_manager.speed_changed.connect(_on_speed_changed)
+    game_manager.game_finished.connect(_on_game_finished)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-    if game_ended:
+    if game_manager.game_ended:
         return
     if not (event is InputEventMouseButton):
         return
@@ -119,13 +123,13 @@ func _draw() -> void:
             var tile_color: Color = Color("2f684b") if checker else Color("2a5f45")
             draw_rect(Rect2(float(x_value), float(y_value), 32.0, 32.0), tile_color)
 
-    draw_polyline(path_points, Color("553d32"), 30.0, false)
-    draw_polyline(path_points, Color("b58a5a"), 22.0, false)
+    draw_polyline(level_data.path_points, Color("553d32"), 30.0, false)
+    draw_polyline(level_data.path_points, Color("b58a5a"), 22.0, false)
 
-    for index: int in range(slot_positions.size()):
+    for index: int in range(level_data.build_slots.size()):
         if towers_by_slot.has(index):
             continue
-        var position_value: Vector2 = slot_positions[index]
+        var position_value: Vector2 = level_data.build_slots[index]
         draw_circle(position_value, 17.0, Color("214c39"))
         draw_circle(position_value, 13.0, Color("79a95d"))
         draw_rect(Rect2(position_value - Vector2(4.0, 1.0), Vector2(8.0, 2.0)), Color("d4e6a1"))
@@ -161,7 +165,9 @@ func _create_ui() -> void:
     speed_button.pressed.connect(_cycle_speed)
 
     hint_label = _make_label(canvas, Vector2(12.0, 326.0), Vector2(392.0, 26.0))
-    hint_label.text = "Click a green build slot to plant a Pea Tower (75)."
+    var tower_data: TowerData = level_data.get_tower(0)
+    var tower_cost: int = 0 if tower_data == null else tower_data.build_cost
+    hint_label.text = "Click a green build slot to plant a Pea Tower (%d). F3: debug." % tower_cost
 
     var tower_panel: ColorRect = ColorRect.new()
     tower_panel.color = Color(0.07, 0.14, 0.14, 0.90)
@@ -213,19 +219,20 @@ func _make_button(parent: Node, text_value: String, position_value: Vector2, siz
 
 
 func _build_tower(slot_index: int) -> void:
-    if coins < TOWER_COST:
-        hint_label.text = "Not enough sunlight. Defeat enemies to earn more."
+    var tower_data: TowerData = level_data.get_tower(0)
+    if tower_data == null:
+        hint_label.text = "No tower data is configured for this level."
+        return
+    if not economy_system.spend(tower_data.build_cost, &"build_tower"):
         return
 
-    coins -= TOWER_COST
     var tower: SproutTower = SproutTower.new()
     add_child(tower)
-    tower.position = slot_positions[slot_index]
-    tower.configure(slot_index)
+    tower.position = level_data.build_slots[slot_index]
+    tower.configure(slot_index, tower_data, projectile_pool, enemy_registry)
     towers_by_slot[slot_index] = tower
     _select_tower(tower)
-    hint_label.text = "Pea Tower planted. Select it to upgrade or sell."
-    _refresh_hud()
+    hint_label.text = "%s planted. Select it to upgrade or sell." % tower_data.display_name
     queue_redraw()
 
 
@@ -238,8 +245,8 @@ func _tower_at(world_point: Vector2) -> SproutTower:
 
 
 func _slot_at(world_point: Vector2) -> int:
-    for index: int in range(slot_positions.size()):
-        if slot_positions[index].distance_to(world_point) <= 20.0:
+    for index: int in range(level_data.build_slots.size()):
+        if level_data.build_slots[index].distance_to(world_point) <= 20.0:
             return index
     return -1
 
@@ -254,6 +261,8 @@ func _select_tower(tower: SproutTower) -> void:
 
 
 func _update_tower_panel() -> void:
+    if upgrade_button == null or sell_button == null or tower_label == null:
+        return
     var valid_selection: bool = selected_tower != null and is_instance_valid(selected_tower)
     upgrade_button.disabled = not valid_selection
     sell_button.disabled = not valid_selection
@@ -265,7 +274,7 @@ func _update_tower_panel() -> void:
         return
 
     var upgrade_cost: int = selected_tower.get_upgrade_cost()
-    tower_label.text = "Pea Tower Lv.%d  DMG %.0f" % [selected_tower.level, selected_tower.damage]
+    tower_label.text = "%s Lv.%d  DMG %.0f" % [selected_tower.get_display_name(), selected_tower.level, selected_tower.damage]
     upgrade_button.disabled = upgrade_cost < 0
     upgrade_button.text = "MAX" if upgrade_cost < 0 else "Upgrade %d" % upgrade_cost
     sell_button.text = "Sell %d" % selected_tower.get_sell_value()
@@ -277,133 +286,133 @@ func _upgrade_selected() -> void:
     var cost: int = selected_tower.get_upgrade_cost()
     if cost < 0:
         return
-    if coins < cost:
-        hint_label.text = "Not enough sunlight for this upgrade."
+    if not economy_system.spend(cost, &"upgrade_tower"):
         return
-    coins -= cost
     selected_tower.apply_upgrade()
     hint_label.text = "Tower upgraded to level %d." % selected_tower.level
-    _refresh_hud()
     _update_tower_panel()
 
 
 func _sell_selected() -> void:
     if selected_tower == null or not is_instance_valid(selected_tower):
         return
-    coins += selected_tower.get_sell_value()
+    economy_system.earn(selected_tower.get_sell_value(), &"sell_tower")
     towers_by_slot.erase(selected_tower.slot_index)
     selected_tower.queue_free()
     selected_tower = null
     hint_label.text = "Tower sold. The build slot is available again."
-    _refresh_hud()
     _update_tower_panel()
     queue_redraw()
 
 
 func _start_next_wave() -> void:
-    if game_ended or wave_active:
+    if game_manager.game_ended:
         return
-    if current_wave + 1 >= waves.size():
-        return
-
-    current_wave += 1
-    var wave: Dictionary = waves[current_wave]
-    spawn_remaining = int(wave["count"])
-    spawn_cooldown = 0.1
-    wave_active = true
-    start_wave_button.disabled = true
-    hint_label.text = "Wave %d incoming!" % (current_wave + 1)
-    _refresh_hud()
+    if wave_manager.start_next_wave():
+        game_manager.mark_running()
 
 
-func _spawn_enemy() -> void:
-    var wave: Dictionary = waves[current_wave]
+func _spawn_enemy(enemy_data: EnemyData, path_index: int) -> void:
     var enemy: SproutEnemy = SproutEnemy.new()
     add_child(enemy)
-    var enemy_color: Color = wave["color"]
-    enemy.configure(
-        path_points,
-        float(wave["health"]),
-        float(wave["speed"]),
-        int(wave["reward"]),
-        enemy_color
-    )
+    enemy.configure(level_data.get_path(path_index), enemy_data)
+    enemy_registry.register_enemy(enemy)
     enemy.defeated.connect(_on_enemy_defeated)
     enemy.escaped.connect(_on_enemy_escaped)
-    active_enemies += 1
 
 
-func _on_enemy_defeated(reward: int) -> void:
-    coins += reward
-    active_enemies = maxi(0, active_enemies - 1)
-    _refresh_hud()
-    _check_wave_complete()
+func _on_enemy_defeated(enemy: SproutEnemy, reward: int) -> void:
+    enemy_registry.unregister_enemy(enemy)
+    economy_system.earn(reward, &"enemy_defeated")
+    wave_manager.notify_enemy_removed()
 
 
-func _on_enemy_escaped(damage: int) -> void:
-    lives = maxi(0, lives - damage)
-    active_enemies = maxi(0, active_enemies - 1)
-    _refresh_hud()
-    if lives <= 0:
-        _finish_game(false)
-        return
-    _check_wave_complete()
+func _on_enemy_escaped(enemy: SproutEnemy, damage: int) -> void:
+    enemy_registry.unregister_enemy(enemy)
+    base_health_system.damage(damage)
+    wave_manager.notify_enemy_removed()
 
 
-func _check_wave_complete() -> void:
-    if not wave_active or spawn_remaining > 0 or active_enemies > 0:
-        return
-
-    wave_active = false
-    coins += 35 + current_wave * 10
+func _on_wave_started(index: int, _total: int) -> void:
+    start_wave_button.disabled = true
+    hint_label.text = "Wave %d incoming!" % (index + 1)
     _refresh_hud()
 
-    if current_wave >= waves.size() - 1:
-        _finish_game(true)
-        return
 
-    start_wave_button.disabled = false
-    start_wave_button.text = "Next Wave"
-    hint_label.text = "Wave cleared. Prepare your garden for the next attack."
+func _on_wave_completed(index: int, clear_reward: int) -> void:
+    economy_system.earn(clear_reward, &"wave_clear")
+    game_manager.mark_preparing()
+    _refresh_hud()
+    if index < wave_manager.get_total_waves() - 1:
+        start_wave_button.disabled = false
+        start_wave_button.text = "Next Wave"
+        hint_label.text = "Wave cleared. Prepare your garden for the next attack."
+
+
+func _on_campaign_completed() -> void:
+    _finish_game(true)
+
+
+func _on_base_depleted() -> void:
+    _finish_game(false)
 
 
 func _finish_game(victory: bool) -> void:
-    if game_ended:
+    if game_manager.game_ended:
         return
-    game_ended = true
-    wave_active = false
+    game_manager.finish(victory)
+
+
+func _on_game_finished(victory: bool) -> void:
     start_wave_button.disabled = true
     pause_button.disabled = true
     speed_button.disabled = true
     result_label.text = "VICTORY\nThe sprout is safe!" if victory else "DEFEAT\nThe mist reached the sprout."
     result_label.visible = true
     restart_button.visible = true
-    get_tree().paused = true
 
 
 func _toggle_pause() -> void:
-    if game_ended:
-        return
-    get_tree().paused = not get_tree().paused
-    pause_button.text = "Resume" if get_tree().paused else "Pause"
+    game_manager.toggle_pause()
 
 
 func _cycle_speed() -> void:
-    if game_ended:
-        return
-    speed_index = (speed_index + 1) % speed_values.size()
-    Engine.time_scale = speed_values[speed_index]
-    speed_button.text = "%dx" % int(speed_values[speed_index])
+    game_manager.cycle_speed()
 
 
 func _restart_game() -> void:
-    Engine.time_scale = 1.0
-    get_tree().paused = false
-    get_tree().reload_current_scene()
+    game_manager.restart()
+
+
+func _on_pause_changed(paused: bool) -> void:
+    if pause_button != null:
+        pause_button.text = "Resume" if paused else "Pause"
+
+
+func _on_speed_changed(multiplier: float) -> void:
+    if speed_button != null:
+        speed_button.text = "%dx" % int(multiplier)
+
+
+func _on_coins_changed(_value: int, _delta: int, _reason: StringName) -> void:
+    _refresh_hud()
+
+
+func _on_health_changed(_value: int, _delta: int) -> void:
+    _refresh_hud()
+
+
+func _on_transaction_rejected(_required: int, _available: int, reason: StringName) -> void:
+    if reason == &"upgrade_tower":
+        hint_label.text = "Not enough sunlight for this upgrade."
+    else:
+        hint_label.text = "Not enough sunlight. Defeat enemies to earn more."
 
 
 func _refresh_hud() -> void:
-    coins_label.text = "Sunlight: %d" % coins
-    lives_label.text = "Sprout: %d" % lives
-    wave_label.text = "Wave: %d/%d" % [current_wave + 1, waves.size()]
+    if coins_label == null or lives_label == null or wave_label == null:
+        return
+    coins_label.text = "Sunlight: %d" % economy_system.coins
+    lives_label.text = "Sprout: %d" % base_health_system.health
+    wave_label.text = "Wave: %d/%d" % [wave_manager.current_wave_index + 1, wave_manager.get_total_waves()]
     _update_tower_panel()
