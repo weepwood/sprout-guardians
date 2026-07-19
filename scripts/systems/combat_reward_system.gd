@@ -15,7 +15,7 @@ var pending_chests: int = 0
 
 
 func _ready() -> void:
-    process_mode = Node.PROCESS_MODE_ALWAYS
+    process_mode = Node.PROCESS_MODE_PAUSABLE
 
 
 func setup(target: int = 12, window: float = 3.2) -> void:
@@ -36,7 +36,8 @@ func reset_run() -> void:
 func _process(delta: float) -> void:
     if combo <= 0 or combo_time_remaining <= 0.0:
         return
-    combo_time_remaining = maxf(0.0, combo_time_remaining - delta)
+    var speed: float = maxf(0.01, Engine.time_scale)
+    combo_time_remaining = maxf(0.0, combo_time_remaining - delta / speed)
     if combo_time_remaining <= 0.0:
         combo = 0
     combo_changed.emit(combo, get_combo_tier(), combo_time_remaining)
