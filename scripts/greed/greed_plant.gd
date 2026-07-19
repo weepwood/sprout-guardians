@@ -160,7 +160,7 @@ func _effective_interval() -> float:
 
 
 func _draw() -> void:
-    var body_color: Color = config.get("color", Color("8fe45f")) as Color
+    var body_color: Color = Color(String(config.get("color_hex", "8fe45f")))
     var base_color: Color = body_color.darkened(0.35)
     draw_circle(Vector2.ZERO, 11.0 + float(level - 1) * 0.7, Color(0.06, 0.12, 0.09, 0.72))
     draw_circle(Vector2.ZERO, 8.0 + float(level - 1) * 0.5, body_color)
