@@ -107,7 +107,8 @@ func _build_tower(slot_index: int) -> void:
 
 
 func _start_next_wave() -> void:
-    auto_battle_director.cancel()
+    if auto_battle_director != null:
+        auto_battle_director.cancel()
     super._start_next_wave()
 
 
@@ -246,6 +247,8 @@ func _on_tower_critical_shot(damage_value: float) -> void:
 func _refresh_reward_hud() -> void:
     if combo_label == null or chest_meter_label == null or auto_button == null:
         return
+    if combat_reward_system == null or auto_battle_director == null:
+        return
     var tier: int = combat_reward_system.get_combo_tier()
     combo_label.text = _run_t("COMBO %d · T%d", "连击 %d · 阶%d") % [combat_reward_system.combo, tier]
     chest_meter_label.text = _run_t("GOLD CHEST\n%d/%d", "黄金宝箱\n%d/%d") % [combat_reward_system.chest_progress, combat_reward_system.chest_target]
@@ -262,7 +265,7 @@ func _refresh_chest_choices() -> void:
             button.visible = false
             continue
         var data: BlessingData = _current_choices[index]
-        var next_stack: int = blessing_system.get_stack(data.id) + 1
+        var next_stack: int = blessing_system.get_blessing_stack(data.id) + 1
         button.text = "%s · %s\n%s" % [data.rarity_name(i18n.locale_code), data.localized_name(i18n.locale_code), data.localized_description(i18n.locale_code, next_stack)]
         button.add_theme_color_override("font_color", data.rarity_color())
 
