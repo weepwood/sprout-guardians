@@ -43,7 +43,7 @@ func _draw() -> void:
     draw_rect(Rect2(0.0, 0.0, 640.0, 360.0), Color("102c2b"))
     for x_value: int in range(0, 640, 32):
         for y_value: int in range(0, 360, 32):
-            var alternating: bool = (x_value / 32 + y_value / 32) as int % 2 == 0
+            var alternating: bool = (int(x_value / 32) + int(y_value / 32)) % 2 == 0
             draw_rect(Rect2(float(x_value), float(y_value), 32.0, 32.0), Color("173f35") if alternating else Color("14382f"))
     draw_circle(Vector2(86.0, 276.0), 72.0, Color("245e43"))
     draw_circle(Vector2(552.0, 84.0), 94.0, Color("1d513d"))
@@ -241,10 +241,10 @@ func _make_button(parent: Node, position_value: Vector2, size_value: Vector2) ->
     normal.bg_color = Color("24483f")
     normal.border_color = Color("7ba269")
     normal.set_border_width_all(2)
-    var hover: StyleBoxFlat = normal.duplicate()
+    var hover: StyleBoxFlat = normal.duplicate() as StyleBoxFlat
     hover.bg_color = Color("356553")
     hover.border_color = Color("d1e88d")
-    var pressed: StyleBoxFlat = normal.duplicate()
+    var pressed: StyleBoxFlat = normal.duplicate() as StyleBoxFlat
     pressed.bg_color = Color("182f2b")
     pressed.border_color = Color("f0cf75")
     button.add_theme_stylebox_override("normal", normal)
