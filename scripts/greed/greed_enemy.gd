@@ -19,6 +19,8 @@ var body_size: float = 12.0
 var _contact_cooldown: float = 0.0
 var _flash_time: float = 0.0
 var _squash_time: float = 0.0
+var _slow_time: float = 0.0
+var _slow_multiplier: float = 1.0
 var _knock_velocity: Vector2 = Vector2.ZERO
 var _finished: bool = false
 
@@ -34,6 +36,8 @@ func configure(core: GreedCore, config: Dictionary, health_scale: float = 1.0) -
     coin_reward = 4 if boss else (2 if elite else 1)
     body_size = 28.0 if boss else (18.0 if elite else 12.0)
     body_color = Color("a557d4") if boss else (Color("e39b4b") if elite else Color("dd6d63"))
+    _slow_time = 0.0
+    _slow_multiplier = 1.0
     add_to_group("greed_enemies")
     queue_redraw()
 
@@ -44,6 +48,9 @@ func _process(delta: float) -> void:
     _contact_cooldown = maxf(0.0, _contact_cooldown - delta)
     _flash_time = maxf(0.0, _flash_time - delta)
     _squash_time = maxf(0.0, _squash_time - delta)
+    _slow_time = maxf(0.0, _slow_time - delta)
+    if _slow_time <= 0.0:
+        _slow_multiplier = 1.0
     _knock_velocity = _knock_velocity.move_toward(Vector2.ZERO, 420.0 * delta)
     global_position += _knock_velocity * delta
 
@@ -56,7 +63,7 @@ func _process(delta: float) -> void:
     if distance_value > 1.0:
         var separation: Vector2 = _separation_force()
         var direction: Vector2 = (to_core.normalized() + separation * 0.55).normalized()
-        global_position += direction * move_speed * delta
+        global_position += direction * move_speed * _slow_multiplier * delta
 
     if distance_value <= body_size * 0.55 + 13.0 and _contact_cooldown <= 0.0:
         _contact_cooldown = 0.85
@@ -79,6 +86,14 @@ func take_damage(amount: float, critical: bool = false) -> float:
         _die()
     queue_redraw()
     return final_damage
+
+
+func apply_slow(multiplier: float, duration: float) -> void:
+    if _finished or duration <= 0.0:
+        return
+    _slow_multiplier = minf(_slow_multiplier, clampf(multiplier, 0.2, 1.0))
+    _slow_time = maxf(_slow_time, duration)
+    queue_redraw()
 
 
 func apply_knockback(origin: Vector2, force: float) -> void:
@@ -115,6 +130,8 @@ func _draw() -> void:
     var scale_y: float = 0.72 if _squash_time > 0.0 else 1.0
     var scale_x: float = 1.28 if _squash_time > 0.0 else 1.0
     var color_value: Color = Color.WHITE if _flash_time > 0.0 else body_color
+    if _slow_time > 0.0:
+        color_value = color_value.lerp(Color("86ddff"), 0.32)
     var size_value: Vector2 = Vector2(body_size * scale_x, body_size * scale_y)
     var half: Vector2 = size_value * 0.5
     draw_rect(Rect2(-half - Vector2(2.0, 2.0), size_value + Vector2(4.0, 4.0)), Color("3a2630"))
