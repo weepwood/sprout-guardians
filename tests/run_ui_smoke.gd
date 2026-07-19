@@ -25,7 +25,6 @@ func _run() -> void:
         push_error("UI smoke tests failed: %d" % _failures)
         quit(1)
         return
-
     print("All Sprout Guardians UI smoke tests passed.")
     quit(0)
 
@@ -91,7 +90,7 @@ func _test_level_select() -> void:
 
 
 func _test_gameplay_scene() -> void:
-    var game: Node = await _instantiate_scene("res://scenes/main.tscn", "Gameplay")
+    var game: Node = await _instantiate_scene("res://scenes/main.tscn", "Autonomous gameplay")
     if game == null:
         return
 
@@ -105,50 +104,68 @@ func _test_gameplay_scene() -> void:
     var expected_prefix: String = "阳光" if localization.locale_code == "zh_CN" else "Sunlight"
     _assert_true(coins_label.text.begins_with(expected_prefix), "Gameplay HUD updates after language switch")
 
-    game.call("_build_tower", 0)
-    await process_frame
-    var towers_by_slot: Dictionary = game.get("towers_by_slot") as Dictionary
-    _assert_equal_int(towers_by_slot.size(), 1, "Gameplay can build a tower after scene startup")
-
-    game.call("_toggle_auto_battle")
-    await process_frame
-    var auto_director: AutoBattleDirector = game.get("auto_battle_director") as AutoBattleDirector
+    var start_button: Button = game.get("start_wave_button") as Button
     var auto_button: Button = game.get("auto_button") as Button
-    _assert_true(auto_director != null and auto_director.auto_enabled, "Auto-battle toggle enables automatic waves")
-    _assert_control_inside_viewport(auto_button, "Auto-battle button stays inside viewport")
+    var upgrade_button: Button = game.get("upgrade_button") as Button
+    var sell_button: Button = game.get("sell_button") as Button
+    var build_buttons: Array = game.get("tower_build_buttons") as Array
+    _assert_true(not start_button.visible, "Manual Start Wave is removed from autonomous mode")
+    _assert_true(not auto_button.visible, "Auto-wave cannot be disabled in autonomous mode")
+    _assert_true(not upgrade_button.visible and not sell_button.visible, "Manual upgrade and sell controls are removed")
+    for button_value: Variant in build_buttons:
+        _assert_true(not (button_value as Button).visible, "Manual plant deployment controls are removed")
 
-    game.call("_start_next_wave")
+    var garden_director: AutonomousGardenDirector = game.get("garden_director") as AutonomousGardenDirector
+    _assert_true(garden_director != null and garden_director.enabled, "Autonomous garden director starts enabled")
+    garden_director.force_decision()
+    await process_frame
+    await process_frame
+
+    var towers_by_slot: Dictionary = game.get("towers_by_slot") as Dictionary
+    _assert_true(towers_by_slot.size() >= 1, "Director deploys the first plant without player input")
+
+    var auto_director: AutoBattleDirector = game.get("auto_battle_director") as AutoBattleDirector
+    _assert_true(auto_director != null and auto_director.auto_enabled, "Automatic wave flow is permanently enabled")
+    auto_director._process(2.0)
     for _frame: int in range(6):
         await process_frame
     var wave_manager: WaveManager = game.get("wave_manager") as WaveManager
-    _assert_true(wave_manager.current_wave_index >= 0, "Gameplay can start the first wave")
+    _assert_true(wave_manager.current_wave_index >= 0, "First wave starts without pressing Start Wave")
 
     var rewards: CombatRewardSystem = game.get("combat_reward_system") as CombatRewardSystem
-    for _kill: int in range(12):
-        rewards.register_kill(false)
+    rewards.grant_surprise_drop(1)
     await process_frame
     await process_frame
 
     var chest_panel: Panel = game.get("chest_panel") as Panel
     var chest_buttons: Array = game.get("chest_choice_buttons") as Array
-    _assert_true(chest_panel.visible, "Golden chest opens after the reward meter fills")
-    _assert_true(paused, "Golden chest pauses combat")
-    _assert_equal_int(chest_buttons.size(), 3, "Golden chest presents three blessing choices")
-    _assert_control_inside_viewport(chest_panel, "Golden chest panel stays inside viewport")
+    _assert_true(chest_panel.visible, "Surprise drop opens as the player's primary interaction")
+    _assert_true(paused, "Surprise choice pauses all automation")
+    _assert_equal_int(chest_buttons.size(), 3, "Surprise drop presents three choices")
+    _assert_control_inside_viewport(chest_panel, "Surprise choice panel stays inside viewport")
+    _assert_true(garden_director.blocked, "Garden director pauses while the player chooses")
 
     var choices: Array = game.get("_current_choices") as Array
-    _assert_equal_int(choices.size(), 3, "Golden chest contains three valid blessing data entries")
+    _assert_equal_int(choices.size(), 3, "Surprise drop contains three valid data entries")
     var selected: BlessingData = choices[0] as BlessingData
     game.call("_select_blessing", 0)
     await process_frame
 
     var blessings: BlessingSystem = game.get("blessing_system") as BlessingSystem
-    _assert_true(not chest_panel.visible, "Choosing a blessing closes the golden chest")
-    _assert_true(not paused, "Choosing a blessing resumes combat")
-    _assert_equal_int(blessings.get_blessing_stack(selected.id), 1, "Chosen blessing is applied to the run")
+    _assert_true(not chest_panel.visible, "Choosing a surprise closes the choice overlay")
+    _assert_true(not paused, "Choosing a surprise resumes autonomous combat")
+    _assert_true(not garden_director.blocked, "Garden director resumes after the choice")
+    _assert_equal_int(blessings.get_blessing_stack(selected.id), 1, "Chosen surprise modifies the run")
 
+    var effects: PixelImpactSystem = game.get("pixel_impact_system") as PixelImpactSystem
+    effects.spawn_hit(Vector2(320.0, 180.0), Color("ffffff"), 25.0, true)
+    _assert_true(effects.get_active_particle_count() > 0, "Critical impact creates pixel particles")
+    _assert_true(effects.get_active_particle_count() <= effects.max_particles, "Gameplay particles remain bounded")
+
+    var director_panel_label: Label = game.get("director_status_label") as Label
     var language_button: Button = game.get("language_button") as Button
     var menu_button: Button = game.get("menu_button") as Button
+    _assert_control_inside_viewport(director_panel_label, "Director status stays inside viewport")
     _assert_control_inside_viewport(language_button, "Gameplay language button stays inside viewport")
     _assert_control_inside_viewport(menu_button, "Gameplay menu button stays inside viewport")
 
