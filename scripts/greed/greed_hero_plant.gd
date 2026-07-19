@@ -2,8 +2,26 @@ extends GreedCore
 class_name GreedHeroPlant
 
 signal fired(hero: GreedHeroPlant, target: GreedEnemy, critical: bool, damage: float)
+signal projectile_requested(
+    origin: Vector2,
+    target: GreedEnemy,
+    damage: float,
+    critical: bool,
+    speed: float,
+    splash_radius: float,
+    slow_ratio: float,
+    knockback_force: float,
+    color: Color
+)
 signal selection_changed(selected: bool)
 signal focus_changed(target: GreedEnemy)
+signal dash_started(from_position: Vector2, to_position: Vector2)
+
+const DASH_DISTANCE: float = 92.0
+const DASH_DURATION: float = 0.13
+const DASH_SPEED: float = DASH_DISTANCE / DASH_DURATION
+const DASH_COOLDOWN: float = 1.0
+const DASH_INVULNERABILITY: float = 0.24
 
 var blessing_system: BlessingSystem
 var config: Dictionary = {}
@@ -15,10 +33,14 @@ var dragging: bool = false
 var has_move_target: bool = false
 var move_target: Vector2 = Vector2.ZERO
 var focus_target: GreedEnemy
+var dash_cooldown: float = 0.0
+var dash_time: float = 0.0
+var dash_target: Vector2 = Vector2.ZERO
 
 var _cooldown: float = 0.0
 var _shot_time: float = 0.0
-var _shot_target_local: Vector2 = Vector2.ZERO
+var _shot_direction_local: Vector2 = Vector2.RIGHT
+var _dash_direction: Vector2 = Vector2.RIGHT
 
 
 func configure(plant_config: Dictionary, blessings: BlessingSystem = null) -> void:
@@ -27,6 +49,7 @@ func configure(plant_config: Dictionary, blessings: BlessingSystem = null) -> vo
     move_speed = 155.0
     _cooldown = 0.08
     move_target = global_position
+    dash_target = global_position
     queue_redraw()
 
 
@@ -34,12 +57,19 @@ func _process(delta: float) -> void:
     invulnerability_time = maxf(0.0, invulnerability_time - delta)
     _hit_flash = maxf(0.0, _hit_flash - delta)
     _shot_time = maxf(0.0, _shot_time - delta)
+    dash_cooldown = maxf(0.0, dash_cooldown - delta)
 
     if focus_target != null and not is_instance_valid(focus_target):
         focus_target = null
         focus_changed.emit(null)
 
-    if not dragging and has_move_target:
+    if dash_time > 0.0:
+        dash_time = maxf(0.0, dash_time - delta)
+        global_position = global_position.move_toward(dash_target, DASH_SPEED * delta)
+        if global_position.distance_to(dash_target) <= 1.0 or dash_time <= 0.0:
+            global_position = dash_target
+            dash_time = 0.0
+    elif not dragging and has_move_target:
         global_position = global_position.move_toward(move_target, move_speed * delta)
         if global_position.distance_to(move_target) <= 2.0:
             global_position = move_target
@@ -47,15 +77,47 @@ func _process(delta: float) -> void:
 
     global_position = _clamp_to_arena(global_position)
 
-    _cooldown -= delta
-    if _cooldown <= 0.0:
-        var target_enemy: GreedEnemy = _find_target()
-        if target_enemy != null:
-            _attack(target_enemy)
-            _cooldown = _effective_interval()
-        else:
-            _cooldown = 0.06
+    if dash_time <= 0.0:
+        _cooldown -= delta
+        if _cooldown <= 0.0:
+            var target_enemy: GreedEnemy = _find_target()
+            if target_enemy != null:
+                _attack(target_enemy)
+                _cooldown = _effective_interval()
+            else:
+                _cooldown = 0.06
     queue_redraw()
+
+
+func request_dash(position_value: Vector2) -> bool:
+    if dash_cooldown > 0.0 or dragging:
+        return false
+    var offset: Vector2 = _clamp_to_arena(position_value) - global_position
+    if offset.length() < 8.0:
+        return false
+    var start_position: Vector2 = global_position
+    _dash_direction = offset.normalized()
+    dash_target = _clamp_to_arena(global_position + _dash_direction * minf(DASH_DISTANCE, offset.length()))
+    var distance_value: float = global_position.distance_to(dash_target)
+    if distance_value < 4.0:
+        return false
+    dash_time = distance_value / DASH_SPEED
+    dash_cooldown = DASH_COOLDOWN
+    invulnerability_time = maxf(invulnerability_time, DASH_INVULNERABILITY)
+    dragging = false
+    has_move_target = false
+    set_selected(true)
+    dash_started.emit(start_position, dash_target)
+    queue_redraw()
+    return true
+
+
+func is_dashing() -> bool:
+    return dash_time > 0.0
+
+
+func get_dash_cooldown_seconds() -> float:
+    return dash_cooldown
 
 
 func set_selected(value: bool) -> void:
@@ -69,6 +131,8 @@ func set_selected(value: bool) -> void:
 
 
 func begin_drag() -> void:
+    if is_dashing():
+        return
     set_selected(true)
     dragging = true
     has_move_target = false
@@ -76,7 +140,7 @@ func begin_drag() -> void:
 
 
 func drag_to(position_value: Vector2) -> void:
-    if not dragging:
+    if not dragging or is_dashing():
         return
     global_position = _clamp_to_arena(position_value)
     move_target = global_position
@@ -94,6 +158,8 @@ func end_drag(position_value: Vector2) -> void:
 
 
 func set_move_target(position_value: Vector2) -> void:
+    if is_dashing():
+        return
     set_selected(true)
     move_target = _clamp_to_arena(position_value)
     has_move_target = true
@@ -173,10 +239,22 @@ func _attack(target_enemy: GreedEnemy) -> void:
         return
     var critical: bool = blessing_system != null and blessing_system.roll_critical()
     var damage_value: float = _effective_damage(critical)
-    target_enemy.take_damage(damage_value, critical)
-    target_enemy.apply_knockback(global_position, 70.0 if critical else 38.0)
-    _shot_target_local = to_local(target_enemy.global_position)
-    _shot_time = 0.10
+    var projectile_speed: float = float(config.get("projectile_speed", 420.0))
+    var body_color: Color = Color(String(config.get("color_hex", "8fe45f")))
+    var target_offset: Vector2 = target_enemy.global_position - global_position
+    _shot_direction_local = target_offset.normalized() * 14.0 if target_offset.length() > 0.01 else Vector2.RIGHT * 14.0
+    _shot_time = 0.08
+    projectile_requested.emit(
+        global_position,
+        target_enemy,
+        damage_value,
+        critical,
+        projectile_speed,
+        0.0,
+        0.0,
+        70.0 if critical else 38.0,
+        body_color
+    )
     fired.emit(self, target_enemy, critical, damage_value)
 
 
@@ -212,15 +290,23 @@ func _draw() -> void:
     var pulse: float = 1.0 + sin(Time.get_ticks_msec() * 0.006) * 0.04
     var body_color: Color = Color.WHITE if _hit_flash > 0.0 else Color(String(config.get("color_hex", "8fe45f")))
 
+    if is_dashing():
+        var trail_color: Color = body_color
+        trail_color.a = 0.34
+        draw_line(Vector2.ZERO, -_dash_direction * 30.0, trail_color, 7.0)
+        draw_line(Vector2.ZERO, -_dash_direction * 18.0, Color(1.0, 0.94, 0.48, 0.58), 3.0)
     if selected:
         draw_arc(Vector2.ZERO, 20.0, 0.0, TAU, 28, Color("ffe071"), 2.0)
         draw_arc(Vector2.ZERO, 24.0, -PI * 0.25, PI * 0.25, 8, Color(1.0, 0.88, 0.35, 0.45), 1.0)
+        if dash_cooldown > 0.0:
+            var ready_ratio: float = 1.0 - dash_cooldown / DASH_COOLDOWN
+            draw_arc(Vector2.ZERO, 27.0, -PI * 0.5, -PI * 0.5 + TAU * ready_ratio, 24, Color("8ee8ff"), 2.0)
     if has_move_target:
         var local_target: Vector2 = to_local(move_target)
         draw_line(Vector2.ZERO, local_target, Color(0.94, 0.82, 0.36, 0.36), 1.0)
         draw_arc(local_target, 6.0, 0.0, TAU, 12, Color("ffe071"), 1.0)
     if get_focus_target() != null:
-        draw_line(Vector2.ZERO, to_local(focus_target.global_position), Color(1.0, 0.36, 0.28, 0.42), 1.0)
+        draw_line(Vector2.ZERO, to_local(focus_target.global_position), Color(1.0, 0.36, 0.28, 0.32), 1.0)
 
     draw_circle(Vector2.ZERO, 17.0 * pulse, Color(0.08, 0.18, 0.11, 0.82))
     draw_circle(Vector2.ZERO, 12.0 * pulse, body_color)
@@ -231,7 +317,7 @@ func _draw() -> void:
     for marker: int in range(mini(level, 8)):
         draw_rect(Rect2(-14.0 + float(marker) * 4.0, 18.0, 3.0, 2.0), Color("ffe071"))
     if _shot_time > 0.0:
-        draw_line(Vector2.ZERO, _shot_target_local, Color(0.75, 1.0, 0.48, 0.88), 3.0)
-        draw_circle(_shot_target_local, 4.0, Color("fff2a0"))
+        draw_line(Vector2.ZERO, _shot_direction_local, Color(0.75, 1.0, 0.48, 0.88), 3.0)
+        draw_circle(_shot_direction_local, 3.0, Color("fff2a0"))
     if invulnerability_time > 0.0:
         draw_arc(Vector2.ZERO, 22.0, 0.0, TAU, 24, Color(0.82, 0.94, 1.0, 0.72), 2.0)
