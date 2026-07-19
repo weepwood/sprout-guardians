@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="WaveData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/wave_data.gd" id="1_wave"]
+[ext_resource type="Script" path="res://scripts/data/spawn_group_data.gd" id="2_group"]
+[ext_resource type="Resource" path="res://data/enemies/jump_mushroom.tres" id="3_jump"]
+[ext_resource type="Resource" path="res://data/enemies/corrupted_slime.tres" id="4_slime"]
+
+[sub_resource type="Resource" id="JumpGroup"]
+script = ExtResource("2_group")
+enemy = ExtResource("3_jump")
+count = 9
+spawn_interval = 0.46
+start_delay = 0.1
+path_index = 0
+
+[sub_resource type="Resource" id="SlimeGroup"]
+script = ExtResource("2_group")
+enemy = ExtResource("4_slime")
+count = 5
+spawn_interval = 0.82
+start_delay = 1.8
+path_index = 0
+
+[resource]
+script = ExtResource("1_wave")
+id = &"wave_05"
+display_name = "Toxic Rush"
+tactical_hint = "Fast mushrooms screen tougher slimes. Slow the front and poison the cluster."
+spawn_groups = Array[Resource]([SubResource("JumpGroup"), SubResource("SlimeGroup")])
+clear_reward = 78
+early_start_bonus = 10
