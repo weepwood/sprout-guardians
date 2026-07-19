@@ -14,7 +14,7 @@ var countdown_remaining: float = 0.0
 
 
 func _ready() -> void:
-    process_mode = Node.PROCESS_MODE_ALWAYS
+    process_mode = Node.PROCESS_MODE_PAUSABLE
 
 
 func _process(delta: float) -> void:
