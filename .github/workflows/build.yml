@@ -85,7 +85,7 @@ jobs:
           echo "$REWARD_STATUS" > build/diagnostics/reward-tests.status
           cat build/diagnostics/reward-tests.log
 
-      - name: Run autonomous roguelite tests
+      - name: Run autonomous migration tests
         shell: bash
         run: |
           set +e
@@ -95,6 +95,17 @@ jobs:
           set -e
           echo "$AUTONOMOUS_STATUS" > build/diagnostics/autonomous-tests.status
           cat build/diagnostics/autonomous-tests.log
+
+      - name: Run greed arena balance tests
+        shell: bash
+        run: |
+          set +e
+          godot --headless --audio-driver Dummy --path "$GITHUB_WORKSPACE" --script res://tests/run_greed_mode_tests.gd \
+            > build/diagnostics/greed-tests.log 2>&1
+          GREED_STATUS=$?
+          set -e
+          echo "$GREED_STATUS" > build/diagnostics/greed-tests.status
+          cat build/diagnostics/greed-tests.log
 
       - name: Run UI scene smoke tests
         shell: bash
@@ -114,6 +125,7 @@ jobs:
           TEST_STATUS="$(cat build/diagnostics/core-tests.status)"
           REWARD_STATUS="$(cat build/diagnostics/reward-tests.status)"
           AUTONOMOUS_STATUS="$(cat build/diagnostics/autonomous-tests.status)"
+          GREED_STATUS="$(cat build/diagnostics/greed-tests.status)"
           UI_STATUS="$(cat build/diagnostics/ui-smoke.status)"
           if [ "$TEST_STATUS" != "0" ]; then
             echo "Core gameplay tests failed with exit code $TEST_STATUS"
@@ -124,8 +136,12 @@ jobs:
             exit "$REWARD_STATUS"
           fi
           if [ "$AUTONOMOUS_STATUS" != "0" ]; then
-            echo "Autonomous roguelite tests failed with exit code $AUTONOMOUS_STATUS"
+            echo "Autonomous migration tests failed with exit code $AUTONOMOUS_STATUS"
             exit "$AUTONOMOUS_STATUS"
+          fi
+          if [ "$GREED_STATUS" != "0" ]; then
+            echo "Greed arena tests failed with exit code $GREED_STATUS"
+            exit "$GREED_STATUS"
           fi
           if [ "$UI_STATUS" != "0" ]; then
             echo "UI scene smoke tests failed with exit code $UI_STATUS"
@@ -133,7 +149,7 @@ jobs:
           fi
 
           ERROR_PATTERN="SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance"
-          for LOG_FILE in build/diagnostics/core-tests.log build/diagnostics/reward-tests.log build/diagnostics/autonomous-tests.log build/diagnostics/ui-smoke.log; do
+          for LOG_FILE in build/diagnostics/core-tests.log build/diagnostics/reward-tests.log build/diagnostics/autonomous-tests.log build/diagnostics/greed-tests.log build/diagnostics/ui-smoke.log; do
             if grep -E "$ERROR_PATTERN" "$LOG_FILE"; then
               echo "Hidden Godot script/runtime error detected in $LOG_FILE"
               exit 1
