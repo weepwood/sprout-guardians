@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BlessingData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/blessing_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"rapid_growth"
+rarity = 0
+effect_type = 1
+name_en = "Rapid Growth"
+name_zh = "迅捷生长"
+description_en = "All towers attack 10% faster per stack."
+description_zh = "每层使所有防御塔攻击速度提高 10%。"
+value_per_stack = 0.1
+max_stacks = 5
+base_weight = 6.5
