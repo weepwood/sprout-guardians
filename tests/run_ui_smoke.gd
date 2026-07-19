@@ -15,8 +15,9 @@ func _run() -> void:
 
     await _test_main_menu()
     await _test_level_select()
-    await _test_gameplay_scene()
+    await _test_greed_arena_scene()
 
+    Engine.time_scale = 1.0
     _remove_user_file(SettingsService.DEFAULT_PATH)
     _remove_user_file(SaveGameService.DEFAULT_SAVE_PATH)
     _remove_user_file(SaveGameService.DEFAULT_BACKUP_PATH)
@@ -89,8 +90,8 @@ func _test_level_select() -> void:
     await process_frame
 
 
-func _test_gameplay_scene() -> void:
-    var game: Node = await _instantiate_scene("res://scenes/main.tscn", "Autonomous gameplay")
+func _test_greed_arena_scene() -> void:
+    var game: Node = await _instantiate_scene("res://scenes/main.tscn", "Greed arena")
     if game == null:
         return
 
@@ -98,76 +99,74 @@ func _test_gameplay_scene() -> void:
     var initial_locale: String = localization.locale_code
     game.call("_toggle_language")
     await process_frame
-    _assert_true(localization.locale_code != initial_locale, "Gameplay language button changes locale")
+    _assert_true(localization.locale_code != initial_locale, "Greed arena language button changes locale")
 
     var coins_label: Label = game.get("coins_label") as Label
-    var expected_prefix: String = "阳光" if localization.locale_code == "zh_CN" else "Sunlight"
-    _assert_true(coins_label.text.begins_with(expected_prefix), "Gameplay HUD updates after language switch")
+    var expected_coin_prefix: String = "金币" if localization.locale_code == "zh_CN" else "COINS"
+    _assert_true(coins_label.text.begins_with(expected_coin_prefix), "Greed arena HUD updates after language switch")
 
-    var start_button: Button = game.get("start_wave_button") as Button
-    var auto_button: Button = game.get("auto_button") as Button
-    var upgrade_button: Button = game.get("upgrade_button") as Button
-    var sell_button: Button = game.get("sell_button") as Button
-    var build_buttons: Array = game.get("tower_build_buttons") as Array
-    _assert_true(not start_button.visible, "Manual Start Wave is removed from autonomous mode")
-    _assert_true(not auto_button.visible, "Auto-wave cannot be disabled in autonomous mode")
-    _assert_true(not upgrade_button.visible and not sell_button.visible, "Manual upgrade and sell controls are removed")
-    for button_value: Variant in build_buttons:
-        _assert_true(not (button_value as Button).visible, "Manual plant deployment controls are removed")
+    var plants: Array = game.get("plants") as Array
+    _assert_equal_int(plants.size(), 3, "Greed arena begins with three combat-capable plant familiars")
+    _assert_true(game.find_child("StartWaveButton", true, false) == null, "Default mode has no manual Start Wave control")
+    _assert_true(game.find_child("UpgradeButton", true, false) == null, "Default mode has no manual upgrade control")
+    _assert_true(game.find_child("SellButton", true, false) == null, "Default mode has no manual sell control")
+    _assert_true(game.find_child("BuildBar", true, false) == null, "Default mode has no tower build bar")
 
-    var garden_director: AutonomousGardenDirector = game.get("garden_director") as AutonomousGardenDirector
-    _assert_true(garden_director != null and garden_director.enabled, "Autonomous garden director starts enabled")
-    garden_director.force_decision()
+    game.set("next_wave_timer", 0.0)
     await process_frame
     await process_frame
+    _assert_equal_int(int(game.get("wave_index")), 0, "First greed wave starts automatically")
+    _assert_true(bool(game.get("wave_active")), "Greed arena enters active combat without player input")
 
-    var towers_by_slot: Dictionary = game.get("towers_by_slot") as Dictionary
-    _assert_true(towers_by_slot.size() >= 1, "Director deploys the first plant without player input")
+    game.set("spawn_timer", 0.0)
+    await process_frame
+    await process_frame
+    _assert_true(get_nodes_in_group("greed_enemies").size() >= 1, "Enemies enter from arena doors without path-following setup")
 
-    var auto_director: AutoBattleDirector = game.get("auto_battle_director") as AutoBattleDirector
-    _assert_true(auto_director != null and auto_director.auto_enabled, "Automatic wave flow is permanently enabled")
-    auto_director._process(2.0)
-    for _frame: int in range(6):
-        await process_frame
-    var wave_manager: WaveManager = game.get("wave_manager") as WaveManager
-    _assert_true(wave_manager.current_wave_index >= 0, "First wave starts without pressing Start Wave")
-
-    var rewards: CombatRewardSystem = game.get("combat_reward_system") as CombatRewardSystem
-    rewards.grant_surprise_drop(1)
+    game.set("spawn_remaining", 0)
+    for node: Node in get_nodes_in_group("greed_enemies"):
+        node.queue_free()
+    await process_frame
     await process_frame
     await process_frame
 
-    var chest_panel: Panel = game.get("chest_panel") as Panel
-    var chest_buttons: Array = game.get("chest_choice_buttons") as Array
-    _assert_true(chest_panel.visible, "Surprise drop opens as the player's primary interaction")
-    _assert_true(paused, "Surprise choice pauses all automation")
-    _assert_equal_int(chest_buttons.size(), 3, "Surprise drop presents three choices")
-    _assert_control_inside_viewport(chest_panel, "Surprise choice panel stays inside viewport")
-    _assert_true(garden_director.blocked, "Garden director pauses while the player chooses")
+    var choice_panel: Panel = game.get("choice_panel") as Panel
+    var choice_buttons: Array = game.get("choice_buttons") as Array
+    _assert_true(bool(game.get("choice_open")), "Every cleared greed wave guarantees a surprise choice")
+    _assert_true(choice_panel.visible, "Surprise choice overlay opens after a wave")
+    _assert_equal_int(choice_buttons.size(), 3, "Surprise reward presents three mutation choices")
+    _assert_control_inside_viewport(choice_panel, "Greed reward panel stays inside viewport")
 
     var choices: Array = game.get("_current_choices") as Array
-    _assert_equal_int(choices.size(), 3, "Surprise drop contains three valid data entries")
+    _assert_equal_int(choices.size(), 3, "Greed reward contains three valid blessing entries")
     var selected: BlessingData = choices[0] as BlessingData
-    game.call("_select_blessing", 0)
+    var first_plant: GreedPlant = plants[0] as GreedPlant
+    var level_before: int = first_plant.level
+    game.call("_select_choice", 0)
     await process_frame
 
     var blessings: BlessingSystem = game.get("blessing_system") as BlessingSystem
-    _assert_true(not chest_panel.visible, "Choosing a surprise closes the choice overlay")
-    _assert_true(not paused, "Choosing a surprise resumes autonomous combat")
-    _assert_true(not garden_director.blocked, "Garden director resumes after the choice")
-    _assert_equal_int(blessings.get_blessing_stack(selected.id), 1, "Chosen surprise modifies the run")
+    _assert_true(not bool(game.get("choice_open")), "Choosing a mutation resumes the autonomous run")
+    _assert_true(not choice_panel.visible, "Choosing a mutation closes the reward overlay")
+    _assert_equal_int(blessings.get_blessing_stack(selected.id), 1, "Chosen mutation modifies the greed run")
+    var any_upgraded: bool = false
+    for plant_value: Variant in plants:
+        var plant: GreedPlant = plant_value as GreedPlant
+        if plant != null and plant.level > level_before:
+            any_upgraded = true
+    _assert_true(any_upgraded, "Reward selection automatically evolves one plant familiar")
 
-    var effects: PixelImpactSystem = game.get("pixel_impact_system") as PixelImpactSystem
+    var effects: PixelImpactSystem = game.get("impact_system") as PixelImpactSystem
     effects.spawn_hit(Vector2(320.0, 180.0), Color("ffffff"), 25.0, true)
-    _assert_true(effects.get_active_particle_count() > 0, "Critical impact creates pixel particles")
-    _assert_true(effects.get_active_particle_count() <= effects.max_particles, "Gameplay particles remain bounded")
+    _assert_true(effects.get_active_particle_count() > 0, "Critical arena impact creates pixel particles")
+    _assert_true(effects.get_active_particle_count() <= effects.max_particles, "Arena particles remain bounded")
 
-    var director_panel_label: Label = game.get("director_status_label") as Label
     var language_button: Button = game.get("language_button") as Button
+    var speed_button: Button = game.get("speed_button") as Button
     var menu_button: Button = game.get("menu_button") as Button
-    _assert_control_inside_viewport(director_panel_label, "Director status stays inside viewport")
-    _assert_control_inside_viewport(language_button, "Gameplay language button stays inside viewport")
-    _assert_control_inside_viewport(menu_button, "Gameplay menu button stays inside viewport")
+    _assert_control_inside_viewport(language_button, "Greed language button stays inside viewport")
+    _assert_control_inside_viewport(speed_button, "Greed speed button stays inside viewport")
+    _assert_control_inside_viewport(menu_button, "Greed menu button stays inside viewport")
 
     game.queue_free()
     await process_frame
