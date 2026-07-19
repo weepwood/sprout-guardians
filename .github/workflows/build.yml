@@ -61,21 +61,37 @@ jobs:
         run: |
           mkdir -p build/diagnostics
           set +e
-          godot --headless --path "$GITHUB_WORKSPACE" --script res://tests/run_tests.gd \
+          godot --headless --audio-driver Dummy --path "$GITHUB_WORKSPACE" --script res://tests/run_tests.gd \
             > build/diagnostics/core-tests.log 2>&1
           TEST_STATUS=$?
           set -e
           echo "$TEST_STATUS" > build/diagnostics/core-tests.status
           cat build/diagnostics/core-tests.log
 
-      - name: Enforce core test result
+      - name: Run UI scene smoke tests
+        shell: bash
+        run: |
+          set +e
+          godot --headless --audio-driver Dummy --path "$GITHUB_WORKSPACE" --script res://tests/run_ui_smoke.gd \
+            > build/diagnostics/ui-smoke.log 2>&1
+          UI_STATUS=$?
+          set -e
+          echo "$UI_STATUS" > build/diagnostics/ui-smoke.status
+          cat build/diagnostics/ui-smoke.log
+
+      - name: Enforce test results
         shell: bash
         run: |
           set -euo pipefail
           TEST_STATUS="$(cat build/diagnostics/core-tests.status)"
+          UI_STATUS="$(cat build/diagnostics/ui-smoke.status)"
           if [ "$TEST_STATUS" != "0" ]; then
             echo "Core gameplay tests failed with exit code $TEST_STATUS"
             exit "$TEST_STATUS"
+          fi
+          if [ "$UI_STATUS" != "0" ]; then
+            echo "UI scene smoke tests failed with exit code $UI_STATUS"
+            exit "$UI_STATUS"
           fi
 
       - name: Export Windows, Linux, and Web builds
