@@ -35,11 +35,8 @@ func localized_name(locale_code: String) -> String:
     return name_zh if locale_code.to_lower().begins_with("zh") else name_en
 
 
-func localized_description(locale_code: String, next_stack: int = 1) -> String:
-    var template: String = description_zh if locale_code.to_lower().begins_with("zh") else description_en
-    if template.contains("%"):
-        return template % [value_per_stack * 100.0, next_stack]
-    return template
+func localized_description(locale_code: String, _next_stack: int = 1) -> String:
+    return description_zh if locale_code.to_lower().begins_with("zh") else description_en
 
 
 func rarity_name(locale_code: String) -> String:
