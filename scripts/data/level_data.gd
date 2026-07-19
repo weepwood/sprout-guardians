@@ -34,5 +34,5 @@ func get_wave_count() -> int:
     return waves.size()
 
 
-func get_path(_path_index: int = 0) -> PackedVector2Array:
+func get_enemy_path(_path_index: int = 0) -> PackedVector2Array:
     return path_points
