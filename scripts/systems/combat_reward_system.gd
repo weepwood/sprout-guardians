@@ -30,7 +30,7 @@ func reset_run() -> void:
 
 
 func _process(delta: float) -> void:
-    if get_tree().paused:
+    if is_inside_tree() and get_tree().paused:
         return
     if combo <= 0 or combo_time_remaining <= 0.0:
         return
