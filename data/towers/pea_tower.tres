@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/tower_data.gd" id="1_tower"]
+
+[resource]
+script = ExtResource("1_tower")
+id = &"pea_tower"
+display_name = "Pea Tower"
+description = "A reliable single-target plant tower that prioritizes enemies closest to the sprout."
+build_cost = 75
+sell_ratio = 0.7
+upgrade_costs = PackedInt32Array(55, 110)
+damage = 12.0
+attack_interval = 0.65
+attack_range = 92.0
+projectile_speed = 260.0
+projectile_color = Color(0.85098, 1, 0.54902, 1)
+target_mode = 0
+can_attack_ground = true
+can_attack_flying = true
+max_level = 3
+damage_multiplier_per_level = 1.55
+interval_multiplier_per_level = 0.82
+range_bonus_per_level = 8.0
