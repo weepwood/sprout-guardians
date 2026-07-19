@@ -68,6 +68,17 @@ jobs:
           echo "$TEST_STATUS" > build/diagnostics/core-tests.status
           cat build/diagnostics/core-tests.log
 
+      - name: Run reward-loop tests
+        shell: bash
+        run: |
+          set +e
+          godot --headless --audio-driver Dummy --path "$GITHUB_WORKSPACE" --script res://tests/run_reward_tests.gd \
+            > build/diagnostics/reward-tests.log 2>&1
+          REWARD_STATUS=$?
+          set -e
+          echo "$REWARD_STATUS" > build/diagnostics/reward-tests.status
+          cat build/diagnostics/reward-tests.log
+
       - name: Run UI scene smoke tests
         shell: bash
         run: |
@@ -84,10 +95,15 @@ jobs:
         run: |
           set -euo pipefail
           TEST_STATUS="$(cat build/diagnostics/core-tests.status)"
+          REWARD_STATUS="$(cat build/diagnostics/reward-tests.status)"
           UI_STATUS="$(cat build/diagnostics/ui-smoke.status)"
           if [ "$TEST_STATUS" != "0" ]; then
             echo "Core gameplay tests failed with exit code $TEST_STATUS"
             exit "$TEST_STATUS"
+          fi
+          if [ "$REWARD_STATUS" != "0" ]; then
+            echo "Reward-loop tests failed with exit code $REWARD_STATUS"
+            exit "$REWARD_STATUS"
           fi
           if [ "$UI_STATUS" != "0" ]; then
             echo "UI scene smoke tests failed with exit code $UI_STATUS"
