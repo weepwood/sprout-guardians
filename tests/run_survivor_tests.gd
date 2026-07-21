@@ -15,6 +15,16 @@ func _run() -> void:
     _assert_true(PixelArtAssets.texture(&"xp_gem") != null, "Experience gem texture loads from the effects atlas")
     _assert_true(PixelArtAssets.GRASS_TILE != null, "Concept-art grass tile loads")
 
+    for scene_path: String in [
+        "res://scenes/actors/hero_plant.tscn",
+        "res://scenes/actors/familiar_sun.tscn",
+        "res://scenes/actors/familiar_sprout.tscn",
+        "res://scenes/actors/enemy.tscn",
+        "res://scenes/effects/projectile.tscn",
+        "res://scenes/effects/experience_gem.tscn",
+    ]:
+        _assert_true(load(scene_path) is PackedScene, "Reusable scene loads: %s" % scene_path)
+
     var hero: GreedHeroPlant = GreedHeroPlant.new()
     root.add_child(hero)
     hero.global_position = GreedCore.ARENA_RECT.get_center()
@@ -37,6 +47,17 @@ func _run() -> void:
         collected_amount += value
     _assert_equal_int(collected_amount, 3, "Experience dew grants its configured value")
 
+    var menu_packed: PackedScene = load("res://scenes/main_menu.tscn") as PackedScene
+    _assert_true(menu_packed != null, "Editor-visible main menu scene loads")
+    var menu: Node = menu_packed.instantiate()
+    root.add_child(menu)
+    await process_frame
+    _assert_true(menu.has_node("World/Grass"), "Main menu stores its visible background in the scene tree")
+    _assert_true(menu.has_node("UI/Main/PlayButton"), "Main menu play button is editable in the scene tree")
+    _assert_true(menu.has_node("UI/Settings/Panel"), "Main menu settings panel is editable in the scene tree")
+    menu.queue_free()
+    await process_frame
+
     var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
     _assert_true(packed != null, "Default plant survivors scene loads")
     var game: Node = packed.instantiate()
@@ -46,16 +67,30 @@ func _run() -> void:
     await process_frame
 
     _assert_true(game is Node2D, "Plant survivors scene instantiates")
+    _assert_true(game.has_node("World/ArenaGround"), "Arena ground is directly editable in the scene tree")
+    _assert_true(game.has_node("World/EditorPreview/Hero"), "Editor preview actors exist in the scene tree")
+    _assert_true(game.has_node("World/Runtime/Actors/PlayerSpawn"), "Player spawn marker exists in the scene tree")
+    _assert_true(game.has_node("World/Runtime/Enemies"), "Enemy runtime container exists")
+    _assert_true(game.has_node("World/Runtime/Projectiles"), "Projectile runtime container exists")
+    _assert_true(game.has_node("World/Runtime/Pickups"), "Pickup runtime container exists")
+    _assert_true(game.has_node("World/Runtime/Effects"), "Effect runtime container exists")
+    _assert_true(game.has_node("UI/TopHUD/TimeLabel"), "Top HUD is editable in the scene tree")
+    _assert_true(game.has_node("UI/ChoiceLayer/Panel"), "Level-up panel is editable in the scene tree")
     _assert_equal_int(int(game.get("experience_to_next")), 8, "First level requires eight experience")
     _assert_true(bool(game.get("wave_active")), "Time survival combat is active immediately")
+
+    var preview: Node2D = game.get_node("World/EditorPreview") as Node2D
+    _assert_true(not preview.visible, "Editor-only actor preview is hidden during gameplay")
 
     var skin: PixelSkinController = game.get("pixel_skin") as PixelSkinController
     _assert_true(skin != null and is_instance_valid(skin), "Pixel skin controller is active")
     var game_hero: GreedHeroPlant = game.get("hero_plant") as GreedHeroPlant
+    _assert_true(game_hero.get_parent() == game.get_node("World/Runtime/Actors"), "Main plant is instantiated into the actor container")
     _assert_true(game_hero.has_node("PixelSprite"), "Main plant receives the concept-art pixel sprite")
     var familiars: Array = game.get("plants") as Array
     for familiar_value: Variant in familiars:
         var familiar: GreedPlant = familiar_value as GreedPlant
+        _assert_true(familiar.get_parent() == game.get_node("World/Runtime/Actors"), "Floating familiar is instantiated into the actor container")
         _assert_true(familiar.has_node("PixelSprite"), "Floating familiar receives a pixel sprite")
 
     var experience_progress: ProgressBar = game.get("experience_bar") as ProgressBar
@@ -88,8 +123,13 @@ func _run() -> void:
     var spawned: GreedEnemy = game.call("_spawn_survivor_enemy", false, false) as GreedEnemy
     await process_frame
     _assert_true(spawned != null and is_instance_valid(spawned), "Continuous survivor spawner creates enemies")
+    _assert_true(spawned.get_parent() == game.get_node("World/Runtime/Enemies"), "Spawned enemy enters the enemy container")
     _assert_true(not spawned.elite and not spawned.boss, "Regular timed spawns are not forced elites")
     _assert_true(spawned.has_node("PixelSprite"), "Spawned enemies receive a pixel sprite")
+
+    var spawned_gem: SurvivorExperienceGem = game.call("_spawn_experience_gem", game_hero.global_position + Vector2(40.0, 0.0), 1) as SurvivorExperienceGem
+    await process_frame
+    _assert_true(spawned_gem.get_parent() == game.get_node("World/Runtime/Pickups"), "Experience gem enters the pickup container")
 
     game.queue_free()
     if is_instance_valid(hero):

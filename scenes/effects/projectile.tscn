@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/greed/greed_projectile.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/pixel/effects_atlas.svg" id="2_atlas"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_projectile"]
+atlas = ExtResource("2_atlas")
+region = Rect2(16, 0, 16, 12)
+
+[node name="Projectile" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="PixelSprite" type="Sprite2D" parent="."]
+texture = SubResource("AtlasTexture_projectile")
+z_index = 7

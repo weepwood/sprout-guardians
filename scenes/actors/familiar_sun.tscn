@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/greed/greed_plant.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/pixel/actors_atlas.svg" id="2_atlas"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_familiar"]
+atlas = ExtResource("2_atlas")
+region = Rect2(48, 0, 32, 32)
+
+[node name="FamiliarSun" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Shadow" type="Polygon2D" parent="."]
+position = Vector2(0, 8)
+polygon = PackedVector2Array(-8, 0, -5, -3, 5, -3, 8, 0, 5, 3, -5, 3)
+color = Color(0.02, 0.06, 0.04, 0.45)
+z_index = -2
+
+[node name="PixelSprite" type="Sprite2D" parent="."]
+position = Vector2(0, -2)
+texture = SubResource("AtlasTexture_familiar")
+z_index = 5
+
+[node name="Muzzle" type="Marker2D" parent="."]
+position = Vector2(10, -2)

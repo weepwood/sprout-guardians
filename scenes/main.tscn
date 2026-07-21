@@ -1,6 +1,430 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/greed/survivor_pixel_game.gd" id="1_main"]
+[ext_resource type="Texture2D" path="res://assets/pixel/grass_tile.svg" id="2_grass"]
+[ext_resource type="Texture2D" path="res://assets/pixel/ui_panel.svg" id="3_panel"]
+[ext_resource type="Texture2D" path="res://assets/pixel/effects_atlas.svg" id="4_effects"]
+[ext_resource type="PackedScene" path="res://scenes/actors/hero_plant.tscn" id="5_hero"]
+[ext_resource type="PackedScene" path="res://scenes/actors/familiar_sun.tscn" id="6_sun"]
+[ext_resource type="PackedScene" path="res://scenes/actors/familiar_sprout.tscn" id="7_sprout"]
+[ext_resource type="PackedScene" path="res://scenes/actors/enemy.tscn" id="8_enemy"]
+[ext_resource type="Script" path="res://scripts/ui/pixel_skin_controller.gd" id="9_skin"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_heart"]
+atlas = ExtResource("4_effects")
+region = Rect2(56, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_leaf"]
+atlas = ExtResource("4_effects")
+region = Rect2(104, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull"]
+atlas = ExtResource("4_effects")
+region = Rect2(80, 0, 24, 24)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_progress_background"]
+bg_color = Color(0.043, 0.09, 0.07, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.36, 0.25, 0.15, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_progress_fill"]
+bg_color = Color(0.56, 0.82, 0.24, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.85, 0.94, 0.29, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_choice_panel"]
+bg_color = Color(0.035, 0.07, 0.045, 0.985)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.85, 0.7, 0.25, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_button_normal"]
+bg_color = Color(0.063, 0.106, 0.075, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.36, 0.25, 0.15, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_button_hover"]
+bg_color = Color(0.098, 0.22, 0.125, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.85, 0.7, 0.25, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
 
 [node name="PlantSurvivors" type="Node2D"]
 script = ExtResource("1_main")
+
+[node name="World" type="Node2D" parent="."]
+
+[node name="Backdrop" type="ColorRect" parent="World"]
+offset_right = 640.0
+offset_bottom = 360.0
+mouse_filter = 2
+color = Color(0.027, 0.067, 0.051, 1)
+
+[node name="ArenaFrame" type="NinePatchRect" parent="World"]
+offset_left = 26.0
+offset_top = 42.0
+offset_right = 614.0
+offset_bottom = 334.0
+mouse_filter = 2
+texture = ExtResource("3_panel")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
+
+[node name="ArenaGround" type="TextureRect" parent="World"]
+offset_left = 34.0
+offset_top = 50.0
+offset_right = 606.0
+offset_bottom = 328.0
+mouse_filter = 2
+texture_repeat = 2
+texture = ExtResource("2_grass")
+stretch_mode = 1
+
+[node name="ArenaTint" type="ColorRect" parent="World"]
+offset_left = 34.0
+offset_top = 50.0
+offset_right = 606.0
+offset_bottom = 328.0
+mouse_filter = 2
+color = Color(0.05, 0.18, 0.09, 0.12)
+
+[node name="Decorations" type="Node2D" parent="World"]
+
+[node name="FlowerA" type="Polygon2D" parent="World/Decorations"]
+position = Vector2(94, 104)
+polygon = PackedVector2Array(-3, 0, 0, -3, 3, 0, 0, 3)
+color = Color(0.94, 0.54, 0.69, 1)
+
+[node name="FlowerB" type="Polygon2D" parent="World/Decorations"]
+position = Vector2(524, 274)
+polygon = PackedVector2Array(-3, 0, 0, -3, 3, 0, 0, 3)
+color = Color(0.31, 0.83, 0.91, 1)
+
+[node name="FlowerC" type="Polygon2D" parent="World/Decorations"]
+position = Vector2(470, 92)
+polygon = PackedVector2Array(-3, 0, 0, -3, 3, 0, 0, 3)
+color = Color(0.85, 0.94, 0.29, 1)
+
+[node name="EditorPreview" type="Node2D" parent="World"]
+
+[node name="Hero" parent="World/EditorPreview" instance=ExtResource("5_hero")]
+process_mode = 4
+position = Vector2(320, 192)
+
+[node name="FamiliarSun" parent="World/EditorPreview" instance=ExtResource("6_sun")]
+process_mode = 4
+position = Vector2(270, 188)
+
+[node name="FamiliarSprout" parent="World/EditorPreview" instance=ExtResource("7_sprout")]
+process_mode = 4
+position = Vector2(370, 188)
+
+[node name="EnemyLeft" parent="World/EditorPreview" instance=ExtResource("8_enemy")]
+process_mode = 4
+position = Vector2(180, 190)
+
+[node name="EnemyRight" parent="World/EditorPreview" instance=ExtResource("8_enemy")]
+process_mode = 4
+position = Vector2(470, 190)
+modulate = Color(0.72, 0.5, 0.9, 1)
+
+[node name="Runtime" type="Node2D" parent="World"]
+
+[node name="Actors" type="Node2D" parent="World/Runtime"]
+
+[node name="PlayerSpawn" type="Marker2D" parent="World/Runtime/Actors"]
+position = Vector2(320, 192)
+
+[node name="FamiliarSpawnSun" type="Marker2D" parent="World/Runtime/Actors"]
+position = Vector2(278, 192)
+
+[node name="FamiliarSpawnSprout" type="Marker2D" parent="World/Runtime/Actors"]
+position = Vector2(380, 192)
+
+[node name="Enemies" type="Node2D" parent="World/Runtime"]
+
+[node name="Projectiles" type="Node2D" parent="World/Runtime"]
+
+[node name="Pickups" type="Node2D" parent="World/Runtime"]
+
+[node name="Effects" type="Node2D" parent="World/Runtime"]
+
+[node name="PixelSkinController" type="Node" parent="."]
+script = ExtResource("9_skin")
+
+[node name="UI" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="TopHUD" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 0
+
+[node name="Frame" type="NinePatchRect" parent="UI/TopHUD"]
+offset_left = 4.0
+offset_top = 3.0
+offset_right = 490.0
+offset_bottom = 38.0
+mouse_filter = 2
+texture = ExtResource("3_panel")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
+
+[node name="HeartIcon" type="TextureRect" parent="UI/TopHUD"]
+offset_left = 10.0
+offset_top = 8.0
+offset_right = 34.0
+offset_bottom = 32.0
+mouse_filter = 2
+texture = SubResource("AtlasTexture_heart")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HealthLabel" type="Label" parent="UI/TopHUD"]
+offset_left = 38.0
+offset_top = 8.0
+offset_right = 126.0
+offset_bottom = 32.0
+theme_override_font_sizes/font_size = 14
+text = "12/12"
+vertical_alignment = 1
+
+[node name="LeafIcon" type="TextureRect" parent="UI/TopHUD"]
+offset_left = 132.0
+offset_top = 8.0
+offset_right = 156.0
+offset_bottom = 32.0
+mouse_filter = 2
+texture = SubResource("AtlasTexture_leaf")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LevelLabel" type="Label" parent="UI/TopHUD"]
+offset_left = 160.0
+offset_top = 8.0
+offset_right = 242.0
+offset_bottom = 32.0
+theme_override_font_sizes/font_size = 14
+text = "LV.1 XP"
+vertical_alignment = 1
+
+[node name="TimeLabel" type="Label" parent="UI/TopHUD"]
+offset_left = 242.0
+offset_top = 7.0
+offset_right = 350.0
+offset_bottom = 33.0
+theme_override_font_sizes/font_size = 16
+text = "TIME 00:00"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SkullIcon" type="TextureRect" parent="UI/TopHUD"]
+offset_left = 352.0
+offset_top = 8.0
+offset_right = 376.0
+offset_bottom = 32.0
+mouse_filter = 2
+texture = SubResource("AtlasTexture_skull")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="KillsLabel" type="Label" parent="UI/TopHUD"]
+offset_left = 380.0
+offset_top = 8.0
+offset_right = 484.0
+offset_bottom = 32.0
+theme_override_font_sizes/font_size = 14
+text = "0"
+vertical_alignment = 1
+
+[node name="LanguageButton" type="Button" parent="UI/TopHUD"]
+offset_left = 492.0
+offset_top = 6.0
+offset_right = 540.0
+offset_bottom = 32.0
+text = "中"
+
+[node name="SpeedButton" type="Button" parent="UI/TopHUD"]
+offset_left = 544.0
+offset_top = 6.0
+offset_right = 584.0
+offset_bottom = 32.0
+text = "1×"
+
+[node name="MenuButton" type="Button" parent="UI/TopHUD"]
+offset_left = 588.0
+offset_top = 6.0
+offset_right = 630.0
+offset_bottom = 32.0
+text = "MENU"
+
+[node name="PowerLabel" type="Label" parent="UI"]
+offset_left = 8.0
+offset_top = 48.0
+offset_right = 178.0
+offset_bottom = 138.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "MAIN · Pea Shooter Lv.1\nPET · Spore Bloom Lv.1\nPET · Frost Petal Lv.1"
+autowrap_mode = 2
+
+[node name="ControlLabel" type="Label" parent="UI"]
+offset_left = 168.0
+offset_top = 46.0
+offset_right = 492.0
+offset_bottom = 104.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "WASD / ARROWS TO MOVE · SPACE TO DASH\nATTACKS ARE AUTOMATIC"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="StatusLabel" type="Label" parent="UI"]
+offset_left = 92.0
+offset_top = 307.0
+offset_right = 548.0
+offset_bottom = 327.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 12
+text = "SURVIVE AND GROW"
+horizontal_alignment = 1
+
+[node name="ExperienceFrame" type="NinePatchRect" parent="UI"]
+offset_left = 10.0
+offset_top = 332.0
+offset_right = 630.0
+offset_bottom = 356.0
+mouse_filter = 2
+texture = ExtResource("3_panel")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
+
+[node name="ExperienceBar" type="ProgressBar" parent="UI"]
+offset_left = 22.0
+offset_top = 339.0
+offset_right = 618.0
+offset_bottom = 349.0
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBox_progress_background")
+theme_override_styles/fill = SubResource("StyleBox_progress_fill")
+max_value = 8.0
+value = 0.0
+show_percentage = false
+
+[node name="ChoiceLayer" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 0
+
+[node name="Backdrop" type="ColorRect" parent="UI/ChoiceLayer"]
+visible = false
+offset_right = 640.0
+offset_bottom = 360.0
+mouse_filter = 0
+color = Color(0.02, 0.025, 0.04, 0.94)
+
+[node name="Panel" type="Panel" parent="UI/ChoiceLayer"]
+visible = false
+offset_left = 74.0
+offset_top = 48.0
+offset_right = 566.0
+offset_bottom = 312.0
+theme_override_styles/panel = SubResource("StyleBox_choice_panel")
+
+[node name="Title" type="Label" parent="UI/ChoiceLayer"]
+visible = false
+offset_left = 94.0
+offset_top = 62.0
+offset_right = 546.0
+offset_bottom = 100.0
+theme_override_font_sizes/font_size = 21
+text = "LEVEL UP · CHOOSE A GARDEN MUTATION"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ChoiceButton0" type="Button" parent="UI/ChoiceLayer"]
+visible = false
+offset_left = 102.0
+offset_top = 112.0
+offset_right = 538.0
+offset_bottom = 160.0
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBox_button_normal")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+theme_override_styles/focus = SubResource("StyleBox_button_hover")
+alignment = 0
+text = "LEAF VOLLEY"
+
+[node name="ChoiceButton1" type="Button" parent="UI/ChoiceLayer"]
+visible = false
+offset_left = 102.0
+offset_top = 170.0
+offset_right = 538.0
+offset_bottom = 218.0
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBox_button_normal")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+theme_override_styles/focus = SubResource("StyleBox_button_hover")
+alignment = 0
+text = "BLOOM BURST"
+
+[node name="ChoiceButton2" type="Button" parent="UI/ChoiceLayer"]
+visible = false
+offset_left = 102.0
+offset_top = 228.0
+offset_right = 538.0
+offset_bottom = 276.0
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBox_button_normal")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+theme_override_styles/focus = SubResource("StyleBox_button_hover")
+alignment = 0
+text = "VINE WRAP"
+
+[node name="ResultLabel" type="Label" parent="UI/ChoiceLayer"]
+visible = false
+offset_left = 120.0
+offset_top = 126.0
+offset_right = 520.0
+offset_bottom = 202.0
+theme_override_font_sizes/font_size = 28
+text = "DAWN BLOOMED"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ResultButton" type="Button" parent="UI/ChoiceLayer"]
+visible = false
+offset_left = 240.0
+offset_top = 220.0
+offset_right = 400.0
+offset_bottom = 256.0
+text = "START NEW RUN"

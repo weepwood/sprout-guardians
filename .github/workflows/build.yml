@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GODOT_VERSION: "4.6.3"
+  GODOT_VERSION: "4.7.1"
   GODOT_RELEASE: "stable"
 
 jobs:
@@ -31,24 +31,44 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          GODOT_FILE="Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64"
-          BASE_URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}"
+          mkdir -p build/diagnostics
+          trap 'echo "Install failed at line ${LINENO}" >> build/diagnostics/godot-install.log' ERR
 
-          curl --fail --location --retry 3 \
-            "${BASE_URL}/${GODOT_FILE}.zip" \
+          GODOT_FILE="Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64"
+          EDITOR_URL="https://downloads.godotengine.org/?flavor=${GODOT_RELEASE}&platform=linux.64&slug=linux.x86_64.zip&version=${GODOT_VERSION}"
+          TEMPLATES_URL="https://downloads.godotengine.org/?flavor=${GODOT_RELEASE}&platform=templates&slug=export_templates.tpz&version=${GODOT_VERSION}"
+          {
+            echo "Godot version: ${GODOT_VERSION}-${GODOT_RELEASE}"
+            echo "Download service: downloads.godotengine.org"
+            echo "Editor asset: ${GODOT_FILE}.zip"
+            echo "Downloading editor"
+          } > build/diagnostics/godot-install.log
+
+          curl --fail-with-body --location --retry 5 --retry-all-errors --silent --show-error \
+            "$EDITOR_URL" \
             --output /tmp/godot.zip
+          echo "Editor downloaded: $(stat -c%s /tmp/godot.zip) bytes" >> build/diagnostics/godot-install.log
+
           unzip -q /tmp/godot.zip -d /tmp/godot
           chmod +x "/tmp/godot/${GODOT_FILE}"
-          echo "/tmp/godot" >> "$GITHUB_PATH"
           ln -s "/tmp/godot/${GODOT_FILE}" /tmp/godot/godot
+          export PATH="/tmp/godot:$PATH"
+          echo "/tmp/godot" >> "$GITHUB_PATH"
+          echo "Editor extracted" >> build/diagnostics/godot-install.log
 
-          curl --fail --location --retry 3 \
-            "${BASE_URL}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_export_templates.tpz" \
+          echo "Downloading export templates" >> build/diagnostics/godot-install.log
+          curl --fail-with-body --location --retry 5 --retry-all-errors --silent --show-error \
+            "$TEMPLATES_URL" \
             --output /tmp/export_templates.tpz
+          echo "Templates downloaded: $(stat -c%s /tmp/export_templates.tpz) bytes" >> build/diagnostics/godot-install.log
+
           unzip -q /tmp/export_templates.tpz -d /tmp/export_templates
           TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_RELEASE}"
           mkdir -p "$TEMPLATE_DIR"
           cp -R /tmp/export_templates/templates/. "$TEMPLATE_DIR/"
+          echo "Templates installed: ${TEMPLATE_DIR}" >> build/diagnostics/godot-install.log
+
+          godot --version | tee -a build/diagnostics/godot-install.log
 
       - name: Import project and validate scripts
         shell: bash
