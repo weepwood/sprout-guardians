@@ -53,20 +53,27 @@ func _on_node_added(node: Node) -> void:
 func _skin_node(node: Node) -> void:
     if node == null or not is_instance_valid(node):
         return
-    if _sprites.has(node.get_instance_id()) or node.has_node("PixelSprite"):
+    if _sprites.has(node.get_instance_id()):
         return
 
     var texture_value: Texture2D = _texture_for_node(node)
     if texture_value == null:
         return
 
-    var sprite: Sprite2D = Sprite2D.new()
-    sprite.name = "PixelSprite"
+    var sprite: Sprite2D
+    if node.has_node("PixelSprite"):
+        sprite = node.get_node("PixelSprite") as Sprite2D
+    else:
+        sprite = Sprite2D.new()
+        sprite.name = "PixelSprite"
+        sprite.centered = true
+        sprite.z_index = 4
+        node.add_child(sprite)
+
+    if sprite == null:
+        return
     sprite.texture = texture_value
-    sprite.centered = true
     sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-    sprite.z_index = 4
-    node.add_child(sprite)
     _sprites[node.get_instance_id()] = sprite
     _configure_sprite(node, sprite)
 
