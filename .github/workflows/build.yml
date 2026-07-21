@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GODOT_VERSION: "4.6.3"
+  GODOT_VERSION: "4.7.1"
   GODOT_RELEASE: "stable"
 
 jobs:
@@ -49,6 +49,8 @@ jobs:
           TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_RELEASE}"
           mkdir -p "$TEMPLATE_DIR"
           cp -R /tmp/export_templates/templates/. "$TEMPLATE_DIR/"
+
+          godot --version
 
       - name: Import project and validate scripts
         shell: bash
