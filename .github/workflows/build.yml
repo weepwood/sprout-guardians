@@ -51,8 +51,9 @@ jobs:
 
           unzip -q /tmp/godot.zip -d /tmp/godot
           chmod +x "/tmp/godot/${GODOT_FILE}"
-          echo "/tmp/godot" >> "$GITHUB_PATH"
           ln -s "/tmp/godot/${GODOT_FILE}" /tmp/godot/godot
+          export PATH="/tmp/godot:$PATH"
+          echo "/tmp/godot" >> "$GITHUB_PATH"
           echo "Editor extracted" >> build/diagnostics/godot-install.log
 
           echo "Downloading export templates" >> build/diagnostics/godot-install.log
