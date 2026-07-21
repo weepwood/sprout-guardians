@@ -169,10 +169,10 @@ func _refresh_hud() -> void:
     if wave_label == null or hero_plant == null:
         return
     var shown_time: int = mini(int(floor(survival_elapsed)), int(SURVIVAL_DURATION))
-    wave_label.text = "%02d:%02d" % [int(shown_time / 60), shown_time % 60]
+    wave_label.text = _t("TIME %02d:%02d", "时间 %02d:%02d") % [int(shown_time / 60), shown_time % 60]
     health_label.text = "%d/%d" % [hero_plant.health, hero_plant.max_health]
     coins_label.text = "%d" % enemies_defeated
-    greed_label.text = "LV.%d" % hero_plant.level
+    greed_label.text = _t("LV.%d XP", "等级%d 经验") % hero_plant.level
     if experience_bar != null:
         experience_bar.max_value = float(maxi(1, experience_to_next))
         experience_bar.value = float(experience)
