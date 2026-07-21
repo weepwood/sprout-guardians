@@ -19,14 +19,17 @@ func _run() -> void:
     root.add_child(gem)
     gem.global_position = hero.global_position + Vector2(72.0, 0.0)
     gem.configure(hero, 3)
-    var collected_amount: int = 0
-    gem.collected.connect(func(amount: int) -> void: collected_amount += amount)
+    var collected_values: Array[int] = []
+    gem.collected.connect(func(amount: int) -> void: collected_values.append(amount))
     var initial_distance: float = gem.global_position.distance_to(hero.global_position)
     gem._process(0.15)
     _assert_true(gem.global_position.distance_to(hero.global_position) < initial_distance, "Experience dew magnetizes toward the main plant")
     for _frame: int in range(20):
         if is_instance_valid(gem):
             gem._process(0.05)
+    var collected_amount: int = 0
+    for value: int in collected_values:
+        collected_amount += value
     _assert_equal_int(collected_amount, 3, "Experience dew grants its configured value")
 
     var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
