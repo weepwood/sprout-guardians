@@ -10,6 +10,11 @@ func _initialize() -> void:
 func _run() -> void:
     print("Running plant survivors tests...")
 
+    _assert_true(PixelArtAssets.texture(&"hero") != null, "Main-plant pixel texture loads from the actor atlas")
+    _assert_true(PixelArtAssets.texture(&"enemy_boss") != null, "Boss pixel texture loads from the actor atlas")
+    _assert_true(PixelArtAssets.texture(&"xp_gem") != null, "Experience gem texture loads from the effects atlas")
+    _assert_true(PixelArtAssets.GRASS_TILE != null, "Concept-art grass tile loads")
+
     var hero: GreedHeroPlant = GreedHeroPlant.new()
     root.add_child(hero)
     hero.global_position = GreedCore.ARENA_RECT.get_center()
@@ -38,12 +43,25 @@ func _run() -> void:
     root.add_child(game)
     await process_frame
     await process_frame
+    await process_frame
 
     _assert_true(game is Node2D, "Plant survivors scene instantiates")
     _assert_equal_int(int(game.get("experience_to_next")), 8, "First level requires eight experience")
     _assert_true(bool(game.get("wave_active")), "Time survival combat is active immediately")
 
+    var skin: PixelSkinController = game.get("pixel_skin") as PixelSkinController
+    _assert_true(skin != null and is_instance_valid(skin), "Pixel skin controller is active")
     var game_hero: GreedHeroPlant = game.get("hero_plant") as GreedHeroPlant
+    _assert_true(game_hero.has_node("PixelSprite"), "Main plant receives the concept-art pixel sprite")
+    var familiars: Array = game.get("plants") as Array
+    for familiar_value: Variant in familiars:
+        var familiar: GreedPlant = familiar_value as GreedPlant
+        _assert_true(familiar.has_node("PixelSprite"), "Floating familiar receives a pixel sprite")
+
+    var experience_progress: ProgressBar = game.get("experience_bar") as ProgressBar
+    _assert_true(experience_progress != null, "Pixel HUD includes an experience bar")
+    _assert_equal_int(int(experience_progress.max_value), 8, "Experience bar uses the current level threshold")
+
     var start_position: Vector2 = game_hero.global_position
     game.set("_movement_keys", {"left": false, "right": true, "up": false, "down": false})
     game.call("_apply_continuous_movement")
@@ -55,6 +73,8 @@ func _run() -> void:
     _assert_equal_int(int(game.get("pending_level_ups")), 1, "One pending level is recorded")
     var title: Label = game.get("choice_title") as Label
     _assert_true(title.text.contains("LEVEL UP") or title.text.contains("等级提升"), "Level-up overlay uses survivor wording")
+    var choice_buttons: Array = game.get("choice_buttons") as Array
+    _assert_true((choice_buttons[0] as Button).icon != null, "Level-up choices display pixel icons")
 
     game.call("_select_choice", 0)
     await process_frame
@@ -66,8 +86,10 @@ func _run() -> void:
     _assert_true(bool(game.get("first_elite_spawned")), "Thirty-second elite milestone triggers")
 
     var spawned: GreedEnemy = game.call("_spawn_survivor_enemy", false, false) as GreedEnemy
+    await process_frame
     _assert_true(spawned != null and is_instance_valid(spawned), "Continuous survivor spawner creates enemies")
     _assert_true(not spawned.elite and not spawned.boss, "Regular timed spawns are not forced elites")
+    _assert_true(spawned.has_node("PixelSprite"), "Spawned enemies receive a pixel sprite")
 
     game.queue_free()
     if is_instance_valid(hero):
