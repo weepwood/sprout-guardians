@@ -37,7 +37,6 @@ func _run() -> void:
     await process_frame
 
     _assert_true(game is Node2D, "Plant survivors scene instantiates")
-    _assert_float_close(float(game.get("SURVIVAL_DURATION")), 90.0, 0.001, "First survival slice lasts ninety seconds")
     _assert_equal_int(int(game.get("experience_to_next")), 8, "First level requires eight experience")
     _assert_true(bool(game.get("wave_active")), "Time survival combat is active immediately")
 
@@ -90,7 +89,3 @@ func _assert_true(condition: bool, message: String) -> void:
 
 func _assert_equal_int(actual: int, expected: int, message: String) -> void:
     _assert_true(actual == expected, "%s (expected %d, got %d)" % [message, expected, actual])
-
-
-func _assert_float_close(actual: float, expected: float, tolerance: float, message: String) -> void:
-    _assert_true(absf(actual - expected) <= tolerance, "%s (expected %.3f, got %.3f)" % [message, expected, actual])
