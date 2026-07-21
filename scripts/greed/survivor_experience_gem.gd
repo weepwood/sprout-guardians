@@ -12,20 +12,25 @@ var target: GreedHeroPlant
 var experience_value: int = 1
 var age: float = 0.0
 var _phase: float = 0.0
+var _collected: bool = false
 
 
 func configure(target_value: GreedHeroPlant, amount: int = 1) -> void:
     target = target_value
     experience_value = maxi(1, amount)
     _phase = fmod(global_position.x * 0.017 + global_position.y * 0.031, TAU)
+    _collected = false
     add_to_group("survivor_experience")
     queue_redraw()
 
 
 func _process(delta: float) -> void:
+    if _collected:
+        return
     age += delta
     _phase += delta * 4.0
     if age >= LIFE_SECONDS:
+        _collected = true
         queue_free()
         return
     if target == null or not is_instance_valid(target):
@@ -34,6 +39,7 @@ func _process(delta: float) -> void:
 
     var distance_value: float = global_position.distance_to(target.global_position)
     if distance_value <= PICKUP_RADIUS:
+        _collected = true
         collected.emit(experience_value)
         queue_free()
         return
