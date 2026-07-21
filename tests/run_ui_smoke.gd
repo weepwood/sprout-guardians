@@ -15,7 +15,7 @@ func _run() -> void:
 
     await _test_main_menu()
     await _test_level_select()
-    await _test_greed_arena_scene()
+    await _test_survivor_scene()
 
     Engine.time_scale = 1.0
     _remove_user_file(SettingsService.DEFAULT_PATH)
@@ -83,8 +83,8 @@ func _test_level_select() -> void:
     await process_frame
 
 
-func _test_greed_arena_scene() -> void:
-    var game: Node = await _instantiate_scene("res://scenes/main.tscn", "Main-plant greed arena")
+func _test_survivor_scene() -> void:
+    var game: Node = await _instantiate_scene("res://scenes/main.tscn", "Plant survivors arena")
     if game == null:
         return
 
@@ -92,59 +92,44 @@ func _test_greed_arena_scene() -> void:
     var initial_locale: String = localization.locale_code
     game.call("_toggle_language")
     await process_frame
-    _assert_true(localization.locale_code != initial_locale, "Greed arena language button changes locale")
+    _assert_true(localization.locale_code != initial_locale, "Plant survivors language button changes locale")
 
     var hero: GreedHeroPlant = game.get("hero_plant") as GreedHeroPlant
     var familiars: Array = game.get("plants") as Array
-    _assert_true(hero != null, "Greed arena starts with one controllable main plant")
-    _assert_equal_int(familiars.size(), 2, "Secondary plants are represented as two floating familiars")
-    _assert_true(game.find_child("StartWaveButton", true, false) == null, "Default mode has no manual Start Wave control")
-    _assert_true(game.find_child("UpgradeButton", true, false) == null, "Default mode has no manual upgrade control")
-    _assert_true(game.find_child("BuildBar", true, false) == null, "Default mode has no tower build bar")
+    _assert_true(hero != null, "Survivor run starts with one controllable main plant")
+    _assert_equal_int(familiars.size(), 2, "Secondary plants remain two floating familiars")
+    _assert_true(bool(game.get("wave_active")), "Time-survival combat starts immediately")
+    _assert_true(game.find_child("StartWaveButton", true, false) == null, "Survivor mode has no manual wave control")
+    _assert_true(game.find_child("UpgradeButton", true, false) == null, "Survivor mode has no manual upgrade control")
+    _assert_true(game.find_child("BuildBar", true, false) == null, "Survivor mode has no tower build bar")
 
     var initial_position: Vector2 = hero.global_position
-    game.call("_handle_left_click", initial_position)
-    _assert_true(hero.dragging and hero.selected, "Clicking the main plant begins direct mouse control")
-    hero.end_drag(initial_position)
-    var move_destination: Vector2 = initial_position + Vector2(64.0, 28.0)
-    game.call("_handle_left_click", move_destination)
-    _assert_true(hero.has_move_target, "A selected main plant accepts a floor movement command")
+    game.set("_movement_keys", {"left": false, "right": true, "up": false, "down": false})
+    game.call("_apply_continuous_movement")
     hero._process(0.25)
-    _assert_true(hero.global_position.distance_to(initial_position) > 1.0, "Main plant moves toward the clicked destination")
+    _assert_true(hero.global_position.x > initial_position.x, "WASD-style continuous movement moves the main plant")
 
-    game.set("next_wave_timer", 0.0)
-    await process_frame
-    await process_frame
-    _assert_equal_int(int(game.get("wave_index")), 0, "First greed wave starts automatically")
-    _assert_true(bool(game.get("wave_active")), "Greed arena enters active combat without a wave button")
-
-    game.set("spawn_timer", 0.0)
+    game.set("survival_spawn_timer", 0.0)
     await process_frame
     await process_frame
     var enemies: Array[Node] = get_nodes_in_group("greed_enemies")
-    _assert_true(enemies.size() >= 1, "Enemies enter from arena doors without path-following setup")
+    _assert_true(enemies.size() >= 1, "Enemies continuously enter from arena borders")
     var priority_enemy: GreedEnemy = enemies[0] as GreedEnemy
     game.call("_set_priority_target", priority_enemy)
-    _assert_true(hero.get_focus_target() == priority_enemy, "Click command locks a main attack target")
-    _assert_true(priority_enemy.priority_targeted, "Priority enemy displays its target marker")
+    _assert_true(hero.get_focus_target() == priority_enemy, "Optional click command can still lock a priority target")
     for familiar_value: Variant in familiars:
         var familiar: GreedPlant = familiar_value as GreedPlant
-        _assert_true(familiar.focus_source == hero, "Floating familiar shares the main plant target source")
-        _assert_true(familiar.call("_find_target") == priority_enemy, "Floating familiar prioritizes the clicked enemy")
+        _assert_true(familiar.focus_source == hero, "Floating familiar shares the main plant focus source")
+        _assert_true(familiar.call("_find_target") == priority_enemy, "Floating familiar prioritizes the optional clicked enemy")
 
-    game.set("spawn_remaining", 0)
-    for node: Node in get_nodes_in_group("greed_enemies"):
-        node.queue_free()
+    game.call("_on_experience_collected", 8)
     await process_frame
-    await process_frame
-    await process_frame
-
     var choice_panel: Panel = game.get("choice_panel") as Panel
     var choice_buttons: Array = game.get("choice_buttons") as Array
-    _assert_true(bool(game.get("choice_open")), "Every cleared greed wave guarantees a surprise choice")
-    _assert_true(choice_panel.visible, "Surprise choice overlay opens after a wave")
-    _assert_equal_int(choice_buttons.size(), 3, "Surprise reward presents three mutation choices")
-    _assert_control_inside_viewport(choice_panel, "Greed reward panel stays inside viewport")
+    _assert_true(bool(game.get("choice_open")), "Collecting enough experience opens a level-up choice")
+    _assert_true(choice_panel.visible, "Level-up overlay is visible")
+    _assert_equal_int(choice_buttons.size(), 3, "Level-up presents three mutation choices")
+    _assert_control_inside_viewport(choice_panel, "Level-up reward panel stays inside viewport")
 
     var choices: Array = game.get("_current_choices") as Array
     var selected_blessing: BlessingData = choices[0] as BlessingData
@@ -153,24 +138,29 @@ func _test_greed_arena_scene() -> void:
     await process_frame
 
     var blessings: BlessingSystem = game.get("blessing_system") as BlessingSystem
-    _assert_true(not bool(game.get("choice_open")), "Choosing a mutation resumes the run")
-    _assert_true(not choice_panel.visible, "Choosing a mutation closes the reward overlay")
+    _assert_true(not bool(game.get("choice_open")), "Choosing a mutation resumes survival")
+    _assert_true(not choice_panel.visible, "Choosing a mutation closes the level-up overlay")
     _assert_equal_int(blessings.get_blessing_stack(selected_blessing.id), 1, "Chosen mutation modifies the run")
-    _assert_equal_int(hero.level, hero_level_before + 1, "Every reward evolves the main plant")
+    _assert_equal_int(hero.level, hero_level_before + 1, "Level-up choice evolves the main plant")
+
+    var wave_label: Label = game.get("wave_label") as Label
+    var greed_label: Label = game.get("greed_label") as Label
+    _assert_true(wave_label.text.contains("TIME") or wave_label.text.contains("时间"), "HUD displays survival time")
+    _assert_true(greed_label.text.contains("XP") or greed_label.text.contains("经验"), "HUD displays level and experience")
 
     var effects: PixelImpactSystem = game.get("impact_system") as PixelImpactSystem
     effects.spawn_hit(Vector2(320.0, 180.0), Color("ffffff"), 25.0, true)
-    _assert_true(effects.get_active_particle_count() > 0, "Critical arena impact creates pixel particles")
-    _assert_true(effects.get_active_particle_count() <= effects.max_particles, "Arena particles remain bounded")
+    _assert_true(effects.get_active_particle_count() > 0, "Critical survivor impact creates pixel particles")
+    _assert_true(effects.get_active_particle_count() <= effects.max_particles, "Survivor particles remain bounded")
 
     var control_label: Label = game.get("control_label") as Label
     var language_button: Button = game.get("language_button") as Button
     var speed_button: Button = game.get("speed_button") as Button
     var menu_button: Button = game.get("menu_button") as Button
-    _assert_control_inside_viewport(control_label, "Mouse-control guidance stays inside viewport")
-    _assert_control_inside_viewport(language_button, "Greed language button stays inside viewport")
-    _assert_control_inside_viewport(speed_button, "Greed speed button stays inside viewport")
-    _assert_control_inside_viewport(menu_button, "Greed menu button stays inside viewport")
+    _assert_control_inside_viewport(control_label, "Survivor-control guidance stays inside viewport")
+    _assert_control_inside_viewport(language_button, "Survivor language button stays inside viewport")
+    _assert_control_inside_viewport(speed_button, "Survivor speed button stays inside viewport")
+    _assert_control_inside_viewport(menu_button, "Survivor menu button stays inside viewport")
 
     game.queue_free()
     await process_frame

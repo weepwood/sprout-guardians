@@ -2,6 +2,17 @@ extends Node2D
 class_name GreedPlant
 
 signal fired(plant: GreedPlant, target: GreedEnemy, critical: bool, damage: float)
+signal projectile_requested(
+    origin: Vector2,
+    target: GreedEnemy,
+    damage: float,
+    critical: bool,
+    speed: float,
+    splash_radius: float,
+    slow_ratio: float,
+    knockback_force: float,
+    color: Color
+)
 
 var core: GreedCore
 var focus_source: GreedHeroPlant
@@ -17,7 +28,7 @@ var rescue_active: bool = false
 var _cooldown: float = 0.0
 var _orbit_phase: float = 0.0
 var _shot_time: float = 0.0
-var _shot_target_local: Vector2 = Vector2.ZERO
+var _shot_direction_local: Vector2 = Vector2.RIGHT
 
 
 func configure(
@@ -110,28 +121,28 @@ func _attack(target_enemy: GreedEnemy) -> void:
     var projectile_count: int = int(config.get("projectile_count", 1))
     var splash_radius: float = float(config.get("splash_radius", 0.0))
     var slow_ratio: float = float(config.get("slow_ratio", 0.0))
+    var projectile_speed: float = float(config.get("projectile_speed", 340.0))
+    var body_color: Color = Color(String(config.get("color_hex", "8fe45f")))
 
     for shot_index: int in range(projectile_count):
         var target_for_shot: GreedEnemy = target_enemy if shot_index == 0 else _alternate_target(target_enemy)
         if target_for_shot == null:
             target_for_shot = target_enemy
-        if splash_radius > 0.0:
-            for node: Node in get_tree().get_nodes_in_group("greed_enemies"):
-                var splash_enemy: GreedEnemy = node as GreedEnemy
-                if splash_enemy == null or not is_instance_valid(splash_enemy):
-                    continue
-                if splash_enemy.global_position.distance_to(target_for_shot.global_position) <= splash_radius:
-                    splash_enemy.take_damage(damage_value, critical)
-                    splash_enemy.apply_knockback(global_position, 42.0)
-        else:
-            target_for_shot.take_damage(damage_value, critical)
-            target_for_shot.apply_knockback(global_position, 58.0 if critical else 32.0)
+        projectile_requested.emit(
+            global_position,
+            target_for_shot,
+            damage_value,
+            critical,
+            projectile_speed,
+            splash_radius,
+            slow_ratio,
+            48.0 if splash_radius > 0.0 else (58.0 if critical else 32.0),
+            body_color
+        )
 
-        if slow_ratio > 0.0 and is_instance_valid(target_for_shot):
-            target_for_shot.apply_slow(1.0 - slow_ratio, 1.6)
-
-    _shot_target_local = to_local(target_enemy.global_position)
-    _shot_time = 0.09
+    var target_offset: Vector2 = target_enemy.global_position - global_position
+    _shot_direction_local = target_offset.normalized() * 11.0 if target_offset.length() > 0.01 else Vector2.RIGHT * 11.0
+    _shot_time = 0.08
     fired.emit(self, target_enemy, critical, damage_value)
 
 
@@ -183,7 +194,7 @@ func _draw() -> void:
     for marker: int in range(mini(level, 6)):
         draw_rect(Rect2(-8.0 + float(marker) * 3.0, 11.0, 2.0, 2.0), Color("ffe071"))
     if _shot_time > 0.0:
-        var beam_color: Color = body_color
-        beam_color.a = 0.78
-        draw_line(Vector2.ZERO, _shot_target_local, beam_color, 2.0)
-        draw_circle(_shot_target_local, 3.0, Color("fff2a0"))
+        var muzzle_color: Color = body_color
+        muzzle_color.a = 0.88
+        draw_line(Vector2.ZERO, _shot_direction_local, muzzle_color, 2.0)
+        draw_circle(_shot_direction_local, 2.5, Color("fff2a0"))

@@ -1,6 +1,7 @@
 extends SceneTree
 
 var _failures: int = 0
+var _spawned_projectiles: Array[GreedProjectile] = []
 
 
 func _initialize() -> void:
@@ -38,6 +39,7 @@ func _run() -> void:
     root.add_child(hero)
     hero.global_position = GreedCore.ARENA_RECT.get_center()
     hero.configure(GreedBalance.STARTER_PLANTS[0], blessings)
+    hero.projectile_requested.connect(_spawn_test_projectile)
     var initial_health: int = hero.health
     _assert_true(hero.take_contact_damage(1), "Main plant accepts its first contact hit")
     _assert_equal_int(hero.health, initial_health - 1, "Contact damage reduces main-plant health")
@@ -51,6 +53,15 @@ func _run() -> void:
     hero._process(0.25)
     _assert_true(hero.global_position.distance_to(initial_position) > 1.0, "Selected main plant follows a mouse movement destination")
 
+    var dash_start: Vector2 = hero.global_position
+    _assert_true(hero.request_dash(dash_start + Vector2(90.0, 0.0)), "Main plant accepts a dash request toward the cursor")
+    _assert_true(hero.invulnerability_time >= GreedHeroPlant.DASH_INVULNERABILITY, "Dash grants brief contact invulnerability")
+    _assert_true(not hero.request_dash(dash_start + Vector2(0.0, 90.0)), "Dash cooldown blocks an immediate second dash")
+    hero._process(0.08)
+    _assert_true(hero.global_position.distance_to(dash_start) > 20.0, "Dash moves the main plant a meaningful distance")
+    hero._process(0.08)
+    _assert_true(not hero.is_dashing(), "Dash completes within its short movement window")
+
     var before_upgrade: float = hero.get_sustained_dps()
     hero.upgrade()
     _assert_true(hero.get_sustained_dps() > before_upgrade, "Main-plant evolution increases sustained DPS")
@@ -60,6 +71,7 @@ func _run() -> void:
     familiar.global_position = hero.global_position + Vector2(34.0, 0.0)
     familiar.configure(hero, GreedBalance.STARTER_PLANTS[1], 0, blessings)
     familiar.set_focus_source(hero)
+    familiar.projectile_requested.connect(_spawn_test_projectile)
     _assert_true(familiar.focus_source == hero, "Floating familiar follows the main plant focus source")
 
     var wave_one: Dictionary = GreedBalance.WAVE_TABLE[0]
@@ -74,12 +86,50 @@ func _run() -> void:
 
     var starting_enemy_health: float = enemy.health
     hero.call("_attack", enemy)
-    _assert_true(enemy.health < starting_enemy_health, "Main plant attacks the priority target")
-    hero.clear_focus_target()
-    _assert_true(not enemy.priority_targeted, "Clearing focus removes the enemy target marker")
+    _assert_float_close(enemy.health, starting_enemy_health, 0.001, "Launching a projectile does not deal instant damage")
+    _assert_equal_int(_spawned_projectiles.size(), 1, "Main plant creates one physical projectile")
+    var hero_projectile: GreedProjectile = _spawned_projectiles[0]
+    _assert_true(hero_projectile.global_position.distance_to(enemy.global_position) > 1.0, "Projectile begins at the firing plant rather than the target")
+    for _frame: int in range(12):
+        if is_instance_valid(hero_projectile):
+            hero_projectile._process(0.02)
+    _assert_true(enemy.health < starting_enemy_health, "Projectile applies damage after reaching the target")
 
+    var projectile_count_before_familiar: int = _spawned_projectiles.size()
+    if is_instance_valid(enemy):
+        familiar.call("_attack", enemy)
+    _assert_true(_spawned_projectiles.size() > projectile_count_before_familiar, "Floating familiar also launches a physical projectile")
+
+    var feedback: GreedCombatFeedback = GreedCombatFeedback.new()
+    root.add_child(feedback)
+    feedback.spawn_damage(Vector2(320.0, 180.0), 18.0, false)
+    feedback.spawn_damage(Vector2(320.0, 180.0), 42.0, true)
+    _assert_equal_int(feedback.get_active_number_count(), 2, "Normal and critical hits create distinct damage numbers")
+    for index: int in range(GreedCombatFeedback.MAX_DAMAGE_NUMBERS + 12):
+        feedback.spawn_damage(Vector2(280.0 + float(index % 8), 160.0), float(index + 1), index % 7 == 0)
+    _assert_true(
+        feedback.get_active_number_count() <= GreedCombatFeedback.MAX_DAMAGE_NUMBERS,
+        "Damage-number feedback remains within its strict display budget"
+    )
+
+    var original_time_scale: float = Engine.time_scale
+    feedback.request_hit_stop(0.03)
+    _assert_true(feedback.is_hit_stop_active(), "Major-hit feedback activates a micro hit stop")
+    _assert_true(Engine.time_scale < original_time_scale, "Hit stop temporarily reduces simulation time scale")
+    feedback.cancel_hit_stop()
+    _assert_float_close(Engine.time_scale, original_time_scale, 0.001, "Cancelling hit stop restores the previous game speed")
+
+    hero.clear_focus_target()
+    if is_instance_valid(enemy):
+        _assert_true(not enemy.priority_targeted, "Clearing focus removes the enemy target marker")
+
+    for projectile: GreedProjectile in _spawned_projectiles:
+        if projectile != null and is_instance_valid(projectile):
+            projectile.queue_free()
+    feedback.queue_free()
     familiar.queue_free()
-    enemy.queue_free()
+    if is_instance_valid(enemy):
+        enemy.queue_free()
     hero.queue_free()
     blessings.queue_free()
     await process_frame
@@ -90,6 +140,33 @@ func _run() -> void:
         return
     print("All greed arena balance tests passed.")
     quit(0)
+
+
+func _spawn_test_projectile(
+        origin: Vector2,
+        target: GreedEnemy,
+        damage: float,
+        critical: bool,
+        speed: float,
+        splash_radius: float,
+        slow_ratio: float,
+        knockback_force: float,
+        color: Color
+) -> void:
+    var projectile: GreedProjectile = GreedProjectile.new()
+    root.add_child(projectile)
+    projectile.configure(
+        origin,
+        target,
+        damage,
+        critical,
+        speed,
+        splash_radius,
+        slow_ratio,
+        knockback_force,
+        color
+    )
+    _spawned_projectiles.append(projectile)
 
 
 func _assert_true(condition: bool, message: String) -> void:

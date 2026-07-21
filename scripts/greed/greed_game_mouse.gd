@@ -2,6 +2,15 @@ extends "res://scripts/greed/greed_game_balanced.gd"
 
 var hero_plant: GreedHeroPlant
 var control_label: Label
+var combat_feedback: GreedCombatFeedback
+var launched_projectiles: int = 0
+
+
+func _create_services() -> void:
+    super._create_services()
+    combat_feedback = GreedCombatFeedback.new()
+    combat_feedback.name = "GreedCombatFeedback"
+    add_child(combat_feedback)
 
 
 func _create_arena() -> void:
@@ -13,6 +22,8 @@ func _create_arena() -> void:
     hero_plant.health_changed.connect(_on_core_health_changed)
     hero_plant.defeated.connect(_on_core_defeated)
     hero_plant.fired.connect(_on_hero_fired)
+    hero_plant.projectile_requested.connect(_on_projectile_requested)
+    hero_plant.dash_started.connect(_on_hero_dash_started)
     core = hero_plant
 
     plants.clear()
@@ -25,13 +36,14 @@ func _create_arena() -> void:
         familiar.configure(hero_plant, GreedBalance.STARTER_PLANTS[config_index], familiar_index, blessing_system)
         familiar.set_focus_source(hero_plant)
         familiar.fired.connect(_on_plant_fired)
+        familiar.projectile_requested.connect(_on_projectile_requested)
         plants.append(familiar)
 
 
 func _create_ui() -> void:
     super._create_ui()
     var canvas: CanvasLayer = get_node("UI") as CanvasLayer
-    control_label = _make_label(canvas, Vector2(182.0, 48.0), Vector2(300.0, 54.0), 11)
+    control_label = _make_label(canvas, Vector2(168.0, 46.0), Vector2(324.0, 58.0), 11)
     control_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     control_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     control_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -67,6 +79,13 @@ func _unhandled_input(event: InputEvent) -> void:
     if game_ended or choice_open or hero_plant == null or not is_instance_valid(hero_plant):
         return
 
+    if event is InputEventKey:
+        var key_event: InputEventKey = event as InputEventKey
+        if key_event.pressed and not key_event.echo and (key_event.keycode == KEY_SPACE or key_event.physical_keycode == KEY_SPACE):
+            if hero_plant.request_dash(get_viewport().get_mouse_position()):
+                get_viewport().set_input_as_handled()
+            return
+
     if event is InputEventMouseMotion:
         var motion: InputEventMouseMotion = event as InputEventMouseMotion
         if hero_plant.dragging:
@@ -93,15 +112,18 @@ func _unhandled_input(event: InputEvent) -> void:
             get_viewport().set_input_as_handled()
         return
 
-    _handle_left_click(mouse_event.position)
+    _handle_left_click(mouse_event.position, mouse_event.double_click)
     get_viewport().set_input_as_handled()
 
 
-func _handle_left_click(position_value: Vector2) -> void:
+func _handle_left_click(position_value: Vector2, double_click: bool = false) -> void:
     var enemy: GreedEnemy = _enemy_at_point(position_value)
     if enemy != null:
         _set_priority_target(enemy)
         return
+    if double_click and GreedCore.ARENA_RECT.has_point(position_value):
+        if hero_plant.request_dash(position_value):
+            return
     if hero_plant.is_point_inside(position_value):
         hero_plant.begin_drag()
         return
@@ -129,6 +151,40 @@ func _enemy_at_point(position_value: Vector2) -> GreedEnemy:
             result = enemy
             closest = distance_value
     return result
+
+
+func _on_projectile_requested(
+        origin: Vector2,
+        target: GreedEnemy,
+        damage: float,
+        critical: bool,
+        speed: float,
+        splash_radius: float,
+        slow_ratio: float,
+        knockback_force: float,
+        color: Color
+) -> void:
+    if target == null or not is_instance_valid(target):
+        return
+    var projectile: GreedProjectile = GreedProjectile.new()
+    projectile.name = "GreedProjectile"
+    add_child(projectile)
+    projectile.configure(
+        origin,
+        target,
+        damage,
+        critical,
+        speed,
+        splash_radius,
+        slow_ratio,
+        knockback_force,
+        color
+    )
+    launched_projectiles += 1
+
+
+func _on_hero_dash_started(_from_position: Vector2, to_position: Vector2) -> void:
+    impact_system.spawn_reward(to_position, Color("8ee8ff"))
 
 
 func _select_choice(index: int) -> void:
@@ -162,18 +218,43 @@ func _select_choice(index: int) -> void:
     _refresh_hud()
 
 
-func _on_hero_fired(_hero: GreedHeroPlant, target: GreedEnemy, critical: bool, damage: float) -> void:
+func _on_hero_fired(_hero: GreedHeroPlant, target: GreedEnemy, critical: bool, _damage: float) -> void:
     if target == null or not is_instance_valid(target):
         return
     if critical:
         audio_manager.play_event(&"critical")
-        impact_system.spawn_hit(target.global_position, target.body_color, damage, true)
+
+
+func _on_plant_fired(_plant: GreedPlant, target: GreedEnemy, critical: bool, _damage: float) -> void:
+    if target == null or not is_instance_valid(target):
+        return
+    if critical:
+        audio_manager.play_event(&"critical")
+
+
+func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void:
+    super._on_enemy_damaged(enemy, damage, critical)
+    if combat_feedback == null or enemy == null or not is_instance_valid(enemy):
+        return
+    combat_feedback.spawn_damage(enemy.global_position, damage, critical)
+    if critical:
+        combat_feedback.request_hit_stop(0.025)
 
 
 func _on_enemy_defeated(enemy: GreedEnemy, coin_reward: int, elite: bool) -> void:
     if hero_plant != null and is_instance_valid(hero_plant) and hero_plant.get_focus_target() == enemy:
         hero_plant.clear_focus_target()
+    if elite and combat_feedback != null:
+        combat_feedback.request_hit_stop(0.045)
     super._on_enemy_defeated(enemy, coin_reward, elite)
+
+
+func _set_combat_frozen(value: bool) -> void:
+    super._set_combat_frozen(value)
+    var mode: int = Node.PROCESS_MODE_DISABLED if value else Node.PROCESS_MODE_INHERIT
+    for node: Node in get_tree().get_nodes_in_group("greed_projectiles"):
+        if node != null and is_instance_valid(node):
+            node.process_mode = mode
 
 
 func _refresh_hud() -> void:
@@ -201,14 +282,17 @@ func _update_control_status() -> void:
     if choice_open:
         control_label.text = _t("Choose one mutation to continue", "选择一项变异后继续战斗")
         return
+    if hero_plant.is_dashing():
+        control_label.text = _t("DASHING · BRIEF CONTACT IMMUNITY", "闪避中 · 短暂无视接触伤害")
+        return
     if hero_plant.dragging:
         control_label.text = _t("DRAGGING MAIN PLANT · RELEASE TO STOP", "正在拖动主植物 · 松开鼠标停止")
         return
     var target: GreedEnemy = hero_plant.get_focus_target()
     if target != null:
-        control_label.text = _t("PRIORITY TARGET LOCKED · RIGHT CLICK TO CLEAR", "已锁定优先目标 · 右键取消锁定")
+        control_label.text = _t("TARGET LOCKED · DOUBLE CLICK OR SPACE TO DASH · RIGHT CLICK TO CLEAR", "已锁定目标 · 双击地面或空格闪避 · 右键取消")
         return
     if hero_plant.selected:
-        control_label.text = _t("MAIN PLANT SELECTED · CLICK FLOOR TO MOVE · CLICK ENEMY TO FOCUS", "已选中主植物 · 点击地面移动 · 点击怪物集火")
+        control_label.text = _t("CLICK FLOOR TO MOVE · DOUBLE CLICK OR SPACE TO DASH · CLICK ENEMY TO FOCUS", "点击地面移动 · 双击地面或空格闪避 · 点击怪物集火")
         return
-    control_label.text = _t("CLICK OR DRAG THE MAIN PLANT · CLICK AN ENEMY TO FOCUS", "点击或拖动主植物 · 点击怪物指定集火目标")
+    control_label.text = _t("CLICK OR DRAG MAIN PLANT · DOUBLE CLICK FLOOR TO DASH · CLICK ENEMY TO FOCUS", "点击或拖动主植物 · 双击地面闪避 · 点击怪物集火")
