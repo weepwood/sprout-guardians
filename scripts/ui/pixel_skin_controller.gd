@@ -20,8 +20,12 @@ func _process(delta: float) -> void:
     var stale_ids: Array[int] = []
     for instance_id_value: Variant in _sprites.keys():
         var node: Node = instance_from_id(int(instance_id_value)) as Node
-        var sprite: Sprite2D = _sprites[instance_id_value] as Sprite2D
-        if node == null or sprite == null or not is_instance_valid(node) or not is_instance_valid(sprite):
+        var sprite_value: Variant = _sprites[instance_id_value]
+        if node == null or not is_instance_valid(node) or not is_instance_valid(sprite_value):
+            stale_ids.append(int(instance_id_value))
+            continue
+        var sprite: Sprite2D = sprite_value as Sprite2D
+        if sprite == null:
             stale_ids.append(int(instance_id_value))
             continue
         _update_sprite(node, sprite)
