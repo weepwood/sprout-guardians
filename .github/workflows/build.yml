@@ -31,8 +31,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p build/diagnostics
           GODOT_FILE="Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64"
-          BASE_URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}"
+          BASE_URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}"
+          {
+            echo "Godot version: ${GODOT_VERSION}-${GODOT_RELEASE}"
+            echo "Release repository: godotengine/godot-builds"
+            echo "Editor asset: ${GODOT_FILE}.zip"
+          } > build/diagnostics/godot-install.log
 
           curl --fail --location --retry 3 \
             "${BASE_URL}/${GODOT_FILE}.zip" \
@@ -50,7 +56,7 @@ jobs:
           mkdir -p "$TEMPLATE_DIR"
           cp -R /tmp/export_templates/templates/. "$TEMPLATE_DIR/"
 
-          godot --version
+          godot --version | tee -a build/diagnostics/godot-install.log
 
       - name: Import project and validate scripts
         shell: bash
