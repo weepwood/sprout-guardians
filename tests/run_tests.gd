@@ -158,6 +158,16 @@ func _test_save_game_service() -> void:
     recovered.load_game()
     _assert_true(recovered.recovered_from_backup, "Corrupted primary save recovers from backup")
     _assert_true(recovered.get_level_stars(&"morning_forest") >= 2, "Backup recovery preserves completed-level progress")
+    var backup_after_recovery: Variant = JSON.parse_string(FileAccess.get_file_as_string(backup_path))
+    _assert_true(backup_after_recovery is Dictionary, "Recovery never overwrites a good backup with corrupt primary data")
+
+    _write_test_file(save_path, "{broken again")
+    var second_recovery: SaveGameService = SaveGameService.new()
+    second_recovery.save_path = save_path
+    second_recovery.backup_path = backup_path
+    second_recovery.load_game()
+    _assert_true(second_recovery.recovered_from_backup, "Backup remains valid after a second primary corruption")
+    _assert_true(second_recovery.get_level_stars(&"morning_forest") >= 2, "Repeated recovery preserves previous progress")
 
     _remove_test_file(save_path)
     _remove_test_file(backup_path)
