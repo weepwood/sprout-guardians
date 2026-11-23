@@ -48,6 +48,17 @@ func _test_main_menu() -> void:
     _assert_true(menu_button_style != null and menu_button_style.corner_radius_top_left >= 12, "Play button uses rounded toy-like theme")
     _assert_true((menu.get("play_button") as Button).has_focus(), "Main menu starts with a keyboard-friendly focused action")
 
+    menu.call("_show_collection_summary")
+    await process_frame
+    var archive_panel: Panel = menu.get("archive_panel") as Panel
+    var archive_summary: Label = menu.get("archive_summary") as Label
+    _assert_true(archive_panel.visible, "Garden journal opens as a real modal")
+    _assert_true(archive_summary.text.contains("RUNS") or archive_summary.text.contains("累计挑战"), "Journal displays persistent run statistics")
+    _assert_control_inside_viewport(archive_panel, "Garden journal stays inside viewport")
+    menu.call("_hide_archive")
+    await process_frame
+    _assert_true(not archive_panel.visible, "Garden journal closes correctly")
+
     menu.call("_show_settings")
     await process_frame
     var backdrop: ColorRect = menu.get("settings_backdrop") as ColorRect

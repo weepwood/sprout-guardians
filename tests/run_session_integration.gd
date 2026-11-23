@@ -99,6 +99,9 @@ func _run_full_session(iteration: int) -> void:
         _check(bool(game.get("game_ended")), "Boss defeat completes a run")
         _check(state.phase == SurvivorRunState.Phase.VICTORY, "Victory is a terminal phase")
         _check((game.get("result_button") as Button).visible, "Run displays restart action")
+        var saved_stats: Dictionary = (game.get("run_save") as SaveGameService).get_survivor_statistics()
+        _check(int(saved_stats["total_victories"]) >= 1, "Victory is recorded in the persistent run journal")
+        _check(int(saved_stats["best_kills"]) >= 0, "Persistent run record preserves kill count")
 
     game.queue_free()
     await process_frame

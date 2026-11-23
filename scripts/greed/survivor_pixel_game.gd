@@ -11,6 +11,7 @@ var experience_bar: ProgressBar
 var pixel_skin: PixelSkinController
 var run_state: SurvivorRunState
 var run_trace: SurvivorRunTrace
+var run_save: SaveGameService
 var pause_open: bool = false
 var pause_backdrop: ColorRect
 var pause_panel: Panel
@@ -37,6 +38,8 @@ func _ready() -> void:
     run_trace = get_node("RunTrace") as SurvivorRunTrace
     run_state.phase_changed.connect(_on_run_phase_changed)
     run_state.start_run()
+    run_save = SaveGameService.new()
+    run_save.load_game()
     if impact_system != null:
         impact_system.z_index = 9
     _apply_playful_hud()
@@ -341,6 +344,12 @@ func _finish_run(victory: bool) -> void:
     super._finish_run(victory)
     if run_state != null:
         run_state.finish(victory)
+    if run_save != null:
+        var saved: bool = run_save.record_survivor_result(
+            victory, survival_elapsed, hero_plant.level if is_instance_valid(hero_plant) else 1, enemies_defeated
+        )
+        if run_trace != null:
+            run_trace.note("run_recorded", "saved=%s victory=%s kills=%d" % [saved, victory, enemies_defeated])
 
 
 func _on_run_phase_changed(previous: int, current: int) -> void:

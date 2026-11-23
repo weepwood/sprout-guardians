@@ -1,5 +1,12 @@
 extends "res://scripts/ui/greed_main_menu.gd"
 
+var archive_backdrop: ColorRect
+var archive_panel: Panel
+var archive_title: Label
+var archive_summary: Label
+var archive_subtitle: Label
+var archive_back_button: Button
+
 
 func _ready() -> void:
     settings = SettingsService.new()
@@ -48,6 +55,13 @@ func _bind_existing_ui() -> void:
     fullscreen_button = get_node("UI/Settings/FullscreenButton") as Button
     flash_button = get_node("UI/Settings/FlashButton") as Button
     settings_back_button = get_node("UI/Settings/BackButton") as Button
+    archive_backdrop = get_node("UI/Archive/Backdrop") as ColorRect
+    archive_panel = get_node("UI/Archive/Panel") as Panel
+    archive_title = get_node("UI/Archive/Title") as Label
+    archive_summary = get_node("UI/Archive/Summary") as Label
+    archive_subtitle = get_node("UI/Archive/Subtitle") as Label
+    archive_back_button = get_node("UI/Archive/BackButton") as Button
+    archive_back_button.pressed.connect(_hide_archive)
 
     play_button.pressed.connect(_open_level_select)
     settings_button.pressed.connect(_show_settings)
@@ -68,8 +82,10 @@ func _bind_existing_ui() -> void:
 func _apply_playful_design() -> void:
     PlayfulUITheme.apply_panel(get_node("World/MenuFrame") as Panel, "paper")
     PlayfulUITheme.apply_panel(settings_panel, "modal")
+    PlayfulUITheme.apply_panel(archive_panel, "modal")
     for label: Label in [
-        title_label, subtitle_label, progress_label, settings_title_label
+        title_label, subtitle_label, progress_label, settings_title_label,
+        archive_title, archive_summary, archive_subtitle
     ]:
         PlayfulUITheme.apply_label(label)
     PlayfulUITheme.apply_button(play_button, "primary")
@@ -83,3 +99,66 @@ func _apply_playful_design() -> void:
     PlayfulUITheme.apply_button(fullscreen_button)
     PlayfulUITheme.apply_button(flash_button)
     PlayfulUITheme.apply_button(settings_back_button, "primary")
+    PlayfulUITheme.apply_button(archive_back_button, "primary")
+
+
+func _apply_locale() -> void:
+    super._apply_locale()
+    if archive_title == null:
+        return
+    archive_title.text = _t("GARDEN JOURNAL", "花园战绩")
+    archive_subtitle.text = _t("Every little run makes the garden grow.", "每一局，都是芽芽成长的足迹。")
+    archive_back_button.text = _t("BACK TO GARDEN", "返回花园")
+    _refresh_archive()
+    var stats: Dictionary = save_game.get_survivor_statistics()
+    progress_label.text = _t(
+        "Runs %d  ·  Victories %d  ·  Best %ds",
+        "累计 %d 局  ·  胜利 %d 局  ·  最长 %d 秒"
+    ) % [stats["total_runs"], stats["total_victories"], stats["best_survival_seconds"]]
+
+
+func _show_collection_summary() -> void:
+    audio_manager.play_event(&"ui_click")
+    _refresh_archive()
+    archive_backdrop.visible = true
+    archive_panel.visible = true
+    archive_title.visible = true
+    archive_summary.visible = true
+    archive_subtitle.visible = true
+    archive_back_button.visible = true
+    _set_main_chrome_visible(false)
+    _set_main_controls_visible(false)
+    archive_back_button.grab_focus()
+
+
+func _hide_archive() -> void:
+    audio_manager.play_event(&"ui_click")
+    for control: Control in [
+        archive_backdrop, archive_panel, archive_title, archive_summary,
+        archive_subtitle, archive_back_button
+    ]:
+        control.visible = false
+    _set_main_chrome_visible(true)
+    _set_main_controls_visible(true)
+    collection_button.grab_focus()
+
+
+func _refresh_archive() -> void:
+    if archive_summary == null or save_game == null:
+        return
+    var stats: Dictionary = save_game.get_survivor_statistics()
+    archive_summary.text = _t(
+        "RUNS                 %d\nVICTORIES             %d\nDEFEATS               %d\nLONGEST SURVIVAL      %ds\nMOST ENEMIES          %d\nHIGHEST LEVEL         %d",
+        "累计挑战          %d 局\n获胜次数          %d 局\n失败次数          %d 局\n最长生存          %d 秒\n单局最多击杀      %d\n最高达到等级      %d"
+    ) % [
+        stats["total_runs"], stats["total_victories"], stats["total_defeats"],
+        stats["best_survival_seconds"], stats["best_kills"], stats["best_level"]
+    ]
+
+
+func _unhandled_input(event: InputEvent) -> void:
+    if archive_backdrop != null and archive_backdrop.visible and event.is_action_pressed("ui_cancel"):
+        _hide_archive()
+        get_viewport().set_input_as_handled()
+        return
+    super._unhandled_input(event)

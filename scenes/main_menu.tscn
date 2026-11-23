@@ -280,3 +280,62 @@ theme_override_styles/normal = SubResource("StyleBox_button_normal")
 theme_override_styles/hover = SubResource("StyleBox_button_hover")
 theme_override_styles/focus = SubResource("StyleBox_button_hover")
 text = "BACK"
+
+[node name="Archive" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 0
+
+[node name="Backdrop" type="ColorRect" parent="UI/Archive"]
+visible = false
+offset_right = 640.0
+offset_bottom = 360.0
+mouse_filter = 0
+color = Color(0.17, 0.15, 0.16, 0.76)
+
+[node name="Panel" type="Panel" parent="UI/Archive"]
+visible = false
+offset_left = 119.0
+offset_top = 21.0
+offset_right = 521.0
+offset_bottom = 339.0
+theme_override_styles/panel = SubResource("StyleBox_panel")
+
+[node name="Title" type="Label" parent="UI/Archive"]
+visible = false
+offset_left = 150.0
+offset_top = 39.0
+offset_right = 490.0
+offset_bottom = 75.0
+theme_override_font_sizes/font_size = 24
+text = "GARDEN JOURNAL"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Subtitle" type="Label" parent="UI/Archive"]
+visible = false
+offset_left = 145.0
+offset_top = 82.0
+offset_right = 495.0
+offset_bottom = 104.0
+theme_override_font_sizes/font_size = 12
+text = "Every little run makes the garden grow."
+horizontal_alignment = 1
+
+[node name="Summary" type="Label" parent="UI/Archive"]
+visible = false
+offset_left = 151.0
+offset_top = 116.0
+offset_right = 489.0
+offset_bottom = 263.0
+theme_override_font_sizes/font_size = 15
+text = "RUNS 0"
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="BackButton" type="Button" parent="UI/Archive"]
+visible = false
+offset_left = 205.0
+offset_top = 280.0
+offset_right = 435.0
+offset_bottom = 322.0
+text = "BACK TO GARDEN"
