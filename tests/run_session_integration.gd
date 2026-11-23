@@ -1,0 +1,92 @@
+extends SceneTree
+
+# Exercises the real editable scene and its state machine without waiting
+# ninety wall-clock seconds. Logs are scanned for script errors by CI.
+var _failures: int = 0
+
+
+func _initialize() -> void:
+    call_deferred("_run")
+
+
+func _run() -> void:
+    print("Running Sprout Guardians survivor integration tests...")
+    for iteration: int in range(2):
+        await _run_full_session(iteration)
+    if _failures > 0:
+        push_error("Survivor integration failed: %d assertions" % _failures)
+        quit(1)
+        return
+    print("Survivor integration tests passed.")
+    quit(0)
+
+
+func _run_full_session(iteration: int) -> void:
+    var scene: PackedScene = load("res://scenes/main.tscn") as PackedScene
+    var game: Node = scene.instantiate()
+    root.add_child(game)
+    await process_frame
+    var hero: GreedHeroPlant = game.get("hero_plant") as GreedHeroPlant
+    var state: SurvivorRunState = game.get("run_state") as SurvivorRunState
+    _check(hero != null and state != null, "Scene composes playable hero and run state")
+    if hero == null or state == null:
+        game.queue_free()
+        await process_frame
+        return
+
+    _check(state.phase == SurvivorRunState.Phase.RUNNING, "Run enters RUNNING")
+    _check(hero.has_node("PixelSprite"), "Hero uses authored image sprite")
+    _check(hero.render_with_sprite, "Legacy hero drawing disabled in survivor scene")
+    var hero_sprite: Sprite2D = hero.get_node("PixelSprite") as Sprite2D
+    _check(hero_sprite.texture != null, "Hero image texture is assigned")
+
+    game.call("_toggle_pause")
+    _check(state.phase == SurvivorRunState.Phase.PAUSED, "Pausing enters PAUSED state")
+    game.call("_toggle_pause")
+    _check(state.phase == SurvivorRunState.Phase.RUNNING, "Resuming restores RUNNING state")
+
+    game.call("_on_experience_collected", 8)
+    _check(state.phase == SurvivorRunState.Phase.REWARD, "Experience enters REWARD state")
+    _check(bool(game.get("choice_open")), "Reward is visible")
+    game.call("_select_choice", iteration % 3)
+    await process_frame
+    _check(state.phase == SurvivorRunState.Phase.RUNNING, "Reward selection resumes run")
+
+    # Keep enemy contact irrelevant for this deterministic gameplay lifecycle test.
+    hero.max_health = 20000
+    hero.health = 20000
+    for second: int in range(93):
+        if bool(game.get("game_ended")):
+            break
+        game.call("_process", 1.0)
+        if second % 12 == 0:
+            await process_frame
+
+    _check(bool(game.get("first_elite_spawned")), "First elite milestone spawns")
+    _check(bool(game.get("second_elite_spawned")), "Second elite milestone spawns")
+    _check(bool(game.get("final_boss_spawned")), "Final boss milestone spawns")
+    var found_boss: GreedEnemy = null
+    for node: Node in get_nodes_in_group("greed_enemies"):
+        var enemy: GreedEnemy = node as GreedEnemy
+        if enemy != null and is_instance_valid(enemy) and enemy.boss:
+            found_boss = enemy
+            break
+    _check(found_boss != null, "Boss actor is active and correctly configured")
+    if found_boss != null:
+        found_boss.take_damage(1000000.0)
+        game.call("_process", 0.016)
+        _check(bool(game.get("game_ended")), "Boss defeat completes a run")
+        _check(state.phase == SurvivorRunState.Phase.VICTORY, "Victory is a terminal phase")
+        _check((game.get("result_button") as Button).visible, "Run displays restart action")
+
+    game.queue_free()
+    await process_frame
+    await process_frame
+
+
+func _check(value: bool, message: String) -> void:
+    if value:
+        print("PASS: %s" % message)
+    else:
+        _failures += 1
+        push_error("FAIL: %s" % message)
