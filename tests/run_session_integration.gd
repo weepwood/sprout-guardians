@@ -35,6 +35,27 @@ func _run_full_session(iteration: int) -> void:
         return
 
     _check(state.phase == SurvivorRunState.Phase.RUNNING, "Run enters RUNNING")
+    var feedback: GreedCombatFeedback = game.get("combat_feedback") as GreedCombatFeedback
+    _check(feedback != null, "Combat feedback manager exists")
+    if feedback != null:
+        for index: int in range(280):
+            feedback.spawn_damage(Vector2(180.0, 140.0), float(7 + index), index % 5 == 0)
+        _check(feedback.get_active_number_count() <= feedback.MAX_DAMAGE_NUMBERS, "Active damage labels stay bounded")
+        _check(feedback.get_allocated_label_count() <= feedback.MAX_DAMAGE_NUMBERS, "Damage label pool prevents unlimited allocation")
+        feedback._process(2.0)
+        _check(feedback.get_active_number_count() == 0, "Expired damage labels are returned to pool")
+        for index: int in range(200):
+            feedback.spawn_damage(Vector2(200.0, 140.0), float(10 + index), false)
+        _check(feedback.get_allocated_label_count() <= feedback.MAX_DAMAGE_NUMBERS, "Damage label pool reuses previous allocations")
+        feedback._process(2.0)
+    var impact: PixelImpactSystem = game.get("impact_system") as PixelImpactSystem
+    if impact != null:
+        for index: int in range(25):
+            impact.spawn_hit(Vector2(250.0, 160.0), Color("#ee9988"), 26.0, index % 3 == 0)
+        impact._process(0.04)
+        _check(impact.get_active_particle_count() <= impact.max_particles, "Textured impact pool respects particle cap")
+        _check(impact.find_children("ImpactSprite*", "Sprite2D", false).size() <= impact.max_particles, "Particle visual pool is bounded")
+        impact.clear()
     _check(hero.has_node("PixelSprite"), "Hero uses authored image sprite")
     _check(hero.render_with_sprite, "Legacy hero drawing disabled in survivor scene")
     var hero_sprite: Sprite2D = hero.get_node("PixelSprite") as Sprite2D
