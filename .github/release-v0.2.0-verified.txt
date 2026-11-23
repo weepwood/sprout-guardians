@@ -1,0 +1,5 @@
+v0.2.0
+Validated binary source: GitHub Actions run 45184588732
+Runtime code: PR #17 (already merged to main)
+Release metadata: PR #18
+Fallback used because macos-15 runner remained queued in the main release build.
