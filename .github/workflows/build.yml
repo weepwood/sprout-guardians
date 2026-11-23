@@ -323,36 +323,79 @@ jobs:
           retention-days: 14
 
   release:
-    name: Publish tagged release
-    if: startsWith(github.ref, 'refs/tags/v')
+    name: Publish validated release
+    if: startsWith(github.ref, 'refs/tags/v') || (github.ref == 'refs/heads/main' && github.event_name == 'push')
     needs: [export, macos-package]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
+      - name: Check out release metadata
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Determine release intent
+        id: intent
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=""
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_REF" == refs/heads/main ]] \
+            && git diff --name-only HEAD^ HEAD | grep -Fxq ".github/release-request.txt"; then
+            VERSION="$(tr -d '\r\n' < .github/release-request.txt)"
+          fi
+          if [ -z "$VERSION" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release version: $VERSION"
+            exit 1
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Download validated player builds
+        if: steps.intent.outputs.publish == 'true'
         uses: actions/download-artifact@v4
         with:
           name: SproutGuardians-${{ github.sha }}
           path: dist
 
-      - name: Download signed macOS packages
+      - name: Download verified macOS packages
+        if: steps.intent.outputs.publish == 'true'
         uses: actions/download-artifact@v4
         with:
           name: SproutGuardians-macOS-${{ github.sha }}
           path: dist
 
-      - name: Publish tagged release
+      - name: Create tag and publish release
+        if: steps.intent.outputs.publish == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.intent.outputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          set -euo pipefail
+          if gh release view "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists: $RELEASE_VERSION"
+            exit 1
+          fi
+          NOTES="docs/releases/$RELEASE_VERSION.md"
+          NOTES_ARGS=(--generate-notes)
+          if [ -f "$NOTES" ]; then
+            NOTES_ARGS=(--notes-file "$NOTES")
+          fi
+          gh release create "$RELEASE_VERSION" \
             dist/SproutGuardians-Windows-x86_64.zip \
             dist/SproutGuardians-macOS-Universal.zip \
             dist/SproutGuardians-macOS-Universal.dmg \
             dist/SproutGuardians-Web.zip \
+            --target "$GITHUB_SHA" \
             --repo "$GITHUB_REPOSITORY" \
-            --generate-notes \
-            --title "Sprout Guardians ${GITHUB_REF_NAME}"
+            --title "Sprout Guardians $RELEASE_VERSION" \
+            "${NOTES_ARGS[@]}"
