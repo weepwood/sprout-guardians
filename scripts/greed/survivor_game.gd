@@ -15,6 +15,7 @@ var first_elite_spawned: bool = false
 var second_elite_spawned: bool = false
 var final_boss_spawned: bool = false
 var final_boss_defeated: bool = false
+var _keyboard_moving: bool = false
 var _movement_keys: Dictionary = {
     "left": false,
     "right": false,
@@ -65,11 +66,10 @@ func _process(delta: float) -> void:
         _spawn_survivor_enemy(true, true)
         status_label.text = _t("FINAL BLOOM BEAST", "最终花兽出现")
 
+    # The boss is the final objective; surviving minions must not stall victory.
     if final_boss_spawned and final_boss_defeated:
-        var remaining: int = get_tree().get_nodes_in_group("greed_enemies").size()
-        if remaining <= 0:
-            _finish_run(true)
-            return
+        _finish_run(true)
+        return
 
     var remaining_seconds: int = maxi(0, int(ceil(SURVIVAL_DURATION - survival_elapsed)))
     var enemy_count: int = get_tree().get_nodes_in_group("greed_enemies").size()
@@ -80,6 +80,8 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+    if game_ended or choice_open:
+        return
     if event is InputEventKey:
         var key_event: InputEventKey = event as InputEventKey
         var key_value: Key = key_event.physical_keycode if key_event.physical_keycode != 0 else key_event.keycode
@@ -102,16 +104,29 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _apply_continuous_movement() -> void:
-    if hero_plant == null or not is_instance_valid(hero_plant) or hero_plant.dragging or hero_plant.is_dashing():
+    if hero_plant == null or not is_instance_valid(hero_plant):
         return
     var direction: Vector2 = Vector2(
         float(int(bool(_movement_keys["right"])) - int(bool(_movement_keys["left"]))),
         float(int(bool(_movement_keys["down"])) - int(bool(_movement_keys["up"])))
     )
     if direction.length_squared() <= 0.0:
+        if _keyboard_moving:
+            hero_plant.has_move_target = false
+            _keyboard_moving = false
         return
-    direction = direction.normalized()
-    hero_plant.set_move_target(hero_plant.global_position + direction * 96.0)
+    if hero_plant.dragging or hero_plant.is_dashing():
+        return
+    _keyboard_moving = true
+    hero_plant.set_move_target(hero_plant.global_position + direction.normalized() * 96.0)
+
+
+func _cancel_keyboard_motion() -> void:
+    for key: Variant in _movement_keys.keys():
+        _movement_keys[key] = false
+    if _keyboard_moving and hero_plant != null and is_instance_valid(hero_plant):
+        hero_plant.has_move_target = false
+    _keyboard_moving = false
 
 
 func _spawn_time_milestones() -> void:
@@ -201,12 +216,15 @@ func _experience_requirement_for_level(level_value: int) -> int:
 
 
 func _open_surprise_choice() -> void:
+    if game_ended:
+        return
+    _cancel_keyboard_motion()
     super._open_surprise_choice()
     choice_title.text = _t("LEVEL UP · CHOOSE A GARDEN MUTATION", "等级提升 · 选择花园变异")
 
 
 func _select_choice(index: int) -> void:
-    if not choice_open:
+    if not choice_open or index < 0 or index >= _current_choices.size():
         return
     super._select_choice(index)
     pending_level_ups = maxi(0, pending_level_ups - 1)
