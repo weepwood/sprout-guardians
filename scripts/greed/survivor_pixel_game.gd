@@ -9,6 +9,13 @@ const EXPERIENCE_GEM_SCENE: PackedScene = preload("res://scenes/effects/experien
 
 var experience_bar: ProgressBar
 var pixel_skin: PixelSkinController
+var pause_open: bool = false
+var pause_backdrop: ColorRect
+var pause_panel: Panel
+var pause_title: Label
+var pause_subtitle: Label
+var pause_resume_button: Button
+var pause_leave_button: Button
 
 var actors_container: Node2D
 var enemies_container: Node2D
@@ -26,6 +33,8 @@ func _ready() -> void:
     pixel_skin = get_node("PixelSkinController") as PixelSkinController
     if impact_system != null:
         impact_system.z_index = 9
+    _apply_playful_hud()
+    _apply_locale()
     _refresh_hud()
 
 
@@ -118,10 +127,19 @@ func _create_ui() -> void:
         language_button.pressed.connect(_toggle_language)
     if not speed_button.pressed.is_connected(_cycle_speed):
         speed_button.pressed.connect(_cycle_speed)
-    if not menu_button.pressed.is_connected(_return_to_menu):
-        menu_button.pressed.connect(_return_to_menu)
+    if not menu_button.pressed.is_connected(_toggle_pause):
+        menu_button.pressed.connect(_toggle_pause)
     if not result_button.pressed.is_connected(_restart_run):
         result_button.pressed.connect(_restart_run)
+
+    pause_backdrop = get_node("UI/PauseLayer/Backdrop") as ColorRect
+    pause_panel = get_node("UI/PauseLayer/Panel") as Panel
+    pause_title = get_node("UI/PauseLayer/Title") as Label
+    pause_subtitle = get_node("UI/PauseLayer/Subtitle") as Label
+    pause_resume_button = get_node("UI/PauseLayer/ResumeButton") as Button
+    pause_leave_button = get_node("UI/PauseLayer/LeaveButton") as Button
+    pause_resume_button.pressed.connect(_toggle_pause)
+    pause_leave_button.pressed.connect(_return_to_menu)
 
     _refresh_hud()
 
@@ -217,3 +235,82 @@ func _refresh_hud() -> void:
             "Experience %d / %d" % [experience, experience_to_next],
             "经验 %d / %d" % [experience, experience_to_next]
         )
+
+
+func _process(delta: float) -> void:
+    if pause_open:
+        return
+    super._process(delta)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+    if event is InputEventKey:
+        var key_event: InputEventKey = event as InputEventKey
+        if key_event.pressed and not key_event.echo:
+            if key_event.keycode == KEY_ESCAPE or key_event.keycode == KEY_P:
+                _toggle_pause()
+                get_viewport().set_input_as_handled()
+                return
+    if pause_open:
+        return
+    super._unhandled_input(event)
+
+
+func _toggle_pause() -> void:
+    if game_ended or choice_open:
+        return
+    pause_open = not pause_open
+    _set_combat_frozen(pause_open)
+    for control: Control in [pause_backdrop, pause_panel, pause_title, pause_subtitle, pause_resume_button, pause_leave_button]:
+        control.visible = pause_open
+    if pause_open:
+        _cancel_keyboard_motion()
+        pause_resume_button.grab_focus()
+    else:
+        menu_button.grab_focus()
+
+
+func _apply_locale() -> void:
+    super._apply_locale()
+    if menu_button != null:
+        menu_button.text = _t("PAUSE", "暂停")
+    if pause_title != null:
+        pause_title.text = _t("TAKE A LITTLE BREAK", "歇一会儿吧")
+        pause_subtitle.text = _t("Your garden is waiting for you.", "芽芽们会在这里等你回来。")
+        pause_resume_button.text = _t("RESUME GAME", "继续游戏")
+        pause_leave_button.text = _t("RETURN TO MENU", "返回主菜单")
+
+
+func _update_control_status() -> void:
+    if control_label == null or hero_plant == null or not is_instance_valid(hero_plant):
+        return
+    if choice_open:
+        control_label.text = _t("PICK A GARDEN GIFT TO CONTINUE", "选择一份花园礼物继续")
+    elif hero_plant.is_dashing():
+        control_label.text = _t("DASH! YOU ARE BRIEFLY INVINCIBLE", "冲刺中 · 短暂无敌")
+    else:
+        control_label.text = _t("WASD MOVE  ·  SPACE DASH  ·  AUTO ATTACK", "WASD 移动  ·  空格闪避  ·  自动攻击")
+
+
+func _apply_playful_hud() -> void:
+    PlayfulUITheme.apply_panel(get_node("UI/TopHUD/Frame") as Panel, "hud")
+    PlayfulUITheme.apply_panel(get_node("UI/BuildPanel") as Panel, "hud")
+    PlayfulUITheme.apply_panel(get_node("UI/ExperienceFrame") as Panel, "hud")
+    PlayfulUITheme.apply_panel(choice_panel, "modal")
+    PlayfulUITheme.apply_panel(pause_panel, "modal")
+    PlayfulUITheme.apply_progress(experience_bar)
+    for label: Label in [
+        wave_label, health_label, coins_label, greed_label, power_label,
+        choice_title, result_label, pause_title, pause_subtitle
+    ]:
+        PlayfulUITheme.apply_label(label)
+    PlayfulUITheme.apply_label(control_label, Color("#fff5d7"))
+    PlayfulUITheme.apply_label(status_label, Color("#fff9e7"))
+    PlayfulUITheme.apply_button(language_button, "tiny")
+    PlayfulUITheme.apply_button(speed_button, "tiny")
+    PlayfulUITheme.apply_button(menu_button, "coral")
+    for button: Button in choice_buttons:
+        PlayfulUITheme.apply_button(button, "soft")
+    PlayfulUITheme.apply_button(result_button, "primary")
+    PlayfulUITheme.apply_button(pause_resume_button, "primary")
+    PlayfulUITheme.apply_button(pause_leave_button, "soft")

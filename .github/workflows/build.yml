@@ -193,13 +193,14 @@ jobs:
             fi
           done
 
-      - name: Export Windows, Web, and internal Linux smoke build
+      - name: Export Windows, macOS, Web, and internal Linux smoke build
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p build/windows build/linux-smoke build/web
+          mkdir -p build/windows build/linux-smoke build/web build/macos
           godot --headless --path "$GITHUB_WORKSPACE" --export-release "Windows Desktop" build/windows/SproutGuardians.exe
           godot --headless --path "$GITHUB_WORKSPACE" --export-release "Web" build/web/index.html
+          godot --headless --path "$GITHUB_WORKSPACE" --export-release "macOS" build/macos/SproutGuardians-macOS-staging.zip
           godot --headless --path "$GITHUB_WORKSPACE" --export-release "Linux" build/linux-smoke/SproutGuardians.x86_64
           chmod +x build/linux-smoke/SproutGuardians.x86_64
 
@@ -255,10 +256,76 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+
+      - name: Upload unsigned macOS staging bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: SproutGuardians-macOS-staging-${{ github.sha }}
+          path: build/macos/SproutGuardians-macOS-staging.zip
+          if-no-files-found: error
+          retention-days: 3
+
+  macos-package:
+    name: Sign and package macOS Universal
+    needs: export
+    runs-on: macos-15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download macOS application exported by Godot
+        uses: actions/download-artifact@v4
+        with:
+          name: SproutGuardians-macOS-staging-${{ github.sha }}
+          path: staging
+
+      - name: Restore, sign, verify, and smoke test app
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/macos "$RUNNER_TEMP/sprout-macos"
+          ditto -x -k staging/SproutGuardians-macOS-staging.zip "$RUNNER_TEMP/sprout-macos"
+          APP_PATH="$(find "$RUNNER_TEMP/sprout-macos" -maxdepth 2 -type d -name '*.app' -print -quit)"
+          if [ -z "$APP_PATH" ]; then
+            echo "No macOS application bundle found"
+            exit 1
+          fi
+          EXECUTABLE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP_PATH/Contents/Info.plist")"
+          EXECUTABLE_PATH="$APP_PATH/Contents/MacOS/$EXECUTABLE_NAME"
+          test -f "$EXECUTABLE_PATH"
+          chmod +x "$EXECUTABLE_PATH"
+          ARCHS="$(lipo -archs "$EXECUTABLE_PATH")"
+          echo "macOS architectures: $ARCHS"
+          [[ " $ARCHS " == *" arm64 "* ]]
+          [[ " $ARCHS " == *" x86_64 "* ]]
+          codesign --force --deep --sign - --timestamp=none "$APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          "$EXECUTABLE_PATH" --headless --audio-driver Dummy --quit-after 30 \
+            > build/macos/macos-smoke.log 2>&1
+          cat build/macos/macos-smoke.log
+          if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance" build/macos/macos-smoke.log; then
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" \
+            build/macos/SproutGuardians-macOS-Universal.zip
+          hdiutil create -volname "Sprout Guardians" -srcfolder "$APP_PATH" \
+            -ov -format UDZO build/macos/SproutGuardians-macOS-Universal.dmg
+          unzip -l build/macos/SproutGuardians-macOS-Universal.zip | grep -E '\.app/Contents/MacOS/'
+
+      - name: Upload macOS desktop packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: SproutGuardians-macOS-${{ github.sha }}
+          path: |
+            build/macos/SproutGuardians-macOS-Universal.zip
+            build/macos/SproutGuardians-macOS-Universal.dmg
+          if-no-files-found: error
+          retention-days: 14
+
   release:
     name: Publish tagged release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: export
+    needs: [export, macos-package]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -270,6 +337,12 @@ jobs:
           name: SproutGuardians-${{ github.sha }}
           path: dist
 
+      - name: Download signed macOS packages
+        uses: actions/download-artifact@v4
+        with:
+          name: SproutGuardians-macOS-${{ github.sha }}
+          path: dist
+
       - name: Publish tagged release
         shell: bash
         env:
@@ -277,6 +350,8 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             dist/SproutGuardians-Windows-x86_64.zip \
+            dist/SproutGuardians-macOS-Universal.zip \
+            dist/SproutGuardians-macOS-Universal.dmg \
             dist/SproutGuardians-Web.zip \
             --repo "$GITHUB_REPOSITORY" \
             --generate-notes \
