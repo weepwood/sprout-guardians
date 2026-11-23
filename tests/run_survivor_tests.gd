@@ -97,21 +97,23 @@ func _run() -> void:
     _assert_true(experience_progress != null, "Pixel HUD includes an experience bar")
     _assert_equal_int(int(experience_progress.max_value), 8, "Experience bar uses the current level threshold")
 
+    var input_controller: SurvivorInputController = game.get_node("RunInput") as SurvivorInputController
+    _assert_true(input_controller != null, "Survivor movement is handled by an independent input controller")
+    _assert_true(game_hero.arcade_movement, "Hero enters classic survivors arcade movement")
     var start_position: Vector2 = game_hero.global_position
-    game.set("_movement_keys", {"left": false, "right": true, "up": false, "down": false})
+    input_controller.set_test_direction(Vector2.RIGHT)
     game.call("_apply_continuous_movement")
     game_hero._process(0.25)
-    _assert_true(game_hero.global_position.x > start_position.x, "Continuous movement input moves the main plant")
-    game.set("_movement_keys", {"left": false, "right": false, "up": false, "down": false})
+    _assert_true(game_hero.global_position.x > start_position.x, "Direct input immediately moves the hero")
+    input_controller.set_test_direction(Vector2.ZERO)
     game.call("_apply_continuous_movement")
-    _assert_true(not game_hero.has_move_target, "Releasing the keyboard immediately cancels keyboard travel")
     var released_position: Vector2 = game_hero.global_position
     game_hero._process(0.2)
-    _assert_true(game_hero.global_position.distance_to(released_position) < 0.01, "Released movement does not coast toward the previous target")
+    _assert_true(game_hero.global_position.distance_to(released_position) < 0.01, "Releasing direction stops motion immediately")
     game_hero.set_move_target(released_position + Vector2(30.0, 0.0))
-    game.call("_apply_continuous_movement")
-    _assert_true(game_hero.has_move_target, "Idle keyboard input does not cancel click-to-move")
-    game_hero.has_move_target = false
+    _assert_true(not game_hero.has_move_target, "Click-to-move is disabled in survivors")
+    _assert_true(not game_hero.request_dash(released_position + Vector2(70.0, 0.0)), "Base dash is disabled in classic survivors")
+    input_controller.clear_test_direction()
 
     game.call("_on_experience_collected", 8)
     _assert_true(bool(game.get("choice_open")), "Reaching the experience threshold opens a level-up choice")
@@ -119,7 +121,16 @@ func _run() -> void:
     var title: Label = game.get("choice_title") as Label
     _assert_true(title.text.contains("LEVEL UP") or title.text.contains("等级提升"), "Level-up overlay uses survivor wording")
     var choice_buttons: Array = game.get("choice_buttons") as Array
-    _assert_true((choice_buttons[0] as Button).icon != null, "Level-up choices display pixel icons")
+    _assert_true(((choice_buttons[0] as Button).get_node("GiftIcon") as TextureRect).texture != null, "Level-up cards display authored icons")
+    _assert_true((choice_buttons[1] as Button).position.x > (choice_buttons[0] as Button).position.x + 50.0, "Upgrade choices are arranged horizontally")
+    var key_right: InputEventKey = InputEventKey.new()
+    key_right.pressed = true
+    key_right.keycode = KEY_RIGHT
+    game.call("_input", key_right)
+    _assert_equal_int(int(game.get("reward_focus_index")), 1, "Right arrow moves reward selection")
+    key_right.keycode = KEY_LEFT
+    game.call("_input", key_right)
+    _assert_equal_int(int(game.get("reward_focus_index")), 0, "Left arrow moves reward selection")
     game.call("_select_choice", 99)
     _assert_true(bool(game.get("choice_open")), "Invalid choice index cannot dismiss the level-up overlay")
     _assert_equal_int(int(game.get("pending_level_ups")), 1, "Invalid choice index does not consume a level")
