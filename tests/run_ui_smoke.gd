@@ -121,11 +121,31 @@ func _test_survivor_scene() -> void:
     _assert_true(game.find_child("UpgradeButton", true, false) == null, "Survivor mode has no manual upgrade control")
     _assert_true(game.find_child("BuildBar", true, false) == null, "Survivor mode has no tower build bar")
 
+    var input_controller: SurvivorInputController = game.get_node("RunInput") as SurvivorInputController
     var initial_position: Vector2 = hero.global_position
-    game.set("_movement_keys", {"left": false, "right": true, "up": false, "down": false})
+    input_controller.set_test_direction(Vector2.RIGHT)
     game.call("_apply_continuous_movement")
     hero._process(0.25)
-    _assert_true(hero.global_position.x > initial_position.x, "WASD-style continuous movement moves the main plant")
+    _assert_true(hero.global_position.x > initial_position.x, "WASD immediately moves the hero")
+    input_controller.set_test_direction(Vector2.ZERO)
+    game.call("_apply_continuous_movement")
+    var stopped_position: Vector2 = hero.global_position
+    hero._process(0.2)
+    _assert_true(hero.global_position.distance_to(stopped_position) < 0.01, "Input release stops the hero immediately")
+    input_controller.clear_test_direction()
+    _assert_true(not (game.get_node("UI/BuildPanel") as Panel).visible, "Build details do not obstruct gameplay")
+    _assert_true(game.get_node("World/ArenaGround") is TextureRect, "Garden floor is a reusable image asset")
+    var bg: TextureRect = game.get_node("World/ArenaGround") as TextureRect
+    _assert_true(bg.texture != null and bg.size.x >= 640.0, "Garden artwork covers the whole battle viewport")
+    var warning: Panel = game.get_node("UI/WarningFrame") as Panel
+    game.call("_show_event_banner", "TEST WAVE", 2.5)
+    _assert_true(warning.visible, "Timed wave warning becomes visible")
+    _assert_true((game.get("status_label") as Label).text == "TEST WAVE", "Wave warning displays the event text")
+    game.set("_warning_seconds", 0.0)
+    game.call("_process", 0.016)
+    _assert_true(not warning.visible, "Wave warning clears without occupying permanent HUD space")
+    var on_edge: Vector2 = game.call("_survivor_spawn_edge") as Vector2
+    _assert_true(on_edge.distance_to(hero.global_position) >= 112.0, "Enemies spawn away from player when safe edge is available")
 
     game.call("_toggle_pause")
     _assert_true(bool(game.get("pause_open")), "Pause opens the new cozy overlay")
@@ -143,13 +163,16 @@ func _test_survivor_scene() -> void:
     await process_frame
     var enemies: Array[Node] = get_nodes_in_group("greed_enemies")
     _assert_true(enemies.size() >= 1, "Enemies continuously enter from arena borders")
-    var priority_enemy: GreedEnemy = enemies[0] as GreedEnemy
-    game.call("_set_priority_target", priority_enemy)
-    _assert_true(hero.get_focus_target() == priority_enemy, "Optional click command can still lock a priority target")
+    var fake_click: InputEventMouseButton = InputEventMouseButton.new()
+    fake_click.button_index = MOUSE_BUTTON_LEFT
+    fake_click.pressed = true
+    fake_click.position = Vector2(220, 140)
+    game.call("_unhandled_input", fake_click)
+    _assert_true(hero.get_focus_target() == null, "Mouse clicks never manually lock targets in survivors")
+    _assert_true(not hero.has_move_target, "Mouse clicks do not assign a movement destination")
     for familiar_value: Variant in familiars:
         var familiar: GreedPlant = familiar_value as GreedPlant
-        _assert_true(familiar.focus_source == hero, "Floating familiar shares the main plant focus source")
-        _assert_true(familiar.call("_find_target") == priority_enemy, "Floating familiar prioritizes the optional clicked enemy")
+        _assert_true(familiar.focus_source == hero, "Familiars inherit hero proximity targeting")
 
     game.call("_on_experience_collected", 8)
     await process_frame
@@ -160,6 +183,10 @@ func _test_survivor_scene() -> void:
     var reward_style: StyleBoxFlat = choice_panel.get_theme_stylebox("panel") as StyleBoxFlat
     _assert_true(reward_style != null and reward_style.corner_radius_top_left >= 14, "Reward card shares the warm rounded style")
     _assert_equal_int(choice_buttons.size(), 3, "Level-up presents three mutation choices")
+    _assert_true((choice_buttons[0] as Button).get_node("GiftIcon") is TextureRect, "Reward card contains a separate illustration")
+    _assert_true((choice_buttons[0] as Button).position.y == (choice_buttons[1] as Button).position.y, "Reward cards share a horizontal baseline")
+    _assert_true((choice_buttons[2] as Button).position.x > (choice_buttons[1] as Button).position.x, "Third card sits to the right")
+    _assert_true((game.get("choice_hint") as Label).visible, "Reward selection shows keyboard instructions")
     _assert_control_inside_viewport(choice_panel, "Level-up reward panel stays inside viewport")
 
     var choices: Array = game.get("_current_choices") as Array
@@ -171,6 +198,7 @@ func _test_survivor_scene() -> void:
     var blessings: BlessingSystem = game.get("blessing_system") as BlessingSystem
     _assert_true(not bool(game.get("choice_open")), "Choosing a mutation resumes survival")
     _assert_true(not choice_panel.visible, "Choosing a mutation closes the level-up overlay")
+    _assert_true(not (game.get("choice_hint") as Label).visible, "Keyboard reward instructions disappear after picking")
     _assert_equal_int(blessings.get_blessing_stack(selected_blessing.id), 1, "Chosen mutation modifies the run")
     _assert_equal_int(hero.level, hero_level_before + 1, "Level-up choice evolves the main plant")
 

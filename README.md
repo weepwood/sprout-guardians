@@ -6,10 +6,10 @@ The repository contains a playable 90-second survival slice with editor-visible 
 
 ## Current playable loop
 
-- WASD, arrow-key, mouse movement, and dash controls
+- WASD / arrow-key movement with automatic attacks; mouse controls menus and level-up cards only
 - Automatic main-plant and familiar attacks
 - Physical projectiles, critical feedback, hit stop, knockback, splash, slow, and status effects
-- Continuously escalating enemy pressure
+- Continuously escalating enemy pressure, safer edge spawning, short elite/Boss warnings and kill-combo feedback
 - Experience dew pickups and three-choice level-ups
 - Elite encounters at timed milestones and a final boss
 - Main menu, settings, localization, save data, garden journal with persistent run statistics, and run results
@@ -24,17 +24,15 @@ The repository contains a playable 90-second survival slice with editor-visible 
 4. Open `scenes/main_menu.tscn` or `scenes/main.tscn` to edit the visible scene structure.
 5. Press **F6** to run the current scene or **F5** to run the project.
 
-The base viewport is 640×360. Toy-style character sprites use linear filtering, while legacy pixel/UI art can retain nearest-neighbor filtering.
+The base viewport is 640×360 (1280×720 default window). Survivor mode now uses an expanded active arena, a full-bleed authored garden background, a minimal top HUD with lightweight frosted blur, and a slim XP bar. Toy-style character sprites use linear filtering; legacy pixel/UI art can retain nearest-neighbor filtering.
 
 ## Controls
 
 - Move with WASD or the arrow keys.
-- Click the arena to move toward a destination.
-- Drag the main plant for direct mouse control.
-- Press Space or double-click the arena to dash.
-- Click an enemy to prioritize it as the automatic attack target.
-- Right-click to clear the selected target.
-- Choose one of three mutations whenever enough experience is collected.
+- Keep moving to dodge enemies while your main plant and floating familiars fire automatically.
+- Level up from dew drops and choose one of three **horizontal** reward cards with the mouse, Left/Right + Enter, or keys 1–3.
+- Use Escape or P to pause/resume, with your current garden build shown on the pause screen.
+- There is no click-to-move, manual enemy lock-on, or default dash in survivor mode.
 
 ## Automated packaging
 
@@ -63,6 +61,17 @@ tests/              Headless gameplay and scene-structure tests
 export_presets.cfg  Windows, Linux smoke, and Web export presets
 project.godot       Godot 4.7 project configuration
 ```
+
+## Classic-survivors controls and HUD (v0.4.0)
+
+- Arcade-style directional movement is polled every frame by `SurvivorInputController`, independent from UI clicks.
+- The hero uses direct velocity and stops on input release; weapons automatically target nearby enemies.
+- The original click-to-move/drag/lock-on/dash handler remains only in legacy Greed mode.
+- Reward selection displays three side-by-side cards with authored icons, rarity indicators and keyboard navigation.
+- Details move to the pause panel; temporary on-screen instructions fade and the expanded gameplay area stays unobstructed.
+- Background SVG and frosted-glass shader are kept as standalone assets in `assets/backgrounds/` and `assets/ui/`.
+
+See [Survivors v0.4 implementation](docs/SURVIVORS_V04.md) for editable scene paths, controls, trade-offs and test coverage. The `v0.4.0` release request is guarded by full multi-platform validation.
 
 ## Work-in-progress art and runtime architecture
 

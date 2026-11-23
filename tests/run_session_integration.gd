@@ -60,6 +60,11 @@ func _run_full_session(iteration: int) -> void:
     _check(hero.render_with_sprite, "Legacy hero drawing disabled in survivor scene")
     var hero_sprite: Sprite2D = hero.get_node("PixelSprite") as Sprite2D
     _check(hero_sprite.texture != null, "Hero image texture is assigned")
+    _check(hero.arcade_movement, "Session uses pure directional movement")
+    _check(hero.movement_bounds.size.x > GreedCore.ARENA_RECT.size.x, "Survivors hero has expanded playable bounds")
+    _check(not (game.get_node("UI/BuildPanel") as Panel).visible, "Combat is not blocked by build detail panel")
+    var cards: Array = game.get("choice_buttons") as Array
+    _check((cards[0] as Button).position.y == (cards[2] as Button).position.y, "Three reward cards occupy one row")
 
     game.call("_toggle_pause")
     _check(state.phase == SurvivorRunState.Phase.PAUSED, "Pausing enters PAUSED state")

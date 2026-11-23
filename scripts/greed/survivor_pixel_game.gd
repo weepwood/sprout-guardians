@@ -19,6 +19,17 @@ var pause_title: Label
 var pause_subtitle: Label
 var pause_resume_button: Button
 var pause_leave_button: Button
+var pause_build_label: Label
+var choice_hint: Label
+var choice_badge: TextureRect
+var reward_focus_index: int = 0
+var warning_frame: Panel
+var combo_label: Label
+var _warning_seconds: float = 0.0
+var _warning_message: String = ""
+var _combo_count: int = 0
+var _combo_seconds: float = 0.0
+const COMBO_TIMEOUT: float = 3.2
 
 var actors_container: Node2D
 var enemies_container: Node2D
@@ -118,10 +129,14 @@ func _create_ui() -> void:
     control_label = get_node("UI/ControlLabel") as Label
     status_label = get_node("UI/StatusLabel") as Label
     experience_bar = get_node("UI/ExperienceBar") as ProgressBar
+    warning_frame = get_node("UI/WarningFrame") as Panel
+    combo_label = get_node("UI/ComboLabel") as Label
 
     choice_backdrop = get_node("UI/ChoiceLayer/Backdrop") as ColorRect
     choice_panel = get_node("UI/ChoiceLayer/Panel") as Panel
     choice_title = get_node("UI/ChoiceLayer/Title") as Label
+    choice_hint = get_node("UI/ChoiceLayer/ChoiceHint") as Label
+    choice_badge = get_node("UI/ChoiceLayer/ChoiceSigil") as TextureRect
     result_label = get_node("UI/ChoiceLayer/ResultLabel") as Label
     result_button = get_node("UI/ChoiceLayer/ResultButton") as Button
 
@@ -147,6 +162,7 @@ func _create_ui() -> void:
     pause_subtitle = get_node("UI/PauseLayer/Subtitle") as Label
     pause_resume_button = get_node("UI/PauseLayer/ResumeButton") as Button
     pause_leave_button = get_node("UI/PauseLayer/LeaveButton") as Button
+    pause_build_label = get_node("UI/PauseLayer/BuildSummary") as Label
     pause_resume_button.pressed.connect(_toggle_pause)
     pause_leave_button.pressed.connect(_return_to_menu)
 
@@ -201,12 +217,39 @@ func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
     var enemy: GreedEnemy = ENEMY_SCENE.instantiate() as GreedEnemy
     enemy.name = "SurvivorEnemy"
     enemies_container.add_child(enemy)
-    enemy.global_position = _door_spawn_position()
+    enemy.global_position = _survivor_spawn_edge()
     enemy.configure(hero_plant, config, 1.0)
     enemy.damaged.connect(_on_enemy_damaged)
     enemy.defeated.connect(_on_enemy_defeated)
     enemy.core_contact.connect(_on_enemy_core_contact)
     return enemy
+
+
+# Spawn along the visible playfield boundary, keeping a minimum fair distance
+# from the hero. This also avoids the former fixed four-door bottleneck.
+func _survivor_spawn_edge() -> Vector2:
+    var area: Rect2 = Rect2(12.0, 44.0, 616.0, 275.0)
+    var options: Array[Vector2] = []
+    for index: int in range(4):
+        match index:
+            0:
+                options.append(Vector2(_rng.randf_range(area.position.x, area.end.x), area.position.y))
+            1:
+                options.append(Vector2(_rng.randf_range(area.position.x, area.end.x), area.end.y))
+            2:
+                options.append(Vector2(area.position.x, _rng.randf_range(area.position.y, area.end.y)))
+            3:
+                options.append(Vector2(area.end.x, _rng.randf_range(area.position.y, area.end.y)))
+    options.shuffle()
+    var hero_at: Vector2 = hero_plant.global_position if hero_plant != null else area.get_center()
+    for point: Vector2 in options:
+        if point.distance_to(hero_at) >= 112.0:
+            return point
+    var farthest: Vector2 = options[0]
+    for point: Vector2 in options:
+        if point.distance_squared_to(hero_at) > farthest.distance_squared_to(hero_at):
+            farthest = point
+    return farthest
 
 
 func _spawn_experience_gem(position_value: Vector2, amount: int) -> SurvivorExperienceGem:
@@ -223,11 +266,31 @@ func _open_surprise_choice() -> void:
     super._open_surprise_choice()
     if choice_open and run_state != null:
         run_state.open_reward()
+    reward_focus_index = 0
+    choice_hint.visible = choice_open
+    choice_badge.visible = choice_open
     for index: int in range(choice_buttons.size()):
         if index >= _current_choices.size():
             continue
         var data: BlessingData = _current_choices[index]
-        choice_buttons[index].icon = PixelArtAssets.blessing_icon(data.id)
+        var button: Button = choice_buttons[index]
+        button.text = ""
+        button.icon = null
+        var icon_view: TextureRect = button.get_node("GiftIcon") as TextureRect
+        icon_view.texture = PixelArtAssets.blessing_icon(data.id)
+        var rarity: Label = button.get_node("GiftRarity") as Label
+        rarity.text = data.rarity_name(i18n.locale_code).to_upper()
+        rarity.add_theme_color_override("font_color", data.rarity_color())
+        var title: Label = button.get_node("GiftName") as Label
+        title.text = data.localized_name(i18n.locale_code)
+        var detail: Label = button.get_node("GiftDetail") as Label
+        var stack: int = blessing_system.get_blessing_stack(data.id) + 1
+        detail.text = "%s\nLv.%d" % [data.localized_description(i18n.locale_code, stack), stack]
+        var card_outline: Color = data.rarity_color().lerp(Color("#c5a88a"), 0.45)
+        button.add_theme_stylebox_override("normal", PlayfulUITheme.surface(Color("#fffaf1"), 14, card_outline, 3))
+        button.add_theme_stylebox_override("hover", PlayfulUITheme.surface(Color("#fff0d8"), 14, card_outline, 5))
+    if choice_open and not choice_buttons.is_empty():
+        choice_buttons[0].grab_focus()
 
 
 func _refresh_hud() -> void:
@@ -251,20 +314,94 @@ func _refresh_hud() -> void:
 func _process(delta: float) -> void:
     if pause_open:
         return
+    var old_first: bool = first_elite_spawned
+    var old_second: bool = second_elite_spawned
+    var old_boss: bool = final_boss_spawned
     super._process(delta)
+
+    if not old_first and first_elite_spawned:
+        _show_event_banner(_t("ELITE INCOMING!", "精英怪来袭！"))
+    if not old_second and second_elite_spawned:
+        _show_event_banner(_t("ELITE SWARM!", "精英怪群来袭！"))
+    if not old_boss and final_boss_spawned:
+        _show_event_banner(_t("FINAL BLOOM BEAST!", "最终花兽出现！"), 3.8)
+
+    if not choice_open and not game_ended:
+        _warning_seconds = maxf(0.0, _warning_seconds - delta)
+        _combo_seconds = maxf(0.0, _combo_seconds - delta)
+        if _combo_seconds <= 0.0:
+            _combo_count = 0
+    warning_frame.visible = _warning_seconds > 0.0 and not choice_open and not game_ended
+    status_label.visible = warning_frame.visible
+    if warning_frame.visible:
+        status_label.text = _warning_message
+    combo_label.visible = _combo_seconds > 0.0 and _combo_count >= 3 and not choice_open and not game_ended
+    if control_label != null:
+        control_label.visible = survival_elapsed < 4.2 and not choice_open and not game_ended
+
+
+func _show_event_banner(message: String, duration: float = 2.8) -> void:
+    _warning_message = message
+    _warning_seconds = maxf(0.1, duration)
+    status_label.text = message
+    status_label.visible = true
+    warning_frame.visible = true
+
+
+func _on_enemy_defeated(enemy: GreedEnemy, coin_reward: int, elite: bool) -> void:
+    var was_boss: bool = enemy != null and is_instance_valid(enemy) and enemy.boss
+    super._on_enemy_defeated(enemy, coin_reward, elite)
+    if was_boss or game_ended:
+        return
+    _combo_count = _combo_count + 1 if _combo_seconds > 0.0 else 1
+    _combo_seconds = COMBO_TIMEOUT
+    if _combo_count >= 3:
+        combo_label.text = _t("COMBO x%d", "连击 x%d") % _combo_count
+        combo_label.visible = true
+
+
+# Keyboard navigation for the three side-by-side reward cards; mouse may still
+# click menus but never controls the hero or targets enemies.
+func _input(event: InputEvent) -> void:
+    if not choice_open or not (event is InputEventKey):
+        return
+    var key: InputEventKey = event as InputEventKey
+    if not key.pressed or key.echo:
+        return
+    match key.keycode:
+        KEY_LEFT, KEY_A:
+            _focus_reward(reward_focus_index - 1)
+        KEY_RIGHT, KEY_D:
+            _focus_reward(reward_focus_index + 1)
+        KEY_1:
+            _select_choice(0)
+        KEY_2:
+            _select_choice(1)
+        KEY_3:
+            _select_choice(2)
+        KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
+            _select_choice(reward_focus_index)
+        _:
+            return
+    get_viewport().set_input_as_handled()
+
+
+func _focus_reward(index: int) -> void:
+    if not choice_open or _current_choices.is_empty():
+        return
+    reward_focus_index = posmod(index, _current_choices.size())
+    choice_buttons[reward_focus_index].grab_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:
     if event is InputEventKey:
-        var key_event: InputEventKey = event as InputEventKey
-        if key_event.pressed and not key_event.echo:
-            if key_event.keycode == KEY_ESCAPE or key_event.keycode == KEY_P:
+        var key: InputEventKey = event as InputEventKey
+        if key.pressed and not key.echo and not choice_open and not game_ended:
+            if key.keycode == KEY_ESCAPE or key.keycode == KEY_P:
                 _toggle_pause()
                 get_viewport().set_input_as_handled()
-                return
-    if pause_open:
-        return
-    super._unhandled_input(event)
+    # Intentionally no super: disables legacy mouse click-to-move, dragging,
+    # enemy focus and Space/double-click dash in this survival mode.
 
 
 func _toggle_pause() -> void:
@@ -274,13 +411,14 @@ func _toggle_pause() -> void:
         return
     pause_open = run_state.phase == SurvivorRunState.Phase.PAUSED
     _set_combat_frozen(pause_open)
-    for control: Control in [pause_backdrop, pause_panel, pause_title, pause_subtitle, pause_resume_button, pause_leave_button]:
+    for control: Control in [pause_backdrop, pause_panel, pause_title, pause_subtitle, pause_build_label, pause_resume_button, pause_leave_button]:
         control.visible = pause_open
     if pause_open:
         _cancel_keyboard_motion()
+        pause_build_label.text = _t("YOUR GARDEN\n", "当前构筑\n") + power_label.text
         pause_resume_button.grab_focus()
     else:
-        menu_button.grab_focus()
+        get_viewport().gui_release_focus()
 
 
 func _apply_locale() -> void:
@@ -292,6 +430,8 @@ func _apply_locale() -> void:
         pause_subtitle.text = _t("Your garden is waiting for you.", "芽芽们会在这里等你回来。")
         pause_resume_button.text = _t("RESUME GAME", "继续游戏")
         pause_leave_button.text = _t("RETURN TO MENU", "返回主菜单")
+    if choice_hint != null:
+        choice_hint.text = _t("← → CHOOSE   ·   ENTER CONFIRM   ·   1 / 2 / 3 QUICK PICK", "← → 选择   ·   回车确认   ·   1 / 2 / 3 快速选择")
 
 
 func _update_control_status() -> void:
@@ -299,26 +439,27 @@ func _update_control_status() -> void:
         return
     if choice_open:
         control_label.text = _t("PICK A GARDEN GIFT TO CONTINUE", "选择一份花园礼物继续")
-    elif hero_plant.is_dashing():
-        control_label.text = _t("DASH! YOU ARE BRIEFLY INVINCIBLE", "冲刺中 · 短暂无敌")
     else:
-        control_label.text = _t("WASD MOVE  ·  SPACE DASH  ·  AUTO ATTACK", "WASD 移动  ·  空格闪避  ·  自动攻击")
+        control_label.text = _t("WASD / ARROWS MOVE  ·  AUTOMATIC ATTACK", "WASD / 方向键移动  ·  自动攻击")
 
 
 func _apply_playful_hud() -> void:
-    PlayfulUITheme.apply_panel(get_node("UI/TopHUD/Frame") as Panel, "hud")
-    PlayfulUITheme.apply_panel(get_node("UI/BuildPanel") as Panel, "hud")
-    PlayfulUITheme.apply_panel(get_node("UI/ExperienceFrame") as Panel, "hud")
+    PlayfulUITheme.apply_panel(get_node("UI/TopHUD/Frame") as Panel, "glass")
+    PlayfulUITheme.apply_panel(get_node("UI/ExperienceFrame") as Panel, "glass")
+    PlayfulUITheme.apply_panel(warning_frame, "glass")
     PlayfulUITheme.apply_panel(choice_panel, "modal")
     PlayfulUITheme.apply_panel(pause_panel, "modal")
     PlayfulUITheme.apply_progress(experience_bar)
     for label: Label in [
-        wave_label, health_label, coins_label, greed_label, power_label,
-        choice_title, result_label, pause_title, pause_subtitle
+        choice_title, result_label, pause_title, pause_subtitle, pause_build_label
     ]:
         PlayfulUITheme.apply_label(label)
-    PlayfulUITheme.apply_label(control_label, Color("#fff5d7"))
+    for label: Label in [wave_label, health_label, coins_label, greed_label]:
+        PlayfulUITheme.apply_label(label, Color("#fffaf0"))
+    PlayfulUITheme.apply_label(control_label, Color("#fef7e8"))
+    PlayfulUITheme.apply_label(choice_hint, Color("#fff8df"))
     PlayfulUITheme.apply_label(status_label, Color("#fff9e7"))
+    PlayfulUITheme.apply_label(combo_label, Color("#ffed92"))
     PlayfulUITheme.apply_button(language_button, "tiny")
     PlayfulUITheme.apply_button(speed_button, "tiny")
     PlayfulUITheme.apply_button(menu_button, "coral")
@@ -334,6 +475,8 @@ func _select_choice(index: int) -> void:
     if not allowed:
         return
     super._select_choice(index)
+    choice_hint.visible = false
+    choice_badge.visible = false
     if run_state != null:
         run_state.close_reward()
 
@@ -342,6 +485,10 @@ func _finish_run(victory: bool) -> void:
     if game_ended:
         return
     super._finish_run(victory)
+    choice_hint.visible = false
+    choice_badge.visible = false
+    warning_frame.visible = false
+    combo_label.visible = false
     if run_state != null:
         run_state.finish(victory)
     if run_save != null:

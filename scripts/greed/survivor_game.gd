@@ -4,7 +4,7 @@ const SURVIVAL_DURATION: float = 90.0
 const FIRST_ELITE_TIME: float = 30.0
 const SECOND_ELITE_TIME: float = 60.0
 const BASE_EXPERIENCE_REQUIREMENT: int = 8
-const MAX_ACTIVE_ENEMIES: int = 48
+const MAX_ACTIVE_ENEMIES: int = 64
 
 var survival_elapsed: float = 0.0
 var survival_spawn_timer: float = 0.15
@@ -15,17 +15,15 @@ var first_elite_spawned: bool = false
 var second_elite_spawned: bool = false
 var final_boss_spawned: bool = false
 var final_boss_defeated: bool = false
-var _keyboard_moving: bool = false
-var _movement_keys: Dictionary = {
-    "left": false,
-    "right": false,
-    "up": false,
-    "down": false,
-}
+var input_controller: SurvivorInputController
 
 
 func _ready() -> void:
     super._ready()
+    input_controller = get_node_or_null("RunInput") as SurvivorInputController
+    if hero_plant != null and is_instance_valid(hero_plant):
+        hero_plant.enable_arcade_movement()
+        hero_plant.movement_bounds = Rect2(17.0, 43.0, 606.0, 275.0)
     wave_index = 0
     wave_active = true
     spawn_remaining = -1
@@ -79,54 +77,24 @@ func _process(delta: float) -> void:
     _update_control_status()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-    if game_ended or choice_open:
-        return
-    if event is InputEventKey:
-        var key_event: InputEventKey = event as InputEventKey
-        var key_value: Key = key_event.physical_keycode if key_event.physical_keycode != 0 else key_event.keycode
-        var handled_movement: bool = true
-        match key_value:
-            KEY_A, KEY_LEFT:
-                _movement_keys["left"] = key_event.pressed
-            KEY_D, KEY_RIGHT:
-                _movement_keys["right"] = key_event.pressed
-            KEY_W, KEY_UP:
-                _movement_keys["up"] = key_event.pressed
-            KEY_S, KEY_DOWN:
-                _movement_keys["down"] = key_event.pressed
-            _:
-                handled_movement = false
-        if handled_movement:
-            get_viewport().set_input_as_handled()
-            return
-    super._unhandled_input(event)
+# Input is sampled every frame. Gameplay never delegates to the inherited
+# click/drag/lock-on handler; mouse remains available for menus and rewards.
+func _unhandled_input(_event: InputEvent) -> void:
+    pass
 
 
 func _apply_continuous_movement() -> void:
     if hero_plant == null or not is_instance_valid(hero_plant):
         return
-    var direction: Vector2 = Vector2(
-        float(int(bool(_movement_keys["right"])) - int(bool(_movement_keys["left"]))),
-        float(int(bool(_movement_keys["down"])) - int(bool(_movement_keys["up"])))
-    )
-    if direction.length_squared() <= 0.0:
-        if _keyboard_moving:
-            hero_plant.has_move_target = false
-            _keyboard_moving = false
+    if input_controller == null:
+        hero_plant.set_arcade_direction(Vector2.ZERO)
         return
-    if hero_plant.dragging or hero_plant.is_dashing():
-        return
-    _keyboard_moving = true
-    hero_plant.set_move_target(hero_plant.global_position + direction.normalized() * 96.0)
+    hero_plant.set_arcade_direction(input_controller.movement_direction())
 
 
 func _cancel_keyboard_motion() -> void:
-    for key: Variant in _movement_keys.keys():
-        _movement_keys[key] = false
-    if _keyboard_moving and hero_plant != null and is_instance_valid(hero_plant):
-        hero_plant.has_move_target = false
-    _keyboard_moving = false
+    if hero_plant != null and is_instance_valid(hero_plant):
+        hero_plant.set_arcade_direction(Vector2.ZERO)
 
 
 func _spawn_time_milestones() -> void:
@@ -168,11 +136,11 @@ func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
 
 
 func _current_spawn_interval() -> float:
-    return maxf(0.16, 0.72 - survival_elapsed * 0.0052)
+    return maxf(0.14, 0.56 - survival_elapsed * 0.0044)
 
 
 func _active_enemy_cap() -> int:
-    return mini(MAX_ACTIVE_ENEMIES, 14 + int(floor(survival_elapsed / 6.0)) * 2)
+    return mini(MAX_ACTIVE_ENEMIES, 18 + int(floor(survival_elapsed / 5.0)) * 2)
 
 
 func _on_enemy_defeated(enemy: GreedEnemy, coin_reward: int, elite: bool) -> void:
@@ -256,10 +224,8 @@ func _update_control_status() -> void:
         return
     if choice_open:
         control_label.text = _t("LEVEL UP · CHOOSE ONE MUTATION", "等级提升 · 选择一项变异")
-    elif hero_plant.is_dashing():
-        control_label.text = _t("DASHING · BRIEF CONTACT IMMUNITY", "闪避中 · 短暂无视接触伤害")
     else:
-        control_label.text = _t("WASD / ARROWS TO MOVE · SPACE OR DOUBLE CLICK TO DASH · ATTACKS ARE AUTOMATIC", "WASD / 方向键移动 · 空格或双击闪避 · 自动攻击")
+        control_label.text = _t("WASD / ARROWS MOVE · WEAPONS FIRE AUTOMATICALLY", "WASD / 方向键移动 · 武器自动攻击")
 
 
 func _finish_run(victory: bool) -> void:

@@ -34,6 +34,11 @@ static func apply_panel(panel: Panel, kind: String = "paper") -> void:
     var fill: Color = CREAM
     if kind == "hud":
         fill = Color("#fff3da")
+    elif kind == "glass":
+        var frosted: StyleBoxFlat = surface(Color(0.15, 0.25, 0.20, 0.38), 12, Color(1.0, 1.0, 1.0, 0.26), 2)
+        frosted.set_border_width_all(1)
+        panel.add_theme_stylebox_override("panel", frosted)
+        return
     elif kind == "modal":
         fill = Color("#fff7e8")
     elif kind == "mint":
