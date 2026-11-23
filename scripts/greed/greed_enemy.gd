@@ -1,6 +1,8 @@
 extends Node2D
 class_name GreedEnemy
 
+@export var render_with_sprite: bool = false
+
 signal damaged(enemy: GreedEnemy, final_damage: float, critical: bool)
 signal defeated(enemy: GreedEnemy, coin_reward: int, elite: bool)
 signal core_contact(enemy: GreedEnemy, damage: int)
@@ -152,6 +154,8 @@ func _separation_force() -> Vector2:
 
 
 func _draw() -> void:
+    if render_with_sprite:
+        return
     var scale_y: float = 0.72 if _squash_time > 0.0 else 1.0
     var scale_x: float = 1.28 if _squash_time > 0.0 else 1.0
     var color_value: Color = Color.WHITE if _flash_time > 0.0 else body_color

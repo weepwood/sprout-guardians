@@ -1,8 +1,8 @@
 # Sprout Guardians / 芽芽守卫战
 
-A lightweight plant-themed pixel-art survivors roguelite built with **Godot 4.7.1** and statically typed GDScript.
+A lightweight plant-themed survivors roguelite built with **Godot 4.7.1** and statically typed GDScript. The current work-in-progress art direction uses transparent toy-style sprites in place of code-drawn actors.
 
-The repository contains a playable 90-second survival slice with editor-visible scenes, automatic combat, floating familiars, experience pickups, seeded level-up choices, elite milestones, and a final boss.
+The repository contains a playable 90-second survival slice with editor-visible scenes, automatic combat, floating familiars, experience pickups, seeded level-up choices, elite milestones, a final boss, and locally persisted survivor run records.
 
 ## Current playable loop
 
@@ -12,8 +12,8 @@ The repository contains a playable 90-second survival slice with editor-visible 
 - Continuously escalating enemy pressure
 - Experience dew pickups and three-choice level-ups
 - Elite encounters at timed milestones and a final boss
-- Main menu, settings, localization, save data, and run results
-- Windows and Web player exports through GitHub Actions
+- Main menu, settings, localization, save data, garden journal with persistent run statistics, and run results
+- Windows, macOS Universal and Web player exports through GitHub Actions
 - Internal Linux export used only for CI startup validation
 
 ## Run locally
@@ -24,7 +24,7 @@ The repository contains a playable 90-second survival slice with editor-visible 
 4. Open `scenes/main_menu.tscn` or `scenes/main.tscn` to edit the visible scene structure.
 5. Press **F6** to run the current scene or **F5** to run the project.
 
-The base viewport is 640×360 and uses integer scaling with nearest-neighbor texture filtering.
+The base viewport is 640×360. Toy-style character sprites use linear filtering, while legacy pixel/UI art can retain nearest-neighbor filtering.
 
 ## Controls
 
@@ -49,7 +49,7 @@ The workflow also exports a **macOS Universal 2 app** (Intel + Apple Silicon), a
 
 macOS downloads are not Apple-notarized yet; Gatekeeper may require explicit approval on first launch. See [Desktop packages & UI design](docs/DESKTOP_PACKAGING_AND_UI.md) for installation and verification details.
 
-Every pull request and push to `main` produces downloadable workflow artifacts. Pushing a tag such as `v0.1.0` creates a GitHub Release containing the Windows and Web packages.
+Every pull request and push to `main` produces downloadable workflow artifacts. Pushing a version tag creates a GitHub Release with Windows, macOS Universal (ZIP + DMG) and Web packages, after cross-platform checks.
 
 ## Repository structure
 
@@ -63,6 +63,14 @@ tests/              Headless gameplay and scene-structure tests
 export_presets.cfg  Windows, Linux smoke, and Web export presets
 project.godot       Godot 4.7 project configuration
 ```
+
+## Work-in-progress art and runtime architecture
+
+The current refactor uses `assets/toy/sprout_toy_atlas.png` (original transparent images arranged in 3×3 cells), editor-visible `Sprite2D` actor scenes, a pooled textured impact effect, a bounded damage-number label pool, and an extracted `SurvivorRunState` lifecycle. The previous procedural actor drawing remains available **only for legacy scenes** during the transition.
+
+The extended test suite now covers a full 90-second logical run, reward selection, pausing and Boss victory. Export smoke tests open the actual survival scene; Windows, Linux and macOS checks run separately.
+
+**To diagnose an exit or crash**, collect the native `user://logs/godot.log` and `user://diagnostics/survivor-session.log` files. Completed run records are stored in the existing `user://savegame.json`, with the existing backup safeguard. See [Refactor and crash diagnostics](docs/REFACTOR_AND_CRASH_DIAGNOSTICS.md) for Windows/macOS paths and an incremental migration plan. The `v0.3.0` release introduces these changes while retaining previous save data.
 
 ## Development direction
 

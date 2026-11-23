@@ -8,6 +8,8 @@ signal impact_pulse(position: Vector2, strength: float)
 
 var _particles: Array[Dictionary] = []
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
+var _visual_pool: Array[Sprite2D] = []
+var _visible_count: int = 0
 
 
 func _ready() -> void:
@@ -32,7 +34,7 @@ func _process(delta: float) -> void:
         particle["velocity"] = velocity
         particle["life"] = life
         _particles[index] = particle
-    queue_redraw()
+    _sync_visuals()
 
 
 func spawn_hit(position_value: Vector2, color_value: Color, damage: float, critical: bool = false) -> void:
@@ -78,7 +80,7 @@ func get_active_particle_count() -> int:
 
 func clear() -> void:
     _particles.clear()
-    queue_redraw()
+    _sync_visuals()
 
 
 func _spawn_radial(
@@ -141,24 +143,41 @@ func _push_particle(particle: Dictionary) -> void:
     if _particles.size() >= max_particles:
         _particles.pop_front()
     _particles.append(particle)
-    queue_redraw()
 
 
 func _uses_tail(index: int) -> bool:
     return index % 3 == 0
 
 
-func _draw() -> void:
-    for particle: Dictionary in _particles:
-        var life: float = float(particle["life"])
-        var max_life: float = maxf(0.001, float(particle["max_life"]))
-        var alpha: float = clampf(life / max_life, 0.0, 1.0)
-        var color_value: Color = particle["color"] as Color
-        color_value.a *= alpha
-        var position_value: Vector2 = (particle["position"] as Vector2).round()
-        var size_value: float = maxf(1.0, roundf(float(particle["size"])))
-        draw_rect(Rect2(position_value - Vector2.ONE * size_value * 0.5, Vector2.ONE * size_value), color_value)
-        if bool(particle["tail"]):
-            var velocity: Vector2 = particle["velocity"] as Vector2
-            var tail_end: Vector2 = (position_value - velocity.normalized() * minf(8.0, velocity.length() * 0.04)).round()
-            draw_line(position_value, tail_end, color_value, 1.0)
+# A pool of authored star sprites replaces the previous draw_rect/draw_line
+# calls. Visual lifetime is independent from gameplay hit/damage data.
+func _sync_visuals() -> void:
+    var active: int = _particles.size()
+    while _visual_pool.size() < active:
+        var sprite: Sprite2D = Sprite2D.new()
+        sprite.name = "ImpactSprite%d" % _visual_pool.size()
+        sprite.texture = PixelArtAssets.texture(&"impact_star")
+        sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+        sprite.centered = true
+        sprite.z_index = 0
+        add_child(sprite)
+        _visual_pool.append(sprite)
+    for index: int in range(active):
+        var particle: Dictionary = _particles[index]
+        var sprite: Sprite2D = _visual_pool[index]
+        var alpha: float = clampf(float(particle["life"]) / maxf(0.001, float(particle["max_life"])), 0.0, 1.0)
+        var tint: Color = particle["color"] as Color
+        tint.a *= alpha
+        sprite.modulate = tint
+        sprite.position = particle["position"] as Vector2
+        var scale_value: float = maxf(0.035, float(particle["size"]) * 0.047)
+        var is_tail: bool = bool(particle["tail"])
+        sprite.scale = Vector2(scale_value * (1.35 if is_tail else 1.0), scale_value)
+        if is_tail:
+            sprite.rotation = (particle["velocity"] as Vector2).angle()
+        else:
+            sprite.rotation = 0.0
+        sprite.visible = true
+    for index: int in range(active, _visible_count):
+        _visual_pool[index].visible = false
+    _visible_count = active

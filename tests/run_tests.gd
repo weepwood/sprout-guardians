@@ -150,6 +150,13 @@ func _test_save_game_service() -> void:
     reloaded.load_game()
     _assert_equal_int(reloaded.get_level_stars(&"morning_forest"), 2, "Level stars survive save reload")
 
+    _assert_true(reloaded.record_survivor_result(false, 31.7, 3, 14), "Defeat statistics are saved")
+    _assert_true(reloaded.record_survivor_result(true, 92.5, 8, 56), "Victory statistics are saved")
+    var stats: Dictionary = reloaded.get_survivor_statistics()
+    _assert_equal_int(int(stats["total_runs"]), 2, "Run counts grow consistently")
+    _assert_equal_int(int(stats["total_victories"]), 1, "Victory count reflects the latest run")
+    _assert_equal_int(int(stats["best_survival_seconds"]), 92, "Best survival stores floored seconds")
+    _assert_equal_int(int(stats["best_kills"]), 56, "Best kills store the peak score")
     reloaded.record_level_result(&"morning_forest", 3, 10)
     _write_test_file(save_path, "{broken json")
     var recovered: SaveGameService = SaveGameService.new()
@@ -158,6 +165,7 @@ func _test_save_game_service() -> void:
     recovered.load_game()
     _assert_true(recovered.recovered_from_backup, "Corrupted primary save recovers from backup")
     _assert_true(recovered.get_level_stars(&"morning_forest") >= 2, "Backup recovery preserves completed-level progress")
+    _assert_equal_int(int(recovered.get_survivor_statistics()["total_runs"]), 2, "Save backup retains recent survivor records")
     var backup_after_recovery: Variant = JSON.parse_string(FileAccess.get_file_as_string(backup_path))
     _assert_true(backup_after_recovery is Dictionary, "Recovery never overwrites a good backup with corrupt primary data")
 

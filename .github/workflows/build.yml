@@ -150,6 +150,17 @@ jobs:
           echo "$UI_STATUS" > build/diagnostics/ui-smoke.status
           cat build/diagnostics/ui-smoke.log
 
+      - name: Run full-session survivor integration tests
+        shell: bash
+        run: |
+          set +e
+          timeout 65s godot --headless --audio-driver Dummy --path "$GITHUB_WORKSPACE" --script res://tests/run_session_integration.gd \
+            > build/diagnostics/session-integration.log 2>&1
+          SESSION_STATUS=$?
+          set -e
+          echo "$SESSION_STATUS" > build/diagnostics/session-integration.status
+          cat build/diagnostics/session-integration.log
+
       - name: Enforce test results
         shell: bash
         run: |
@@ -160,6 +171,7 @@ jobs:
           GREED_STATUS="$(cat build/diagnostics/greed-tests.status)"
           SURVIVOR_STATUS="$(cat build/diagnostics/survivor-tests.status)"
           UI_STATUS="$(cat build/diagnostics/ui-smoke.status)"
+          SESSION_STATUS="$(cat build/diagnostics/session-integration.status)"
           if [ "$TEST_STATUS" != "0" ]; then
             echo "Core gameplay tests failed with exit code $TEST_STATUS"
             exit "$TEST_STATUS"
@@ -184,9 +196,13 @@ jobs:
             echo "UI scene smoke tests failed with exit code $UI_STATUS"
             exit "$UI_STATUS"
           fi
+          if [ "$SESSION_STATUS" != "0" ]; then
+            echo "Survivor integration tests failed with exit code $SESSION_STATUS"
+            exit "$SESSION_STATUS"
+          fi
 
           ERROR_PATTERN="SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance"
-          for LOG_FILE in build/diagnostics/core-tests.log build/diagnostics/reward-tests.log build/diagnostics/autonomous-tests.log build/diagnostics/greed-tests.log build/diagnostics/survivor-tests.log build/diagnostics/ui-smoke.log; do
+          for LOG_FILE in build/diagnostics/core-tests.log build/diagnostics/reward-tests.log build/diagnostics/autonomous-tests.log build/diagnostics/greed-tests.log build/diagnostics/survivor-tests.log build/diagnostics/ui-smoke.log build/diagnostics/session-integration.log; do
             if grep -E "$ERROR_PATTERN" "$LOG_FILE"; then
               echo "Hidden Godot script/runtime error detected in $LOG_FILE"
               exit 1
@@ -212,8 +228,9 @@ jobs:
           timeout 20s build/linux-smoke/SproutGuardians.x86_64 \
             --headless \
             --audio-driver Dummy \
-            --quit-after 30 \
+            --quit-after 120 \
             --verbose \
+            -- --ci-survivors-smoke \
             > build/diagnostics/exported-runtime.log 2>&1
           RUNTIME_STATUS=$?
           set -e
@@ -300,7 +317,7 @@ jobs:
           [[ " $ARCHS " == *" x86_64 "* ]]
           codesign --force --deep --sign - --timestamp=none "$APP_PATH"
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-          "$EXECUTABLE_PATH" --headless --audio-driver Dummy --quit-after 30 \
+          "$EXECUTABLE_PATH" --headless --audio-driver Dummy --quit-after 120 -- --ci-survivors-smoke \
             > build/macos/macos-smoke.log 2>&1
           cat build/macos/macos-smoke.log
           if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance" build/macos/macos-smoke.log; then
@@ -322,10 +339,56 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+
+  windows-smoke:
+    name: Smoke-test Windows desktop executable
+    needs: export
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download Windows player build
+        uses: actions/download-artifact@v4
+        with:
+          name: SproutGuardians-${{ github.sha }}
+          path: dist
+
+      - name: Launch exported game and enter survival
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          Expand-Archive -Path "dist/SproutGuardians-Windows-x86_64.zip" -DestinationPath "build/windows" -Force
+          $exe = (Resolve-Path "build/windows/SproutGuardians.exe").Path
+          $log = Join-Path $env:RUNNER_TEMP "sprout-windows.log"
+          $args = "--headless --audio-driver Dummy --quit-after 120 --log-file `"$log`" -- --ci-survivors-smoke"
+          $proc = Start-Process -FilePath $exe -ArgumentList $args -PassThru -Wait
+          if ($proc.ExitCode -ne 0) {
+            throw "Windows exported game exited with code $($proc.ExitCode)"
+          }
+          if (-not (Test-Path $log)) {
+            throw "Windows exported game did not create a runtime log"
+          }
+          Get-Content $log
+          $errors = Select-String -Path $log -Pattern "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance"
+          if ($errors) {
+            throw "Windows exported game contains script/runtime errors"
+          }
+
+      - name: Upload Windows runtime log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SproutGuardians-Windows-smoke-${{ github.sha }}
+          path: ${{ runner.temp }}/sprout-windows.log
+          if-no-files-found: warn
+          retention-days: 14
+
   release:
     name: Publish validated release
     if: startsWith(github.ref, 'refs/tags/v') || (github.ref == 'refs/heads/main' && github.event_name == 'push')
-    needs: [export, macos-package]
+    needs: [export, macos-package, windows-smoke]
     runs-on: ubuntu-latest
     permissions:
       contents: write

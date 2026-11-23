@@ -1,6 +1,8 @@
 extends Node2D
 class_name SurvivorExperienceGem
 
+@export var render_with_sprite: bool = false
+
 signal collected(amount: int)
 
 const PICKUP_RADIUS: float = 22.0
@@ -46,10 +48,13 @@ func _process(delta: float) -> void:
     if distance_value <= MAGNET_RADIUS:
         var speed_scale: float = lerpf(0.55, 1.35, 1.0 - distance_value / MAGNET_RADIUS)
         global_position = global_position.move_toward(target.global_position, MAGNET_SPEED * speed_scale * delta)
-    queue_redraw()
+    if not render_with_sprite:
+        queue_redraw()
 
 
 func _draw() -> void:
+    if render_with_sprite:
+        return
     var pulse: float = 1.0 + sin(_phase) * 0.12
     var radius: float = 5.0 * pulse
     draw_circle(Vector2.ZERO, radius + 2.0, Color(0.05, 0.15, 0.12, 0.75))

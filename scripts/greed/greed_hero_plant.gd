@@ -1,6 +1,8 @@
 extends GreedCore
 class_name GreedHeroPlant
 
+@export var render_with_sprite: bool = false
+
 signal fired(hero: GreedHeroPlant, target: GreedEnemy, critical: bool, damage: float)
 signal projectile_requested(
     origin: Vector2,
@@ -86,7 +88,8 @@ func _process(delta: float) -> void:
                 _cooldown = _effective_interval()
             else:
                 _cooldown = 0.06
-    queue_redraw()
+    if not render_with_sprite:
+        queue_redraw()
 
 
 func request_dash(position_value: Vector2) -> bool:
@@ -287,6 +290,8 @@ func _clamp_to_arena(position_value: Vector2) -> Vector2:
 
 
 func _draw() -> void:
+    if render_with_sprite:
+        return
     var pulse: float = 1.0 + sin(Time.get_ticks_msec() * 0.006) * 0.04
     var body_color: Color = Color.WHITE if _hit_flash > 0.0 else Color(String(config.get("color_hex", "8fe45f")))
 

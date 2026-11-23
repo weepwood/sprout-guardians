@@ -9,6 +9,9 @@ const EXPERIENCE_GEM_SCENE: PackedScene = preload("res://scenes/effects/experien
 
 var experience_bar: ProgressBar
 var pixel_skin: PixelSkinController
+var run_state: SurvivorRunState
+var run_trace: SurvivorRunTrace
+var run_save: SaveGameService
 var pause_open: bool = false
 var pause_backdrop: ColorRect
 var pause_panel: Panel
@@ -31,6 +34,12 @@ var familiar_spawn_sprout: Marker2D
 func _ready() -> void:
     super._ready()
     pixel_skin = get_node("PixelSkinController") as PixelSkinController
+    run_state = get_node("RunState") as SurvivorRunState
+    run_trace = get_node("RunTrace") as SurvivorRunTrace
+    run_state.phase_changed.connect(_on_run_phase_changed)
+    run_state.start_run()
+    run_save = SaveGameService.new()
+    run_save.load_game()
     if impact_system != null:
         impact_system.z_index = 9
     _apply_playful_hud()
@@ -212,6 +221,8 @@ func _spawn_experience_gem(position_value: Vector2, amount: int) -> SurvivorExpe
 
 func _open_surprise_choice() -> void:
     super._open_surprise_choice()
+    if choice_open and run_state != null:
+        run_state.open_reward()
     for index: int in range(choice_buttons.size()):
         if index >= _current_choices.size():
             continue
@@ -257,9 +268,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _toggle_pause() -> void:
-    if game_ended or choice_open:
+    if game_ended or choice_open or run_state == null:
         return
-    pause_open = not pause_open
+    if not run_state.toggle_pause():
+        return
+    pause_open = run_state.phase == SurvivorRunState.Phase.PAUSED
     _set_combat_frozen(pause_open)
     for control: Control in [pause_backdrop, pause_panel, pause_title, pause_subtitle, pause_resume_button, pause_leave_button]:
         control.visible = pause_open
@@ -314,3 +327,38 @@ func _apply_playful_hud() -> void:
     PlayfulUITheme.apply_button(result_button, "primary")
     PlayfulUITheme.apply_button(pause_resume_button, "primary")
     PlayfulUITheme.apply_button(pause_leave_button, "soft")
+
+
+func _select_choice(index: int) -> void:
+    var allowed: bool = choice_open and index >= 0 and index < _current_choices.size()
+    if not allowed:
+        return
+    super._select_choice(index)
+    if run_state != null:
+        run_state.close_reward()
+
+
+func _finish_run(victory: bool) -> void:
+    if game_ended:
+        return
+    super._finish_run(victory)
+    if run_state != null:
+        run_state.finish(victory)
+    if run_save != null:
+        var saved: bool = run_save.record_survivor_result(
+            victory, survival_elapsed, hero_plant.level if is_instance_valid(hero_plant) else 1, enemies_defeated
+        )
+        if run_trace != null:
+            run_trace.note("run_recorded", "saved=%s victory=%s kills=%d" % [saved, victory, enemies_defeated])
+
+
+func _on_run_phase_changed(previous: int, current: int) -> void:
+    if run_trace != null:
+        run_trace.note("phase_change", "%d -> %d; elapsed=%.2f; kills=%d" % [
+            previous, current, survival_elapsed, enemies_defeated
+        ])
+
+
+func _notification(what: int) -> void:
+    if what == NOTIFICATION_APPLICATION_FOCUS_OUT and hero_plant != null:
+        _cancel_keyboard_motion()
