@@ -137,6 +137,15 @@ func _test_survivor_scene() -> void:
     _assert_true(game.get_node("World/ArenaGround") is TextureRect, "Garden floor is a reusable image asset")
     var bg: TextureRect = game.get_node("World/ArenaGround") as TextureRect
     _assert_true(bg.texture != null and bg.size.x >= 640.0, "Garden artwork covers the whole battle viewport")
+    var warning: Panel = game.get_node("UI/WarningFrame") as Panel
+    game.call("_show_event_banner", "TEST WAVE", 2.5)
+    _assert_true(warning.visible, "Timed wave warning becomes visible")
+    _assert_true((game.get("status_label") as Label).text == "TEST WAVE", "Wave warning displays the event text")
+    game.set("_warning_seconds", 0.0)
+    game.call("_process", 0.016)
+    _assert_true(not warning.visible, "Wave warning clears without occupying permanent HUD space")
+    var on_edge: Vector2 = game.call("_survivor_spawn_edge") as Vector2
+    _assert_true(on_edge.distance_to(hero.global_position) >= 112.0, "Enemies spawn away from player when safe edge is available")
 
     game.call("_toggle_pause")
     _assert_true(bool(game.get("pause_open")), "Pause opens the new cozy overlay")

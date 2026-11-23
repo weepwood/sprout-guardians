@@ -113,6 +113,9 @@ func _run() -> void:
     game_hero.set_move_target(released_position + Vector2(30.0, 0.0))
     _assert_true(not game_hero.has_move_target, "Click-to-move is disabled in survivors")
     _assert_true(not game_hero.request_dash(released_position + Vector2(70.0, 0.0)), "Base dash is disabled in classic survivors")
+    for edge_sample: int in range(20):
+        var edge_spawn: Vector2 = game.call("_survivor_spawn_edge") as Vector2
+        _assert_true(edge_spawn.distance_to(game_hero.global_position) >= 112.0, "Edge spawns preserve minimum distance: %d" % edge_sample)
     input_controller.clear_test_direction()
 
     game.call("_on_experience_collected", 8)

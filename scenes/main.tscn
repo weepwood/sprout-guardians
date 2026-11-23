@@ -341,6 +341,14 @@ text = "WASD / ARROWS TO MOVE · SPACE TO DASH\nATTACKS ARE AUTOMATIC"
 horizontal_alignment = 1
 autowrap_mode = 2
 
+[node name="WarningFrame" type="Panel" parent="UI"]
+visible = false
+offset_left = 158.0
+offset_top = 303.0
+offset_right = 482.0
+offset_bottom = 335.0
+mouse_filter = 2
+
 [node name="StatusLabel" type="Label" parent="UI"]
 offset_left = 148.0
 offset_top = 309.0
@@ -350,6 +358,17 @@ mouse_filter = 2
 theme_override_font_sizes/font_size = 12
 text = "SURVIVE AND GROW"
 horizontal_alignment = 1
+
+[node name="ComboLabel" type="Label" parent="UI"]
+visible = false
+offset_left = 466.0
+offset_top = 43.0
+offset_right = 624.0
+offset_bottom = 68.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 17
+text = "COMBO x2"
+horizontal_alignment = 2
 
 [node name="ExperienceFrame" type="Panel" parent="UI"]
 offset_left = 9.0

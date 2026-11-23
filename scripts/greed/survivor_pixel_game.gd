@@ -23,6 +23,13 @@ var pause_build_label: Label
 var choice_hint: Label
 var choice_badge: TextureRect
 var reward_focus_index: int = 0
+var warning_frame: Panel
+var combo_label: Label
+var _warning_seconds: float = 0.0
+var _warning_message: String = ""
+var _combo_count: int = 0
+var _combo_seconds: float = 0.0
+const COMBO_TIMEOUT: float = 3.2
 
 var actors_container: Node2D
 var enemies_container: Node2D
@@ -122,6 +129,8 @@ func _create_ui() -> void:
     control_label = get_node("UI/ControlLabel") as Label
     status_label = get_node("UI/StatusLabel") as Label
     experience_bar = get_node("UI/ExperienceBar") as ProgressBar
+    warning_frame = get_node("UI/WarningFrame") as Panel
+    combo_label = get_node("UI/ComboLabel") as Label
 
     choice_backdrop = get_node("UI/ChoiceLayer/Backdrop") as ColorRect
     choice_panel = get_node("UI/ChoiceLayer/Panel") as Panel
@@ -208,12 +217,39 @@ func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
     var enemy: GreedEnemy = ENEMY_SCENE.instantiate() as GreedEnemy
     enemy.name = "SurvivorEnemy"
     enemies_container.add_child(enemy)
-    enemy.global_position = _door_spawn_position()
+    enemy.global_position = _survivor_spawn_edge()
     enemy.configure(hero_plant, config, 1.0)
     enemy.damaged.connect(_on_enemy_damaged)
     enemy.defeated.connect(_on_enemy_defeated)
     enemy.core_contact.connect(_on_enemy_core_contact)
     return enemy
+
+
+# Spawn along the visible playfield boundary, keeping a minimum fair distance
+# from the hero. This also avoids the former fixed four-door bottleneck.
+func _survivor_spawn_edge() -> Vector2:
+    var area: Rect2 = Rect2(12.0, 44.0, 616.0, 275.0)
+    var options: Array[Vector2] = []
+    for index: int in range(4):
+        match index:
+            0:
+                options.append(Vector2(_rng.randf_range(area.position.x, area.end.x), area.position.y))
+            1:
+                options.append(Vector2(_rng.randf_range(area.position.x, area.end.x), area.end.y))
+            2:
+                options.append(Vector2(area.position.x, _rng.randf_range(area.position.y, area.end.y)))
+            3:
+                options.append(Vector2(area.end.x, _rng.randf_range(area.position.y, area.end.y)))
+    options.shuffle()
+    var hero_at: Vector2 = hero_plant.global_position if hero_plant != null else area.get_center()
+    for point: Vector2 in options:
+        if point.distance_to(hero_at) >= 112.0:
+            return point
+    var farthest: Vector2 = options[0]
+    for point: Vector2 in options:
+        if point.distance_squared_to(hero_at) > farthest.distance_squared_to(hero_at):
+            farthest = point
+    return farthest
 
 
 func _spawn_experience_gem(position_value: Vector2, amount: int) -> SurvivorExperienceGem:
@@ -278,12 +314,50 @@ func _refresh_hud() -> void:
 func _process(delta: float) -> void:
     if pause_open:
         return
+    var old_first: bool = first_elite_spawned
+    var old_second: bool = second_elite_spawned
+    var old_boss: bool = final_boss_spawned
     super._process(delta)
+
+    if not old_first and first_elite_spawned:
+        _show_event_banner(_t("ELITE INCOMING!", "精英怪来袭！"))
+    if not old_second and second_elite_spawned:
+        _show_event_banner(_t("ELITE SWARM!", "精英怪群来袭！"))
+    if not old_boss and final_boss_spawned:
+        _show_event_banner(_t("FINAL BLOOM BEAST!", "最终花兽出现！"), 3.8)
+
+    if not choice_open and not game_ended:
+        _warning_seconds = maxf(0.0, _warning_seconds - delta)
+        _combo_seconds = maxf(0.0, _combo_seconds - delta)
+        if _combo_seconds <= 0.0:
+            _combo_count = 0
+    warning_frame.visible = _warning_seconds > 0.0 and not choice_open and not game_ended
+    status_label.visible = warning_frame.visible
+    if warning_frame.visible:
+        status_label.text = _warning_message
+    combo_label.visible = _combo_seconds > 0.0 and _combo_count >= 3 and not choice_open and not game_ended
     if control_label != null:
         control_label.visible = survival_elapsed < 4.2 and not choice_open and not game_ended
-    if status_label != null:
-        # Warnings only: routine spawn counters no longer cover gameplay.
-        status_label.visible = final_boss_spawned and not final_boss_defeated and not game_ended
+
+
+func _show_event_banner(message: String, duration: float = 2.8) -> void:
+    _warning_message = message
+    _warning_seconds = maxf(0.1, duration)
+    status_label.text = message
+    status_label.visible = true
+    warning_frame.visible = true
+
+
+func _on_enemy_defeated(enemy: GreedEnemy, coin_reward: int, elite: bool) -> void:
+    var was_boss: bool = enemy != null and is_instance_valid(enemy) and enemy.boss
+    super._on_enemy_defeated(enemy, coin_reward, elite)
+    if was_boss or game_ended:
+        return
+    _combo_count = _combo_count + 1 if _combo_seconds > 0.0 else 1
+    _combo_seconds = COMBO_TIMEOUT
+    if _combo_count >= 3:
+        combo_label.text = _t("COMBO x%d", "连击 x%d") % _combo_count
+        combo_label.visible = true
 
 
 # Keyboard navigation for the three side-by-side reward cards; mouse may still
@@ -372,6 +446,7 @@ func _update_control_status() -> void:
 func _apply_playful_hud() -> void:
     PlayfulUITheme.apply_panel(get_node("UI/TopHUD/Frame") as Panel, "glass")
     PlayfulUITheme.apply_panel(get_node("UI/ExperienceFrame") as Panel, "glass")
+    PlayfulUITheme.apply_panel(warning_frame, "glass")
     PlayfulUITheme.apply_panel(choice_panel, "modal")
     PlayfulUITheme.apply_panel(pause_panel, "modal")
     PlayfulUITheme.apply_progress(experience_bar)
@@ -384,6 +459,7 @@ func _apply_playful_hud() -> void:
     PlayfulUITheme.apply_label(control_label, Color("#fef7e8"))
     PlayfulUITheme.apply_label(choice_hint, Color("#fff8df"))
     PlayfulUITheme.apply_label(status_label, Color("#fff9e7"))
+    PlayfulUITheme.apply_label(combo_label, Color("#ffed92"))
     PlayfulUITheme.apply_button(language_button, "tiny")
     PlayfulUITheme.apply_button(speed_button, "tiny")
     PlayfulUITheme.apply_button(menu_button, "coral")
@@ -411,6 +487,8 @@ func _finish_run(victory: bool) -> void:
     super._finish_run(victory)
     choice_hint.visible = false
     choice_badge.visible = false
+    warning_frame.visible = false
+    combo_label.visible = false
     if run_state != null:
         run_state.finish(victory)
     if run_save != null:
