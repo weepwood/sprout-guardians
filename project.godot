@@ -30,3 +30,6 @@ textures/canvas_textures/default_texture_filter=0
 [debug]
 
 settings/stdout/print_fps=false
+file_logging/enable_file_logging=true
+file_logging/max_log_files=5
+file_logging/log_path="user://logs/godot.log"

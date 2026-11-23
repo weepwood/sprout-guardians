@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/greed/survivor_pixel_game.gd" id="1_main"]
 [ext_resource type="Texture2D" path="res://assets/pixel/grass_tile.svg" id="2_grass"]
@@ -9,6 +9,8 @@
 [ext_resource type="PackedScene" path="res://scenes/actors/familiar_sprout.tscn" id="7_sprout"]
 [ext_resource type="PackedScene" path="res://scenes/actors/enemy.tscn" id="8_enemy"]
 [ext_resource type="Script" path="res://scripts/ui/pixel_skin_controller.gd" id="9_skin"]
+[ext_resource type="Script" path="res://scripts/greed/survivor_run_state.gd" id="10_state"]
+[ext_resource type="Script" path="res://scripts/greed/survivor_run_trace.gd" id="11_trace"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_heart"]
 atlas = ExtResource("4_effects")
@@ -175,6 +177,12 @@ position = Vector2(380, 192)
 [node name="Pickups" type="Node2D" parent="World/Runtime"]
 
 [node name="Effects" type="Node2D" parent="World/Runtime"]
+
+[node name="RunState" type="Node" parent="."]
+script = ExtResource("10_state")
+
+[node name="RunTrace" type="Node" parent="."]
+script = ExtResource("11_trace")
 
 [node name="PixelSkinController" type="Node" parent="."]
 script = ExtResource("9_skin")

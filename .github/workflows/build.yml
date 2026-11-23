@@ -150,6 +150,17 @@ jobs:
           echo "$UI_STATUS" > build/diagnostics/ui-smoke.status
           cat build/diagnostics/ui-smoke.log
 
+      - name: Run full-session survivor integration tests
+        shell: bash
+        run: |
+          set +e
+          timeout 65s godot --headless --audio-driver Dummy --path "$GITHUB_WORKSPACE" --script res://tests/run_session_integration.gd \
+            > build/diagnostics/session-integration.log 2>&1
+          SESSION_STATUS=$?
+          set -e
+          echo "$SESSION_STATUS" > build/diagnostics/session-integration.status
+          cat build/diagnostics/session-integration.log
+
       - name: Enforce test results
         shell: bash
         run: |
@@ -160,6 +171,7 @@ jobs:
           GREED_STATUS="$(cat build/diagnostics/greed-tests.status)"
           SURVIVOR_STATUS="$(cat build/diagnostics/survivor-tests.status)"
           UI_STATUS="$(cat build/diagnostics/ui-smoke.status)"
+          SESSION_STATUS="$(cat build/diagnostics/session-integration.status)"
           if [ "$TEST_STATUS" != "0" ]; then
             echo "Core gameplay tests failed with exit code $TEST_STATUS"
             exit "$TEST_STATUS"
@@ -184,9 +196,13 @@ jobs:
             echo "UI scene smoke tests failed with exit code $UI_STATUS"
             exit "$UI_STATUS"
           fi
+          if [ "$SESSION_STATUS" != "0" ]; then
+            echo "Survivor integration tests failed with exit code $SESSION_STATUS"
+            exit "$SESSION_STATUS"
+          fi
 
           ERROR_PATTERN="SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance"
-          for LOG_FILE in build/diagnostics/core-tests.log build/diagnostics/reward-tests.log build/diagnostics/autonomous-tests.log build/diagnostics/greed-tests.log build/diagnostics/survivor-tests.log build/diagnostics/ui-smoke.log; do
+          for LOG_FILE in build/diagnostics/core-tests.log build/diagnostics/reward-tests.log build/diagnostics/autonomous-tests.log build/diagnostics/greed-tests.log build/diagnostics/survivor-tests.log build/diagnostics/ui-smoke.log build/diagnostics/session-integration.log; do
             if grep -E "$ERROR_PATTERN" "$LOG_FILE"; then
               echo "Hidden Godot script/runtime error detected in $LOG_FILE"
               exit 1
