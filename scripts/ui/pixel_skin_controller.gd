@@ -72,8 +72,18 @@ func _skin_node(node: Node) -> void:
 
     if sprite == null:
         return
+    if node is GreedHeroPlant:
+        (node as GreedHeroPlant).render_with_sprite = true
+    elif node is GreedPlant:
+        (node as GreedPlant).render_with_sprite = true
+    elif node is GreedEnemy:
+        (node as GreedEnemy).render_with_sprite = true
+    elif node is GreedProjectile:
+        (node as GreedProjectile).render_with_sprite = true
+    elif node is SurvivorExperienceGem:
+        (node as SurvivorExperienceGem).render_with_sprite = true
     sprite.texture = texture_value
-    sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+    sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
     _sprites[node.get_instance_id()] = sprite
     _configure_sprite(node, sprite)
 
@@ -104,16 +114,22 @@ func _texture_for_node(node: Node) -> Texture2D:
 func _configure_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedHeroPlant:
         sprite.position = Vector2(0.0, -5.0)
+        sprite.scale = Vector2.ONE * 0.56
         sprite.z_index = 5
     elif node is GreedPlant:
         sprite.position = Vector2(0.0, -2.0)
+        sprite.scale = Vector2.ONE * 0.39
         sprite.z_index = 5
     elif node is GreedEnemy:
+        var enemy: GreedEnemy = node as GreedEnemy
         sprite.position = Vector2(0.0, -3.0)
+        sprite.scale = Vector2.ONE * (0.92 if enemy.boss else (0.53 if enemy.elite else 0.40))
         sprite.z_index = 4
     elif node is GreedProjectile:
+        sprite.scale = Vector2.ONE * 0.24
         sprite.z_index = 7
     elif node is SurvivorExperienceGem:
+        sprite.scale = Vector2.ONE * 0.23
         sprite.z_index = 6
 
 
@@ -121,20 +137,21 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedHeroPlant:
         var hero: GreedHeroPlant = node as GreedHeroPlant
         sprite.position.y = -5.0 + sin(_elapsed * 6.0) * 1.0
-        sprite.scale = Vector2.ONE * (1.08 if hero.is_dashing() else 1.0)
+        sprite.scale = Vector2.ONE * (0.60 if hero.is_dashing() else 0.56)
         sprite.modulate = Color(1.0, 0.72, 0.72) if float(hero.get("_hit_flash")) > 0.0 else Color.WHITE
         return
 
     if node is GreedPlant:
         var familiar: GreedPlant = node as GreedPlant
         sprite.position.y = -2.0 + sin(_elapsed * 7.5 + float(familiar.orbit_index) * PI) * 1.5
-        sprite.scale = Vector2.ONE * (1.0 + minf(0.22, float(familiar.level - 1) * 0.035))
+        sprite.scale = Vector2.ONE * (0.39 + minf(0.12, float(familiar.level - 1) * 0.018))
         return
 
     if node is GreedEnemy:
         var enemy: GreedEnemy = node as GreedEnemy
         var squash_active: bool = float(enemy.get("_squash_time")) > 0.0
-        sprite.scale = Vector2(1.18, 0.78) if squash_active else Vector2.ONE
+        var base_scale: float = 0.92 if enemy.boss else (0.53 if enemy.elite else 0.40)
+        sprite.scale = Vector2(1.14, 0.84) * base_scale if squash_active else Vector2.ONE * base_scale
         if float(enemy.get("_flash_time")) > 0.0:
             sprite.modulate = Color(1.0, 0.72, 0.72)
         elif float(enemy.get("_slow_time")) > 0.0:
@@ -147,9 +164,10 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
         var projectile: GreedProjectile = node as GreedProjectile
         var direction_value: Vector2 = projectile.get("_travel_direction")
         sprite.rotation = direction_value.angle()
-        sprite.scale = Vector2.ONE * (1.35 if projectile.critical else 1.0)
+        sprite.scale = Vector2.ONE * (0.30 if projectile.critical else 0.24)
+        sprite.modulate = projectile.body_color.lerp(Color.WHITE, 0.28)
         return
 
     if node is SurvivorExperienceGem:
         sprite.rotation = _elapsed * 1.4
-        sprite.scale = Vector2.ONE * (1.0 + sin(_elapsed * 5.0) * 0.08)
+        sprite.scale = Vector2.ONE * (0.23 + sin(_elapsed * 5.0) * 0.018)

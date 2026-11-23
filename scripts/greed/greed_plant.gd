@@ -1,6 +1,8 @@
 extends Node2D
 class_name GreedPlant
 
+@export var render_with_sprite: bool = false
+
 signal fired(plant: GreedPlant, target: GreedEnemy, critical: bool, damage: float)
 signal projectile_requested(
     origin: Vector2,
@@ -70,7 +72,8 @@ func _process(delta: float) -> void:
             _cooldown = _effective_interval()
         else:
             _cooldown = 0.08
-    queue_redraw()
+    if not render_with_sprite:
+        queue_redraw()
 
 
 func upgrade() -> void:
@@ -182,6 +185,8 @@ func _effective_interval() -> float:
 
 
 func _draw() -> void:
+    if render_with_sprite:
+        return
     var body_color: Color = Color(String(config.get("color_hex", "8fe45f")))
     var base_color: Color = body_color.darkened(0.35)
     draw_circle(Vector2.ZERO, 10.0 + float(level - 1) * 0.45, Color(0.06, 0.12, 0.09, 0.72))

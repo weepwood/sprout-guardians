@@ -1,6 +1,8 @@
 extends Node2D
 class_name GreedProjectile
 
+@export var render_with_sprite: bool = false
+
 signal impacted(projectile: GreedProjectile, target: GreedEnemy, damage: float, critical: bool)
 signal expired(projectile: GreedProjectile)
 
@@ -65,7 +67,8 @@ func _process(delta: float) -> void:
         return
 
     global_position += _travel_direction * step
-    queue_redraw()
+    if not render_with_sprite:
+        queue_redraw()
 
 
 func _impact() -> void:
@@ -107,6 +110,8 @@ func _finish() -> void:
 
 
 func _draw() -> void:
+    if render_with_sprite:
+        return
     var trail_color: Color = body_color
     trail_color.a = 0.42
     var trail_length: float = 13.0 if critical else 8.0

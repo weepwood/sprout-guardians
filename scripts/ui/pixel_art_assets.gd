@@ -5,6 +5,26 @@ const ACTORS_ATLAS: Texture2D = preload("res://assets/pixel/actors_atlas.svg")
 const EFFECTS_ATLAS: Texture2D = preload("res://assets/pixel/effects_atlas.svg")
 const GRASS_TILE: Texture2D = preload("res://assets/pixel/grass_tile.svg")
 const UI_PANEL: Texture2D = preload("res://assets/pixel/ui_panel.svg")
+const TOY_ATLAS: Texture2D = preload("res://assets/toy/sprout_toy_atlas.png")
+
+# 3x3 source art atlas. Each 56px cell is an authored image, never generated
+# by a gameplay Node2D.draw_* callback. Keep the original SVG keys below for
+# legacy levels and tiny monochrome HUD icons.
+const TOY_REGIONS: Dictionary = {
+    &"hero": Rect2(0, 0, 56, 56),
+    &"familiar_sun": Rect2(56, 0, 56, 56),
+    &"familiar_sprout": Rect2(112, 0, 56, 56),
+    &"enemy_green": Rect2(0, 56, 56, 56),
+    &"enemy_purple": Rect2(56, 56, 56, 56),
+    &"enemy_maw": Rect2(0, 56, 56, 56),
+    &"enemy_elite": Rect2(56, 56, 56, 56),
+    &"enemy_boss": Rect2(112, 56, 56, 56),
+    &"xp_gem": Rect2(56, 112, 56, 56),
+    &"projectile_leaf": Rect2(0, 112, 56, 56),
+    &"projectile_petal": Rect2(0, 112, 56, 56),
+    &"projectile_frost": Rect2(0, 112, 56, 56),
+    &"impact_star": Rect2(112, 112, 56, 56),
+}
 
 const REGIONS: Dictionary = {
     &"hero": Rect2(0.0, 0.0, 48.0, 48.0),
@@ -40,12 +60,16 @@ static var _texture_cache: Dictionary = {}
 static func texture(key: StringName) -> Texture2D:
     if _texture_cache.has(key):
         return _texture_cache[key] as Texture2D
-    if not REGIONS.has(key):
-        push_error("Unknown pixel-art texture key: %s" % String(key))
-        return null
     var atlas_texture: AtlasTexture = AtlasTexture.new()
-    atlas_texture.atlas = EFFECTS_ATLAS if EFFECT_KEYS.has(key) else ACTORS_ATLAS
-    atlas_texture.region = REGIONS[key]
+    if TOY_REGIONS.has(key):
+        atlas_texture.atlas = TOY_ATLAS
+        atlas_texture.region = TOY_REGIONS[key]
+    elif REGIONS.has(key):
+        atlas_texture.atlas = EFFECTS_ATLAS if EFFECT_KEYS.has(key) else ACTORS_ATLAS
+        atlas_texture.region = REGIONS[key]
+    else:
+        push_error("Unknown texture asset key: %s" % String(key))
+        return null
     atlas_texture.filter_clip = true
     _texture_cache[key] = atlas_texture
     return atlas_texture
