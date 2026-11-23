@@ -77,7 +77,7 @@ func _process(delta: float) -> void:
     elif arcade_movement:
         global_position += arcade_direction * move_speed * delta
     elif not dragging and has_move_target:
-        global_position = global_position.move_toward(move_target, move_speed * delta
+        global_position = global_position.move_toward(move_target, move_speed * delta)
         if global_position.distance_to(move_target) <= 2.0:
             global_position = move_target
             has_move_target = false
