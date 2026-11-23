@@ -102,6 +102,16 @@ func _run() -> void:
     game.call("_apply_continuous_movement")
     game_hero._process(0.25)
     _assert_true(game_hero.global_position.x > start_position.x, "Continuous movement input moves the main plant")
+    game.set("_movement_keys", {"left": false, "right": false, "up": false, "down": false})
+    game.call("_apply_continuous_movement")
+    _assert_true(not game_hero.has_move_target, "Releasing the keyboard immediately cancels keyboard travel")
+    var released_position: Vector2 = game_hero.global_position
+    game_hero._process(0.2)
+    _assert_true(game_hero.global_position.distance_to(released_position) < 0.01, "Released movement does not coast toward the previous target")
+    game_hero.set_move_target(released_position + Vector2(30.0, 0.0))
+    game.call("_apply_continuous_movement")
+    _assert_true(game_hero.has_move_target, "Idle keyboard input does not cancel click-to-move")
+    game_hero.has_move_target = false
 
     game.call("_on_experience_collected", 8)
     _assert_true(bool(game.get("choice_open")), "Reaching the experience threshold opens a level-up choice")
@@ -110,6 +120,9 @@ func _run() -> void:
     _assert_true(title.text.contains("LEVEL UP") or title.text.contains("等级提升"), "Level-up overlay uses survivor wording")
     var choice_buttons: Array = game.get("choice_buttons") as Array
     _assert_true((choice_buttons[0] as Button).icon != null, "Level-up choices display pixel icons")
+    game.call("_select_choice", 99)
+    _assert_true(bool(game.get("choice_open")), "Invalid choice index cannot dismiss the level-up overlay")
+    _assert_equal_int(int(game.get("pending_level_ups")), 1, "Invalid choice index does not consume a level")
 
     game.call("_select_choice", 0)
     await process_frame
@@ -127,9 +140,21 @@ func _run() -> void:
     _assert_true(not spawned.elite and not spawned.boss, "Regular timed spawns are not forced elites")
     _assert_true(spawned.has_node("PixelSprite"), "Spawned enemies receive a pixel sprite")
 
+    var spatial_index: GreedEnemySpatialIndex = game.get_node("GreedEnemySpatialIndex") as GreedEnemySpatialIndex
+    _assert_true(spatial_index != null, "Arena has the enemy spatial index")
+    if spatial_index != null:
+        spatial_index._rebuild_cells()
+        _assert_true(spatial_index.query_radius(spawned.global_position, 10.0).has(spawned), "Spatial query finds nearby active enemies")
+        _assert_true(spatial_index.query_radius(spawned.global_position + Vector2(220.0, 0.0), 10.0).is_empty(), "Spatial query excludes distant enemies")
+
     var spawned_gem: SurvivorExperienceGem = game.call("_spawn_experience_gem", game_hero.global_position + Vector2(40.0, 0.0), 1) as SurvivorExperienceGem
     await process_frame
     _assert_true(spawned_gem.get_parent() == game.get_node("World/Runtime/Pickups"), "Experience gem enters the pickup container")
+
+    game.set("final_boss_spawned", true)
+    game.set("final_boss_defeated", true)
+    game.call("_process", 0.016)
+    _assert_true(bool(game.get("game_ended")), "Defeating the final boss ends the run without chasing leftover minions")
 
     game.queue_free()
     if is_instance_valid(hero):
