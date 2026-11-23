@@ -2,7 +2,7 @@
 
 A lightweight plant-themed survivors roguelite built with **Godot 4.7.1** and statically typed GDScript. The current work-in-progress art direction uses transparent toy-style sprites in place of code-drawn actors.
 
-The repository contains a playable 90-second survival slice with editor-visible scenes, automatic combat, floating familiars, experience pickups, seeded level-up choices, elite milestones, and a final boss.
+The repository contains a playable 90-second survival slice with editor-visible scenes, automatic combat, floating familiars, experience pickups, seeded level-up choices, elite milestones, a final boss, and locally persisted survivor run records.
 
 ## Current playable loop
 
@@ -12,7 +12,7 @@ The repository contains a playable 90-second survival slice with editor-visible 
 - Continuously escalating enemy pressure
 - Experience dew pickups and three-choice level-ups
 - Elite encounters at timed milestones and a final boss
-- Main menu, settings, localization, save data, and run results
+- Main menu, settings, localization, save data, garden journal with persistent run statistics, and run results
 - Windows, macOS Universal and Web player exports through GitHub Actions
 - Internal Linux export used only for CI startup validation
 
@@ -70,7 +70,7 @@ The current refactor uses `assets/toy/sprout_toy_atlas.png` (original transparen
 
 The extended test suite now covers a full 90-second logical run, reward selection, pausing and Boss victory. Export smoke tests open the actual survival scene; Windows, Linux and macOS checks run separately.
 
-**To diagnose an exit or crash**, collect the native `user://logs/godot.log` and `user://diagnostics/survivor-session.log` files. See [Refactor and crash diagnostics](docs/REFACTOR_AND_CRASH_DIAGNOSTICS.md) for Windows/macOS paths and an incremental migration plan. This development branch does not overwrite the previously released `v0.2.0`.
+**To diagnose an exit or crash**, collect the native `user://logs/godot.log` and `user://diagnostics/survivor-session.log` files. Completed run records are stored in the existing `user://savegame.json`, with the existing backup safeguard. See [Refactor and crash diagnostics](docs/REFACTOR_AND_CRASH_DIAGNOSTICS.md) for Windows/macOS paths and an incremental migration plan. The `v0.3.0` release introduces these changes while retaining previous save data.
 
 ## Development direction
 
