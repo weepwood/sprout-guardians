@@ -12,11 +12,13 @@ var save_path: String = DEFAULT_SAVE_PATH
 var backup_path: String = DEFAULT_BACKUP_PATH
 var data: Dictionary = {}
 var recovered_from_backup: bool = false
+var _primary_is_trusted: bool = false
 
 
 func load_game() -> Dictionary:
     recovered_from_backup = false
     var loaded: Variant = _read_json(save_path)
+    _primary_is_trusted = loaded is Dictionary
     if not (loaded is Dictionary):
         loaded = _read_json(backup_path)
         recovered_from_backup = loaded is Dictionary
@@ -36,14 +38,17 @@ func save_game() -> bool:
         data = _default_data()
     data["schema_version"] = CURRENT_VERSION
 
-    if FileAccess.file_exists(save_path):
-        var existing: String = FileAccess.get_file_as_string(save_path)
-        if not existing.is_empty():
-            _write_text(backup_path, existing)
+    # Never rotate an invalid primary over a valid recovery backup.
+    # A successful recovery first restores the primary, then normal rotation resumes.
+    if _primary_is_trusted and FileAccess.file_exists(save_path):
+        var existing: Variant = _read_json(save_path)
+        if existing is Dictionary and not (existing as Dictionary).is_empty():
+            _write_text(backup_path, FileAccess.get_file_as_string(save_path))
 
     var serialized: String = JSON.stringify(data, "  ", false)
     var success: bool = _write_text(save_path, serialized)
     if success:
+        _primary_is_trusted = true
         save_changed.emit()
     return success
 
