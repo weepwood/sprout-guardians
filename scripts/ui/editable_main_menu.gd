@@ -17,7 +17,12 @@ func _ready() -> void:
     _bind_existing_ui()
     _apply_locale()
     _apply_playful_design()
-    play_button.grab_focus()
+    if OS.get_cmdline_user_args().has("--ci-survivors-smoke"):
+        # The export-only smoke path opens the actual gameplay scene instead
+        # of testing only whether the main menu window can be created.
+        call_deferred("_open_level_select")
+    else:
+        play_button.grab_focus()
 
 
 func _draw() -> void:
