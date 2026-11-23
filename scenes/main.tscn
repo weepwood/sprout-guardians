@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/greed/survivor_pixel_game.gd" id="1_main"]
 [ext_resource type="Texture2D" path="res://assets/pixel/grass_tile.svg" id="2_grass"]
@@ -11,6 +11,13 @@
 [ext_resource type="Script" path="res://scripts/ui/pixel_skin_controller.gd" id="9_skin"]
 [ext_resource type="Script" path="res://scripts/greed/survivor_run_state.gd" id="10_state"]
 [ext_resource type="Script" path="res://scripts/greed/survivor_run_trace.gd" id="11_trace"]
+[ext_resource type="Script" path="res://scripts/greed/survivor_input_controller.gd" id="12_input"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/garden_meadow.svg" id="13_meadow"]
+[ext_resource type="Texture2D" path="res://assets/ui/leaf_sigil.svg" id="14_sigil"]
+[ext_resource type="Shader" path="res://assets/ui/glass_frosted.gdshader" id="15_glass"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hud_glass"]
+shader = ExtResource("15_glass")
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_heart"]
 atlas = ExtResource("4_effects")
@@ -85,7 +92,7 @@ script = ExtResource("1_main")
 offset_right = 640.0
 offset_bottom = 360.0
 mouse_filter = 2
-color = Color(0.63, 0.78, 0.62, 1)
+color = Color(0.41, 0.59, 0.46, 1)
 
 [node name="ArenaFrame" type="NinePatchRect" parent="World"]
 offset_left = 26.0
@@ -98,15 +105,16 @@ patch_margin_left = 8
 patch_margin_top = 8
 patch_margin_right = 8
 patch_margin_bottom = 8
+visible = false
 
 [node name="ArenaGround" type="TextureRect" parent="World"]
-offset_left = 34.0
-offset_top = 50.0
-offset_right = 606.0
-offset_bottom = 328.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 640.0
+offset_bottom = 360.0
 mouse_filter = 2
-texture_repeat = 2
-texture = ExtResource("2_grass")
+texture_repeat = 0
+texture = ExtResource("13_meadow")
 stretch_mode = 1
 
 [node name="ArenaTint" type="ColorRect" parent="World"]
@@ -116,8 +124,10 @@ offset_right = 606.0
 offset_bottom = 328.0
 mouse_filter = 2
 color = Color(0.93, 0.80, 0.56, 0.09)
+visible = false
 
 [node name="Decorations" type="Node2D" parent="World"]
+visible = false
 
 [node name="FlowerA" type="Polygon2D" parent="World/Decorations"]
 position = Vector2(94, 104)
@@ -178,6 +188,9 @@ position = Vector2(380, 192)
 
 [node name="Effects" type="Node2D" parent="World/Runtime"]
 
+[node name="RunInput" type="Node" parent="."]
+script = ExtResource("12_input")
+
 [node name="RunState" type="Node" parent="."]
 script = ExtResource("10_state")
 
@@ -194,99 +207,108 @@ layer = 10
 layout_mode = 3
 anchors_preset = 0
 
-[node name="Frame" type="Panel" parent="UI/TopHUD"]
-offset_left = 8.0
+[node name="Glass" type="ColorRect" parent="UI/TopHUD"]
+offset_left = 10.0
 offset_top = 4.0
-offset_right = 485.0
-offset_bottom = 39.0
+offset_right = 430.0
+offset_bottom = 38.0
+mouse_filter = 2
+material = SubResource("ShaderMaterial_hud_glass")
+color = Color(1, 1, 1, 1)
+
+[node name="Frame" type="Panel" parent="UI/TopHUD"]
+offset_left = 10.0
+offset_top = 4.0
+offset_right = 430.0
+offset_bottom = 38.0
 mouse_filter = 2
 
 [node name="HeartIcon" type="TextureRect" parent="UI/TopHUD"]
-offset_left = 14.0
-offset_top = 10.0
-offset_right = 35.0
-offset_bottom = 31.0
+offset_left = 19.0
+offset_top = 11.0
+offset_right = 36.0
+offset_bottom = 28.0
 mouse_filter = 2
 texture = SubResource("AtlasTexture_heart")
 expand_mode = 1
 stretch_mode = 5
 
 [node name="HealthLabel" type="Label" parent="UI/TopHUD"]
-offset_left = 39.0
-offset_top = 10.0
-offset_right = 117.0
-offset_bottom = 31.0
+offset_left = 40.0
+offset_top = 8.0
+offset_right = 105.0
+offset_bottom = 33.0
 theme_override_font_sizes/font_size = 14
 text = "12/12"
 vertical_alignment = 1
 
 [node name="LeafIcon" type="TextureRect" parent="UI/TopHUD"]
-offset_left = 122.0
-offset_top = 10.0
-offset_right = 143.0
-offset_bottom = 31.0
+offset_left = 110.0
+offset_top = 11.0
+offset_right = 127.0
+offset_bottom = 28.0
 mouse_filter = 2
 texture = SubResource("AtlasTexture_leaf")
 expand_mode = 1
 stretch_mode = 5
 
 [node name="LevelLabel" type="Label" parent="UI/TopHUD"]
-offset_left = 147.0
-offset_top = 10.0
-offset_right = 228.0
-offset_bottom = 31.0
+offset_left = 131.0
+offset_top = 8.0
+offset_right = 205.0
+offset_bottom = 33.0
 theme_override_font_sizes/font_size = 14
 text = "LV.1 XP"
 vertical_alignment = 1
 
 [node name="TimeLabel" type="Label" parent="UI/TopHUD"]
-offset_left = 232.0
-offset_top = 9.0
-offset_right = 348.0
-offset_bottom = 33.0
+offset_left = 211.0
+offset_top = 7.0
+offset_right = 308.0
+offset_bottom = 34.0
 theme_override_font_sizes/font_size = 16
 text = "TIME 00:00"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="SkullIcon" type="TextureRect" parent="UI/TopHUD"]
-offset_left = 352.0
-offset_top = 10.0
-offset_right = 372.0
-offset_bottom = 31.0
+offset_left = 314.0
+offset_top = 11.0
+offset_right = 331.0
+offset_bottom = 28.0
 mouse_filter = 2
 texture = SubResource("AtlasTexture_skull")
 expand_mode = 1
 stretch_mode = 5
 
 [node name="KillsLabel" type="Label" parent="UI/TopHUD"]
-offset_left = 378.0
-offset_top = 10.0
-offset_right = 480.0
-offset_bottom = 31.0
+offset_left = 335.0
+offset_top = 8.0
+offset_right = 427.0
+offset_bottom = 33.0
 theme_override_font_sizes/font_size = 14
 text = "0"
 vertical_alignment = 1
 
 [node name="LanguageButton" type="Button" parent="UI/TopHUD"]
-offset_left = 491.0
-offset_top = 7.0
-offset_right = 539.0
-offset_bottom = 35.0
+offset_left = 441.0
+offset_top = 6.0
+offset_right = 491.0
+offset_bottom = 36.0
 text = "中"
 
 [node name="SpeedButton" type="Button" parent="UI/TopHUD"]
-offset_left = 543.0
-offset_top = 7.0
-offset_right = 584.0
-offset_bottom = 35.0
+offset_left = 496.0
+offset_top = 6.0
+offset_right = 544.0
+offset_bottom = 36.0
 text = "1×"
 
 [node name="MenuButton" type="Button" parent="UI/TopHUD"]
-offset_left = 588.0
-offset_top = 7.0
-offset_right = 634.0
-offset_bottom = 35.0
+offset_left = 549.0
+offset_top = 6.0
+offset_right = 630.0
+offset_bottom = 36.0
 text = "MENU"
 
 [node name="BuildPanel" type="Panel" parent="UI"]
@@ -295,6 +317,7 @@ offset_top = 50.0
 offset_right = 201.0
 offset_bottom = 124.0
 mouse_filter = 2
+visible = false
 
 [node name="PowerLabel" type="Label" parent="UI"]
 offset_left = 15.0
@@ -305,39 +328,40 @@ mouse_filter = 2
 theme_override_font_sizes/font_size = 11
 text = "MAIN · Pea Shooter Lv.1\nPET · Spore Bloom Lv.1\nPET · Frost Petal Lv.1"
 autowrap_mode = 2
+visible = false
 
 [node name="ControlLabel" type="Label" parent="UI"]
-offset_left = 203.0
-offset_top = 52.0
-offset_right = 529.0
-offset_bottom = 90.0
+offset_left = 125.0
+offset_top = 44.0
+offset_right = 515.0
+offset_bottom = 66.0
 mouse_filter = 2
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 11
 text = "WASD / ARROWS TO MOVE · SPACE TO DASH\nATTACKS ARE AUTOMATIC"
 horizontal_alignment = 1
 autowrap_mode = 2
 
 [node name="StatusLabel" type="Label" parent="UI"]
-offset_left = 188.0
-offset_top = 305.0
-offset_right = 452.0
-offset_bottom = 328.0
+offset_left = 148.0
+offset_top = 309.0
+offset_right = 492.0
+offset_bottom = 329.0
 mouse_filter = 2
 theme_override_font_sizes/font_size = 12
 text = "SURVIVE AND GROW"
 horizontal_alignment = 1
 
 [node name="ExperienceFrame" type="Panel" parent="UI"]
-offset_left = 10.0
-offset_top = 331.0
-offset_right = 630.0
-offset_bottom = 358.0
+offset_left = 9.0
+offset_top = 337.0
+offset_right = 631.0
+offset_bottom = 357.0
 mouse_filter = 2
 
 [node name="ExperienceBar" type="ProgressBar" parent="UI"]
-offset_left = 25.0
-offset_top = 342.0
-offset_right = 616.0
+offset_left = 20.0
+offset_top = 344.0
+offset_right = 620.0
 offset_bottom = 351.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBox_progress_background")
@@ -359,61 +383,208 @@ color = Color(0.18, 0.14, 0.14, 0.80)
 
 [node name="Panel" type="Panel" parent="UI/ChoiceLayer"]
 visible = false
-offset_left = 82.0
-offset_top = 43.0
-offset_right = 558.0
-offset_bottom = 316.0
+offset_left = 25.0
+offset_top = 41.0
+offset_right = 615.0
+offset_bottom = 328.0
 theme_override_styles/panel = SubResource("StyleBox_choice_panel")
 
 [node name="Title" type="Label" parent="UI/ChoiceLayer"]
 visible = false
-offset_left = 104.0
-offset_top = 59.0
-offset_right = 536.0
-offset_bottom = 98.0
-theme_override_font_sizes/font_size = 19
+offset_left = 100.0
+offset_top = 55.0
+offset_right = 540.0
+offset_bottom = 99.0
+theme_override_font_sizes/font_size = 22
 text = "LEVEL UP · CHOOSE A GARDEN MUTATION"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="ChoiceButton0" type="Button" parent="UI/ChoiceLayer"]
 visible = false
-offset_left = 108.0
-offset_top = 109.0
-offset_right = 532.0
-offset_bottom = 161.0
+offset_left = 43.0
+offset_top = 112.0
+offset_right = 217.0
+offset_bottom = 291.0
 theme_override_font_sizes/font_size = 12
 theme_override_styles/normal = SubResource("StyleBox_button_normal")
 theme_override_styles/hover = SubResource("StyleBox_button_hover")
 theme_override_styles/focus = SubResource("StyleBox_button_hover")
-alignment = 0
-text = "LEAF VOLLEY"
+alignment = 1
+text = ""
+
+
+[node name="GiftIcon" type="TextureRect" parent="UI/ChoiceLayer/ChoiceButton0"]
+offset_left = 63.0
+offset_top = 14.0
+offset_right = 111.0
+offset_bottom = 62.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="GiftRarity" type="Label" parent="UI/ChoiceLayer/ChoiceButton0"]
+offset_left = 9.0
+offset_top = 67.0
+offset_right = 165.0
+offset_bottom = 86.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "COMMON"
+horizontal_alignment = 1
+
+[node name="GiftName" type="Label" parent="UI/ChoiceLayer/ChoiceButton0"]
+offset_left = 9.0
+offset_top = 90.0
+offset_right = 165.0
+offset_bottom = 114.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 14
+text = "GARDEN GIFT"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="GiftDetail" type="Label" parent="UI/ChoiceLayer/ChoiceButton0"]
+offset_left = 10.0
+offset_top = 121.0
+offset_right = 164.0
+offset_bottom = 166.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "A new garden mutation."
+horizontal_alignment = 1
+autowrap_mode = 2
 
 [node name="ChoiceButton1" type="Button" parent="UI/ChoiceLayer"]
 visible = false
-offset_left = 108.0
-offset_top = 170.0
-offset_right = 532.0
-offset_bottom = 222.0
+offset_left = 233.0
+offset_top = 112.0
+offset_right = 407.0
+offset_bottom = 291.0
 theme_override_font_sizes/font_size = 12
 theme_override_styles/normal = SubResource("StyleBox_button_normal")
 theme_override_styles/hover = SubResource("StyleBox_button_hover")
 theme_override_styles/focus = SubResource("StyleBox_button_hover")
-alignment = 0
-text = "BLOOM BURST"
+alignment = 1
+text = ""
+
+
+[node name="GiftIcon" type="TextureRect" parent="UI/ChoiceLayer/ChoiceButton1"]
+offset_left = 63.0
+offset_top = 14.0
+offset_right = 111.0
+offset_bottom = 62.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="GiftRarity" type="Label" parent="UI/ChoiceLayer/ChoiceButton1"]
+offset_left = 9.0
+offset_top = 67.0
+offset_right = 165.0
+offset_bottom = 86.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "COMMON"
+horizontal_alignment = 1
+
+[node name="GiftName" type="Label" parent="UI/ChoiceLayer/ChoiceButton1"]
+offset_left = 9.0
+offset_top = 90.0
+offset_right = 165.0
+offset_bottom = 114.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 14
+text = "GARDEN GIFT"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="GiftDetail" type="Label" parent="UI/ChoiceLayer/ChoiceButton1"]
+offset_left = 10.0
+offset_top = 121.0
+offset_right = 164.0
+offset_bottom = 166.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "A new garden mutation."
+horizontal_alignment = 1
+autowrap_mode = 2
 
 [node name="ChoiceButton2" type="Button" parent="UI/ChoiceLayer"]
 visible = false
-offset_left = 108.0
-offset_top = 231.0
-offset_right = 532.0
-offset_bottom = 283.0
+offset_left = 423.0
+offset_top = 112.0
+offset_right = 597.0
+offset_bottom = 291.0
 theme_override_font_sizes/font_size = 12
 theme_override_styles/normal = SubResource("StyleBox_button_normal")
 theme_override_styles/hover = SubResource("StyleBox_button_hover")
 theme_override_styles/focus = SubResource("StyleBox_button_hover")
-alignment = 0
-text = "VINE WRAP"
+alignment = 1
+text = ""
+
+
+[node name="GiftIcon" type="TextureRect" parent="UI/ChoiceLayer/ChoiceButton2"]
+offset_left = 63.0
+offset_top = 14.0
+offset_right = 111.0
+offset_bottom = 62.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="GiftRarity" type="Label" parent="UI/ChoiceLayer/ChoiceButton2"]
+offset_left = 9.0
+offset_top = 67.0
+offset_right = 165.0
+offset_bottom = 86.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "COMMON"
+horizontal_alignment = 1
+
+[node name="GiftName" type="Label" parent="UI/ChoiceLayer/ChoiceButton2"]
+offset_left = 9.0
+offset_top = 90.0
+offset_right = 165.0
+offset_bottom = 114.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 14
+text = "GARDEN GIFT"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="GiftDetail" type="Label" parent="UI/ChoiceLayer/ChoiceButton2"]
+offset_left = 10.0
+offset_top = 121.0
+offset_right = 164.0
+offset_bottom = 166.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "A new garden mutation."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="ChoiceSigil" type="TextureRect" parent="UI/ChoiceLayer"]
+visible = false
+offset_left = 58.0
+offset_top = 65.0
+offset_right = 87.0
+offset_bottom = 94.0
+mouse_filter = 2
+texture = ExtResource("14_sigil")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ChoiceHint" type="Label" parent="UI/ChoiceLayer"]
+visible = false
+offset_left = 130.0
+offset_top = 295.0
+offset_right = 510.0
+offset_bottom = 321.0
+theme_override_font_sizes/font_size = 12
+text = "← →  SELECT  ·  ENTER  CONFIRM"
+horizontal_alignment = 1
 
 [node name="ResultLabel" type="Label" parent="UI/ChoiceLayer"]
 visible = false
@@ -447,17 +618,17 @@ color = Color(0.18, 0.14, 0.14, 0.77)
 
 [node name="Panel" type="Panel" parent="UI/PauseLayer"]
 visible = false
-offset_left = 158.0
-offset_top = 67.0
-offset_right = 482.0
-offset_bottom = 293.0
+offset_left = 133.0
+offset_top = 43.0
+offset_right = 507.0
+offset_bottom = 321.0
 
 [node name="Title" type="Label" parent="UI/PauseLayer"]
 visible = false
-offset_left = 182.0
-offset_top = 88.0
-offset_right = 458.0
-offset_bottom = 132.0
+offset_left = 162.0
+offset_top = 56.0
+offset_right = 478.0
+offset_bottom = 94.0
 theme_override_font_sizes/font_size = 25
 text = "TAKE A LITTLE BREAK"
 horizontal_alignment = 1
@@ -465,26 +636,37 @@ vertical_alignment = 1
 
 [node name="Subtitle" type="Label" parent="UI/PauseLayer"]
 visible = false
-offset_left = 188.0
-offset_top = 135.0
-offset_right = 452.0
-offset_bottom = 161.0
+offset_left = 166.0
+offset_top = 92.0
+offset_right = 474.0
+offset_bottom = 112.0
 theme_override_font_sizes/font_size = 12
 text = "Your little garden will be right here."
 horizontal_alignment = 1
 
 [node name="ResumeButton" type="Button" parent="UI/PauseLayer"]
 visible = false
-offset_left = 193.0
-offset_top = 176.0
-offset_right = 447.0
-offset_bottom = 216.0
+offset_left = 179.0
+offset_top = 220.0
+offset_right = 461.0
+offset_bottom = 257.0
 text = "RESUME"
 
 [node name="LeaveButton" type="Button" parent="UI/PauseLayer"]
 visible = false
-offset_left = 193.0
-offset_top = 232.0
-offset_right = 447.0
-offset_bottom = 272.0
+offset_left = 179.0
+offset_top = 269.0
+offset_right = 461.0
+offset_bottom = 308.0
 text = "RETURN TO MENU"
+
+[node name="BuildSummary" type="Label" parent="UI/PauseLayer"]
+visible = false
+offset_left = 165.0
+offset_top = 123.0
+offset_right = 475.0
+offset_bottom = 208.0
+theme_override_font_sizes/font_size = 12
+text = "CURRENT GARDEN"
+horizontal_alignment = 1
+autowrap_mode = 2
