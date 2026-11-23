@@ -6,8 +6,8 @@ class_name SurvivorExperienceGem
 signal collected(amount: int)
 
 const PICKUP_RADIUS: float = 22.0
-const MAGNET_RADIUS: float = 96.0
-const MAGNET_SPEED: float = 240.0
+const MAGNET_RADIUS: float = 122.0
+const MAGNET_SPEED: float = 295.0
 const LIFE_SECONDS: float = 45.0
 
 var target: GreedHeroPlant

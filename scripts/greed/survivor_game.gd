@@ -23,6 +23,7 @@ func _ready() -> void:
     input_controller = get_node_or_null("RunInput") as SurvivorInputController
     if hero_plant != null and is_instance_valid(hero_plant):
         hero_plant.enable_arcade_movement()
+        hero_plant.movement_bounds = Rect2(17.0, 43.0, 606.0, 275.0)
     wave_index = 0
     wave_active = true
     spawn_remaining = -1

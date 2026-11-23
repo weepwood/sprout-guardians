@@ -36,6 +36,7 @@ var has_move_target: bool = false
 var move_target: Vector2 = Vector2.ZERO
 var arcade_movement: bool = false
 var arcade_direction: Vector2 = Vector2.ZERO
+var movement_bounds: Rect2 = ARENA_RECT
 var focus_target: GreedEnemy
 var dash_cooldown: float = 0.0
 var dash_time: float = 0.0
@@ -307,8 +308,8 @@ func _effective_interval() -> float:
 
 func _clamp_to_arena(position_value: Vector2) -> Vector2:
     return Vector2(
-        clampf(position_value.x, ARENA_RECT.position.x, ARENA_RECT.end.x),
-        clampf(position_value.y, ARENA_RECT.position.y, ARENA_RECT.end.y)
+        clampf(position_value.x, movement_bounds.position.x, movement_bounds.end.x),
+        clampf(position_value.y, movement_bounds.position.y, movement_bounds.end.y)
     )
 
 
