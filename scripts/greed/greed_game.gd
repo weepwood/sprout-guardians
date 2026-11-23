@@ -133,6 +133,10 @@ func _create_services() -> void:
     i18n = LocalizationService.new()
     i18n.set_locale(settings.locale, false)
 
+    var spatial_index: GreedEnemySpatialIndex = GreedEnemySpatialIndex.new()
+    spatial_index.name = "GreedEnemySpatialIndex"
+    add_child(spatial_index)
+
     audio_manager = ProceduralAudioManager.new()
     audio_manager.name = "GreedAudio"
     add_child(audio_manager)
