@@ -34,6 +34,8 @@ var selected: bool = false
 var dragging: bool = false
 var has_move_target: bool = false
 var move_target: Vector2 = Vector2.ZERO
+var arcade_movement: bool = false
+var arcade_direction: Vector2 = Vector2.ZERO
 var focus_target: GreedEnemy
 var dash_cooldown: float = 0.0
 var dash_time: float = 0.0
@@ -71,8 +73,10 @@ func _process(delta: float) -> void:
         if global_position.distance_to(dash_target) <= 1.0 or dash_time <= 0.0:
             global_position = dash_target
             dash_time = 0.0
+    elif arcade_movement:
+        global_position += arcade_direction * move_speed * delta
     elif not dragging and has_move_target:
-        global_position = global_position.move_toward(move_target, move_speed * delta)
+        global_position = global_position.move_toward(move_target, move_speed * delta
         if global_position.distance_to(move_target) <= 2.0:
             global_position = move_target
             has_move_target = false
@@ -93,6 +97,8 @@ func _process(delta: float) -> void:
 
 
 func request_dash(position_value: Vector2) -> bool:
+    if arcade_movement:
+        return false
     if dash_cooldown > 0.0 or dragging:
         return false
     var offset: Vector2 = _clamp_to_arena(position_value) - global_position
@@ -160,8 +166,25 @@ func end_drag(position_value: Vector2) -> void:
     queue_redraw()
 
 
+func enable_arcade_movement() -> void:
+    arcade_movement = true
+    move_speed = 186.0
+    has_move_target = false
+    dragging = false
+    dash_time = 0.0
+    arcade_direction = Vector2.ZERO
+    clear_focus_target()
+    set_selected(false)
+
+
+func set_arcade_direction(value: Vector2) -> void:
+    if not arcade_movement:
+        return
+    arcade_direction = value.limit_length(1.0)
+
+
 func set_move_target(position_value: Vector2) -> void:
-    if is_dashing():
+    if arcade_movement or is_dashing():
         return
     set_selected(true)
     move_target = _clamp_to_arena(position_value)
