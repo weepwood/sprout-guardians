@@ -1,0 +1,75 @@
+name: Publish v0.2.0 from verified artifacts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/release-v0.2.0-verified.txt"
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: sprout-guardians-v0.2.0-fallback
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish previously verified Windows and macOS packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out release notes
+        uses: actions/checkout@v4
+
+      - name: Verify the successful cross-platform build and download its artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SOURCE_RUN=45184588732
+          RESULT="$(gh run view "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
+          if [ "$RESULT" != "success" ]; then
+            echo "The source build is not successful: $RESULT"
+            exit 1
+          fi
+          mkdir -p dist/windows dist/macos release
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" \
+            --name "SproutGuardians-e24d7dd27e3dba4cc8992b703b9505a5341a2539" \
+            --dir dist/windows
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" \
+            --name "SproutGuardians-macOS-e24d7dd27e3dba4cc8992b703b9505a5341a2539" \
+            --dir dist/macos
+          for file in \
+            SproutGuardians-Windows-x86_64.zip \
+            SproutGuardians-Web.zip \
+            SproutGuardians-macOS-Universal.zip \
+            SproutGuardians-macOS-Universal.dmg; do
+            source_file="$(find dist -type f -name "$file" -print -quit)"
+            test -n "$source_file"
+            test -s "$source_file"
+            cp "$source_file" "release/$file"
+          done
+          sha256sum release/*
+
+      - name: Publish v0.2.0 if it has not been created
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v0.2.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v0.2.0 already exists; no duplicate release created"
+            exit 0
+          fi
+          gh release create v0.2.0 \
+            release/SproutGuardians-Windows-x86_64.zip \
+            release/SproutGuardians-macOS-Universal.zip \
+            release/SproutGuardians-macOS-Universal.dmg \
+            release/SproutGuardians-Web.zip \
+            --target "$GITHUB_SHA" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Sprout Guardians v0.2.0" \
+            --notes-file docs/releases/v0.2.0.md
