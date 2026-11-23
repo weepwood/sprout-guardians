@@ -269,8 +269,13 @@ func _finish_run(victory: bool) -> void:
     wave_active = false
     _set_combat_frozen(true)
     choice_backdrop.visible = true
+    choice_panel.visible = true
+    choice_title.visible = false
+    for button: Button in choice_buttons:
+        button.visible = false
     result_label.visible = true
     result_button.visible = true
+    result_button.grab_focus()
     if victory:
         result_label.text = _t("DAWN BLOOMED\nLV.%d · %d DEFEATED", "黎明开花\n等级 %d · 击败 %d") % [hero_plant.level, enemies_defeated]
         audio_manager.play_event(&"victory")

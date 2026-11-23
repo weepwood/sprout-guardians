@@ -1,0 +1,107 @@
+extends RefCounted
+class_name PlayfulUITheme
+
+# Original garden-toy visual language: warm surfaces, soft borders and a clear
+# keyboard/gamepad focus state. No third-party game UI assets are bundled.
+const INK: Color = Color("#433a36")
+const MUTED: Color = Color("#826c60")
+const CREAM: Color = Color("#fff9ed")
+const PAPER: Color = Color("#fff1d9")
+const YELLOW: Color = Color("#ffd36d")
+const CORAL: Color = Color("#ffa49a")
+const MINT: Color = Color("#b8e5b6")
+const OUTLINE: Color = Color("#c5a88a")
+const FOCUS: Color = Color("#7657ae")
+
+
+static func surface(color_value: Color = CREAM, radius: int = 16, border: Color = OUTLINE, shadow: int = 3) -> StyleBoxFlat:
+    var style: StyleBoxFlat = StyleBoxFlat.new()
+    style.bg_color = color_value
+    style.border_color = border
+    style.set_border_width_all(2)
+    style.set_corner_radius_all(radius)
+    style.shadow_color = Color(0.22, 0.15, 0.11, 0.25)
+    style.shadow_size = shadow
+    style.shadow_offset = Vector2(0.0, 2.0)
+    style.content_margin_left = 8.0
+    style.content_margin_right = 8.0
+    style.content_margin_top = 3.0
+    style.content_margin_bottom = 3.0
+    return style
+
+
+static func apply_panel(panel: Panel, kind: String = "paper") -> void:
+    var fill: Color = CREAM
+    if kind == "hud":
+        fill = Color("#fff3da")
+    elif kind == "modal":
+        fill = Color("#fff7e8")
+    elif kind == "mint":
+        fill = MINT
+    panel.add_theme_stylebox_override("panel", surface(fill, 17 if kind == "modal" else 14))
+
+
+static func apply_button(button: Button, kind: String = "soft", animate: bool = true) -> void:
+    var normal_color: Color = PAPER
+    var hover_color: Color = Color("#fff9ec")
+    var down_color: Color = Color("#e7d5b7")
+    if kind == "primary":
+        normal_color = YELLOW
+        hover_color = Color("#ffe18d")
+        down_color = Color("#f3b946")
+    elif kind == "mint":
+        normal_color = MINT
+        hover_color = Color("#d3f2cf")
+        down_color = Color("#91ce9a")
+    elif kind == "coral":
+        normal_color = CORAL
+        hover_color = Color("#ffc5ba")
+        down_color = Color("#eb8881")
+    elif kind == "tiny":
+        normal_color = Color("#fff7e8")
+        hover_color = Color("#ffe5b4")
+        down_color = Color("#f5cc88")
+
+    var normal: StyleBoxFlat = surface(normal_color, 13 if kind != "tiny" else 10)
+    var hover: StyleBoxFlat = surface(hover_color, 13 if kind != "tiny" else 10, Color("#a68769"), 4)
+    var pressed: StyleBoxFlat = surface(down_color, 13 if kind != "tiny" else 10, OUTLINE, 1)
+    var focused: StyleBoxFlat = surface(Color(1.0, 1.0, 1.0, 0.0), 13 if kind != "tiny" else 10, FOCUS, 0)
+    focused.set_border_width_all(3)
+    button.add_theme_stylebox_override("normal", normal)
+    button.add_theme_stylebox_override("hover", hover)
+    button.add_theme_stylebox_override("pressed", pressed)
+    button.add_theme_stylebox_override("hover_pressed", pressed)
+    button.add_theme_stylebox_override("focus", focused)
+    for state_name: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+        button.add_theme_color_override(state_name, INK)
+    button.focus_mode = Control.FOCUS_ALL
+    button.pivot_offset = button.size * 0.5
+    if animate and not button.has_meta("playful_motion_bound"):
+        button.set_meta("playful_motion_bound", true)
+        button.mouse_entered.connect(_animate_button.bind(button, true))
+        button.mouse_exited.connect(_animate_button.bind(button, false))
+        button.focus_entered.connect(_animate_button.bind(button, true))
+        button.focus_exited.connect(_animate_button.bind(button, false))
+
+
+static func apply_label(label: Label, color_value: Color = INK) -> void:
+    label.add_theme_color_override("font_color", color_value)
+
+
+static func apply_progress(bar: ProgressBar) -> void:
+    var backing: StyleBoxFlat = surface(Color("#f5e3ca"), 7, Color("#ccb397"), 0)
+    backing.set_border_width_all(1)
+    var filling: StyleBoxFlat = surface(Color("#80d1a0"), 7, Color("#4e9e79"), 0)
+    filling.set_border_width_all(1)
+    bar.add_theme_stylebox_override("background", backing)
+    bar.add_theme_stylebox_override("fill", filling)
+
+
+static func _animate_button(button: Button, active: bool) -> void:
+    if not is_instance_valid(button) or not button.is_inside_tree():
+        return
+    var should_raise: bool = active or button.has_focus()
+    var tween: Tween = button.create_tween()
+    tween.set_trans(Tween.TRANS_BACK)
+    tween.set_ease(Tween.EASE_OUT)
+    tween.tween_property(button, "scale", Vector2.ONE * (1.035 if should_raise else 1.0), 0.15)

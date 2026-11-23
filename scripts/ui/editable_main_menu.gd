@@ -16,6 +16,8 @@ func _ready() -> void:
 
     _bind_existing_ui()
     _apply_locale()
+    _apply_playful_design()
+    play_button.grab_focus()
 
 
 func _draw() -> void:
@@ -56,3 +58,23 @@ func _bind_existing_ui() -> void:
 
     quit_button.visible = not OS.has_feature("web")
     _set_settings_controls_visible(false)
+
+
+func _apply_playful_design() -> void:
+    PlayfulUITheme.apply_panel(get_node("World/MenuFrame") as Panel, "paper")
+    PlayfulUITheme.apply_panel(settings_panel, "modal")
+    for label: Label in [
+        title_label, subtitle_label, progress_label, settings_title_label
+    ]:
+        PlayfulUITheme.apply_label(label)
+    PlayfulUITheme.apply_button(play_button, "primary")
+    PlayfulUITheme.apply_button(settings_button, "mint")
+    PlayfulUITheme.apply_button(collection_button)
+    PlayfulUITheme.apply_button(quit_button, "coral")
+    PlayfulUITheme.apply_button(language_button, "tiny")
+    PlayfulUITheme.apply_button(settings_language_button)
+    PlayfulUITheme.apply_button(music_button)
+    PlayfulUITheme.apply_button(sfx_button)
+    PlayfulUITheme.apply_button(fullscreen_button)
+    PlayfulUITheme.apply_button(flash_button)
+    PlayfulUITheme.apply_button(settings_back_button, "primary")

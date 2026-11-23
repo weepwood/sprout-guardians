@@ -42,8 +42,12 @@ The base viewport is 640×360 and uses integer scaling with nearest-neighbor tex
 
 - `SproutGuardians-Windows-x86_64.zip`
 - `SproutGuardians-Web.zip`
+- `SproutGuardians-macOS-Universal.zip`
+- `SproutGuardians-macOS-Universal.dmg`
 
-The workflow also creates a private Linux smoke build, launches it headlessly to detect runtime failures, and excludes it from player-facing artifacts.
+The workflow also exports a **macOS Universal 2 app** (Intel + Apple Silicon), ad-hoc signs and smoke-tests it on a native macOS runner, and packages it as **.zip** and **.dmg**. A private Linux smoke build is excluded from player-facing artifacts.
+
+macOS downloads are not Apple-notarized yet; Gatekeeper may require explicit approval on first launch. See [Desktop packages & UI design](docs/DESKTOP_PACKAGING_AND_UI.md) for installation and verification details.
 
 Every pull request and push to `main` produces downloadable workflow artifacts. Pushing a tag such as `v0.1.0` creates a GitHub Release containing the Windows and Web packages.
 

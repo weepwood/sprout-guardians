@@ -44,6 +44,9 @@ func _test_main_menu() -> void:
     var title: Label = menu.get("title_label") as Label
     var expected_title: String = "芽芽守卫战" if localization.locale_code == "zh_CN" else "SPROUT GUARDIANS"
     _assert_equal_string(title.text, expected_title, "Main-menu title updates immediately")
+    var menu_button_style: StyleBoxFlat = (menu.get("play_button") as Button).get_theme_stylebox("normal") as StyleBoxFlat
+    _assert_true(menu_button_style != null and menu_button_style.corner_radius_top_left >= 12, "Play button uses rounded toy-like theme")
+    _assert_true((menu.get("play_button") as Button).has_focus(), "Main menu starts with a keyboard-friendly focused action")
 
     menu.call("_show_settings")
     await process_frame
@@ -99,6 +102,10 @@ func _test_survivor_scene() -> void:
     _assert_true(hero != null, "Survivor run starts with one controllable main plant")
     _assert_equal_int(familiars.size(), 2, "Secondary plants remain two floating familiars")
     _assert_true(bool(game.get("wave_active")), "Time-survival combat starts immediately")
+    var top_frame: Panel = game.get_node("UI/TopHUD/Frame") as Panel
+    _assert_true(top_frame != null, "Survivors HUD has a themeable top capsule")
+    var hud_style: StyleBoxFlat = top_frame.get_theme_stylebox("panel") as StyleBoxFlat
+    _assert_true(hud_style != null and hud_style.corner_radius_top_left >= 10, "Survivors HUD uses rounded cards")
     _assert_true(game.find_child("StartWaveButton", true, false) == null, "Survivor mode has no manual wave control")
     _assert_true(game.find_child("UpgradeButton", true, false) == null, "Survivor mode has no manual upgrade control")
     _assert_true(game.find_child("BuildBar", true, false) == null, "Survivor mode has no tower build bar")
@@ -108,6 +115,17 @@ func _test_survivor_scene() -> void:
     game.call("_apply_continuous_movement")
     hero._process(0.25)
     _assert_true(hero.global_position.x > initial_position.x, "WASD-style continuous movement moves the main plant")
+
+    game.call("_toggle_pause")
+    _assert_true(bool(game.get("pause_open")), "Pause opens the new cozy overlay")
+    _assert_true((game.get("pause_panel") as Panel).visible, "Pause dialog becomes visible")
+    _assert_true(hero.process_mode == Node.PROCESS_MODE_DISABLED, "Pausing freezes the main plant")
+    var timer_before_pause: float = float(game.get("survival_elapsed"))
+    game.call("_process", 0.5)
+    _assert_true(absf(float(game.get("survival_elapsed")) - timer_before_pause) < 0.001, "Survival timer stops while paused")
+    game.call("_toggle_pause")
+    _assert_true(not bool(game.get("pause_open")), "Resume closes the pause overlay")
+    _assert_true(hero.process_mode != Node.PROCESS_MODE_DISABLED, "Resume restores gameplay processing")
 
     game.set("survival_spawn_timer", 0.0)
     await process_frame
@@ -128,6 +146,8 @@ func _test_survivor_scene() -> void:
     var choice_buttons: Array = game.get("choice_buttons") as Array
     _assert_true(bool(game.get("choice_open")), "Collecting enough experience opens a level-up choice")
     _assert_true(choice_panel.visible, "Level-up overlay is visible")
+    var reward_style: StyleBoxFlat = choice_panel.get_theme_stylebox("panel") as StyleBoxFlat
+    _assert_true(reward_style != null and reward_style.corner_radius_top_left >= 14, "Reward card shares the warm rounded style")
     _assert_equal_int(choice_buttons.size(), 3, "Level-up presents three mutation choices")
     _assert_control_inside_viewport(choice_panel, "Level-up reward panel stays inside viewport")
 
