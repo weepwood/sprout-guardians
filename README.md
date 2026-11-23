@@ -67,7 +67,7 @@ project.godot       Godot 4.7 project configuration
 - Add rule-changing weapons, familiar synergies, enemy archetypes, and multi-stage bosses
 - Improve controller, touch, accessibility, performance, and long-run balance
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/ASSET_PACK_SELECTION.md](docs/ASSET_PACK_SELECTION.md) for the implementation and asset plans.
+See [docs/ROADMAP.md](docs/ROADMAP.md), [docs/ASSET_PACK_SELECTION.md](docs/ASSET_PACK_SELECTION.md), and the [November 2026 engineering audit](docs/ENGINEERING_AUDIT_2026_11.md) for current limitations, completed hardening, and prioritized next steps.
 
 ## License
 
