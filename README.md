@@ -9,7 +9,7 @@ The repository contains a playable 90-second survival slice with editor-visible 
 - WASD / arrow-key movement with automatic attacks; mouse controls menus and level-up cards only
 - Automatic main-plant and familiar attacks
 - Physical projectiles, critical feedback, hit stop, knockback, splash, slow, and status effects
-- Continuously escalating enemy pressure
+- Continuously escalating enemy pressure, safer edge spawning, short elite/Boss warnings and kill-combo feedback
 - Experience dew pickups and three-choice level-ups
 - Elite encounters at timed milestones and a final boss
 - Main menu, settings, localization, save data, garden journal with persistent run statistics, and run results
@@ -62,7 +62,7 @@ export_presets.cfg  Windows, Linux smoke, and Web export presets
 project.godot       Godot 4.7 project configuration
 ```
 
-## Classic-survivors controls and HUD (v0.4 development)
+## Classic-survivors controls and HUD (v0.4.0)
 
 - Arcade-style directional movement is polled every frame by `SurvivorInputController`, independent from UI clicks.
 - The hero uses direct velocity and stops on input release; weapons automatically target nearby enemies.
@@ -71,7 +71,7 @@ project.godot       Godot 4.7 project configuration
 - Details move to the pause panel; temporary on-screen instructions fade and the expanded gameplay area stays unobstructed.
 - Background SVG and frosted-glass shader are kept as standalone assets in `assets/backgrounds/` and `assets/ui/`.
 
-See [Survivors v0.4 implementation](docs/SURVIVORS_V04.md) for editable scene paths, controls, trade-offs and test coverage. The prior `v0.3.0` release remains unchanged until this work is reviewed and merged.
+See [Survivors v0.4 implementation](docs/SURVIVORS_V04.md) for editable scene paths, controls, trade-offs and test coverage. The `v0.4.0` release request is guarded by full multi-platform validation.
 
 ## Work-in-progress art and runtime architecture
 

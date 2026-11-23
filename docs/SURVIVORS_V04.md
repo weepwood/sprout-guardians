@@ -28,13 +28,13 @@ Hero movement is integrated each frame with direct directional velocity, rather 
 - `scripts/greed/survivor_game.gd` — timed spawns, XP and directional movement
 
 ## HUD and reward structure
-The combat area extends near the full 640 × 360 viewport, with gameplay restricted below the 38px HUD and above the 337px XP indicator. Build statistics move to the pause dialog. Transient keyboard tips disappear after ~4 seconds. Enemy/Boss alerts remain optional.
+The combat area extends near the full 640 × 360 viewport, with gameplay restricted below the 38px HUD and above the 337px XP indicator. Build statistics move to the pause dialog. Transient keyboard tips disappear after ~4 seconds. Elite/Boss spawn warnings appear briefly in a translucent strip and expire automatically. Consecutive defeats briefly display a combo indicator. Spawn points are distributed along the map edges with a safe-distance check to avoid unfair immediate contact.
 
 Upgrade choice is a horizontal row of three ~174×179px cards, each containing a texture icon, rarity, title and concise text. Supports mouse clicks and keyboard navigation, and is editable without modifying drawing code.
 
 ## Tests
 - `tests/run_survivor_tests.gd` checks immediate directional movement, release-to-stop, disabled click travel/dash and reward navigation
-- `tests/run_ui_smoke.gd` confirms background coverage, no blocking build panel and horizontal card layout
+- `tests/run_ui_smoke.gd` confirms background coverage, no blocking build panel, horizontal card layout, timed warnings and safe edge spawning
 - `tests/run_session_integration.gd` covers the full run lifecycle including pause, XP and Boss endgame
 - Existing Windows, macOS, Linux smoke test and Web export pipeline are preserved
 
