@@ -21,7 +21,7 @@ z_index = -2
 position = Vector2(0, -3)
 texture = SubResource("AtlasTexture_enemy")
 z_index = 4
-texture_filter = 1
+texture_filter = 2
 scale = Vector2(0.4, 0.4)
 
 [node name="HealthAnchor" type="Marker2D" parent="."]

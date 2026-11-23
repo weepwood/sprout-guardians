@@ -21,7 +21,7 @@ z_index = -2
 position = Vector2(0, -2)
 texture = SubResource("AtlasTexture_familiar")
 z_index = 5
-texture_filter = 1
+texture_filter = 2
 scale = Vector2(0.39, 0.39)
 
 [node name="Muzzle" type="Marker2D" parent="."]

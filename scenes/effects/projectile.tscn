@@ -14,5 +14,5 @@ render_with_sprite = true
 [node name="PixelSprite" type="Sprite2D" parent="."]
 texture = SubResource("AtlasTexture_projectile")
 z_index = 7
-texture_filter = 1
+texture_filter = 2
 scale = Vector2(0.24, 0.24)

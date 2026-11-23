@@ -47,7 +47,9 @@ func _skin_existing_nodes() -> void:
 
 
 func _on_node_added(node: Node) -> void:
-    call_deferred("_skin_node", node)
+    # Do not schedule deferred work for every HUD Label and pooled visual.
+    if node is GreedHeroPlant or node is GreedPlant or node is GreedEnemy or node is GreedProjectile or node is SurvivorExperienceGem:
+        call_deferred("_skin_node", node)
 
 
 func _skin_node(node: Node) -> void:

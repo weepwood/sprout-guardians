@@ -19,5 +19,5 @@ color = Color(0.45, 0.85, 1, 1)
 [node name="PixelSprite" type="Sprite2D" parent="."]
 texture = SubResource("AtlasTexture_gem")
 z_index = 6
-texture_filter = 1
+texture_filter = 2
 scale = Vector2(0.23, 0.23)

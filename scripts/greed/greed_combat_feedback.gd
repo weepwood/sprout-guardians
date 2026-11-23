@@ -7,6 +7,8 @@ const CRITICAL_NUMBER_LIFETIME: float = 0.72
 const HIT_STOP_TIME_SCALE: float = 0.08
 
 var _entries: Array[Dictionary] = []
+var _available_labels: Array[Label] = []
+var _label_pool: Array[Label] = []
 var _hit_stop_end_msec: int = 0
 var _restore_time_scale: float = 1.0
 
@@ -61,6 +63,10 @@ func get_active_number_count() -> int:
     return _entries.size()
 
 
+func get_allocated_label_count() -> int:
+    return _label_pool.size()
+
+
 func _process(delta: float) -> void:
     if _hit_stop_end_msec > 0 and Time.get_ticks_msec() >= _hit_stop_end_msec:
         cancel_hit_stop()
@@ -72,8 +78,9 @@ func _process(delta: float) -> void:
         var remaining: float = float(entry["remaining"]) - unscaled_delta
         var maximum: float = maxf(0.01, float(entry["maximum"]))
         if label == null or remaining <= 0.0:
-            if label != null:
+            if label != null and is_instance_valid(label):
                 label.visible = false
+                _available_labels.append(label)
             _entries.remove_at(index)
             continue
         label.position += Vector2(entry["velocity"]) * unscaled_delta
@@ -83,16 +90,27 @@ func _process(delta: float) -> void:
 
 
 func _acquire_label() -> Label:
-    if _entries.size() >= MAX_DAMAGE_NUMBERS:
-        var recycled: Dictionary = _entries.pop_front()
-        var recycled_label: Label = recycled["label"] as Label
-        if recycled_label != null:
-            return recycled_label
+    while not _available_labels.is_empty():
+        var available: Label = _available_labels.pop_back()
+        if available != null and is_instance_valid(available):
+            return available
 
-    var label: Label = Label.new()
-    label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    add_child(label)
-    return label
+    if _label_pool.size() < MAX_DAMAGE_NUMBERS:
+        var label: Label = Label.new()
+        label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        add_child(label)
+        _label_pool.append(label)
+        return label
+
+    # The visual budget is saturated. Recycle the oldest active entry rather
+    # than allocating indefinitely (previously a long-session memory leak).
+    if not _entries.is_empty():
+        var oldest: Dictionary = _entries.pop_front()
+        var reused: Label = oldest["label"] as Label
+        if reused != null and is_instance_valid(reused):
+            return reused
+
+    return _label_pool[0]
 
 
 func _exit_tree() -> void:
