@@ -24,6 +24,7 @@ var _slow_time: float = 0.0
 var _slow_multiplier: float = 1.0
 var _knock_velocity: Vector2 = Vector2.ZERO
 var _finished: bool = false
+var _spatial_index: GreedEnemySpatialIndex
 
 
 func configure(core: GreedCore, config: Dictionary, health_scale: float = 1.0) -> void:
@@ -38,6 +39,7 @@ func configure(core: GreedCore, config: Dictionary, health_scale: float = 1.0) -
     body_size = 28.0 if boss else (18.0 if elite else 12.0)
     body_color = Color("a557d4") if boss else (Color("e39b4b") if elite else Color("dd6d63"))
     priority_targeted = false
+    _spatial_index = get_tree().get_first_node_in_group("greed_enemy_spatial_index") as GreedEnemySpatialIndex
     _slow_time = 0.0
     _slow_multiplier = 1.0
     add_to_group("greed_enemies")
@@ -47,6 +49,9 @@ func configure(core: GreedCore, config: Dictionary, health_scale: float = 1.0) -
 func _process(delta: float) -> void:
     if _finished:
         return
+    var was_flashing: bool = _flash_time > 0.0
+    var was_squashed: bool = _squash_time > 0.0
+    var was_slowed: bool = _slow_time > 0.0
     _contact_cooldown = maxf(0.0, _contact_cooldown - delta)
     _flash_time = maxf(0.0, _flash_time - delta)
     _squash_time = maxf(0.0, _squash_time - delta)
@@ -55,9 +60,10 @@ func _process(delta: float) -> void:
         _slow_multiplier = 1.0
     _knock_velocity = _knock_velocity.move_toward(Vector2.ZERO, 420.0 * delta)
     global_position += _knock_velocity * delta
+    if was_flashing != (_flash_time > 0.0) or was_squashed != (_squash_time > 0.0) or was_slowed != (_slow_time > 0.0):
+        queue_redraw()
 
     if target == null or not is_instance_valid(target) or target.health <= 0:
-        queue_redraw()
         return
 
     var to_core: Vector2 = target.global_position - global_position
@@ -72,8 +78,7 @@ func _process(delta: float) -> void:
         core_contact.emit(self, contact_damage)
         _knock_velocity = -to_core.normalized() * 150.0
         _squash_time = 0.12
-
-    queue_redraw()
+        queue_redraw()
 
 
 func take_damage(amount: float, critical: bool = false) -> float:
@@ -127,9 +132,17 @@ func _die() -> void:
 
 func _separation_force() -> Vector2:
     var result: Vector2 = Vector2.ZERO
-    for node: Node in get_tree().get_nodes_in_group("greed_enemies"):
-        var other: GreedEnemy = node as GreedEnemy
-        if other == null or other == self or not is_instance_valid(other):
+    var neighbors: Array[GreedEnemy] = []
+    if _spatial_index != null and is_instance_valid(_spatial_index):
+        neighbors = _spatial_index.query_radius(global_position, 32.0)
+    else:
+        # Standalone enemy tests and legacy scenes have no spatial service.
+        for node: Node in get_tree().get_nodes_in_group("greed_enemies"):
+            var other_enemy: GreedEnemy = node as GreedEnemy
+            if other_enemy != null and is_instance_valid(other_enemy):
+                neighbors.append(other_enemy)
+    for other: GreedEnemy in neighbors:
+        if other == self or other.is_queued_for_deletion():
             continue
         var offset: Vector2 = global_position - other.global_position
         var distance_value: float = offset.length()
