@@ -228,8 +228,9 @@ jobs:
           timeout 20s build/linux-smoke/SproutGuardians.x86_64 \
             --headless \
             --audio-driver Dummy \
-            --quit-after 30 \
+            --quit-after 120 \
             --verbose \
+            -- --ci-survivors-smoke \
             > build/diagnostics/exported-runtime.log 2>&1
           RUNTIME_STATUS=$?
           set -e
@@ -316,7 +317,7 @@ jobs:
           [[ " $ARCHS " == *" x86_64 "* ]]
           codesign --force --deep --sign - --timestamp=none "$APP_PATH"
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-          "$EXECUTABLE_PATH" --headless --audio-driver Dummy --quit-after 30 \
+          "$EXECUTABLE_PATH" --headless --audio-driver Dummy --quit-after 120 -- --ci-survivors-smoke \
             > build/macos/macos-smoke.log 2>&1
           cat build/macos/macos-smoke.log
           if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance" build/macos/macos-smoke.log; then
@@ -338,10 +339,56 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+
+  windows-smoke:
+    name: Smoke-test Windows desktop executable
+    needs: export
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download Windows player build
+        uses: actions/download-artifact@v4
+        with:
+          name: SproutGuardians-${{ github.sha }}
+          path: dist
+
+      - name: Launch exported game and enter survival
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          Expand-Archive -Path "dist/SproutGuardians-Windows-x86_64.zip" -DestinationPath "build/windows" -Force
+          $exe = (Resolve-Path "build/windows/SproutGuardians.exe").Path
+          $log = Join-Path $env:RUNNER_TEMP "sprout-windows.log"
+          $args = "--headless --audio-driver Dummy --quit-after 120 --log-file `"$log`" -- --ci-survivors-smoke"
+          $proc = Start-Process -FilePath $exe -ArgumentList $args -PassThru -Wait
+          if ($proc.ExitCode -ne 0) {
+            throw "Windows exported game exited with code $($proc.ExitCode)"
+          }
+          if (-not (Test-Path $log)) {
+            throw "Windows exported game did not create a runtime log"
+          }
+          Get-Content $log
+          $errors = Select-String -Path $log -Pattern "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance"
+          if ($errors) {
+            throw "Windows exported game contains script/runtime errors"
+          }
+
+      - name: Upload Windows runtime log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SproutGuardians-Windows-smoke-${{ github.sha }}
+          path: ${{ runner.temp }}/sprout-windows.log
+          if-no-files-found: warn
+          retention-days: 14
+
   release:
     name: Publish validated release
     if: startsWith(github.ref, 'refs/tags/v') || (github.ref == 'refs/heads/main' && github.event_name == 'push')
-    needs: [export, macos-package]
+    needs: [export, macos-package, windows-smoke]
     runs-on: ubuntu-latest
     permissions:
       contents: write

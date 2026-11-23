@@ -40,13 +40,13 @@ func _run_full_session(iteration: int) -> void:
     if feedback != null:
         for index: int in range(280):
             feedback.spawn_damage(Vector2(180.0, 140.0), float(7 + index), index % 5 == 0)
-        _check(feedback.get_active_number_count() <= feedback.MAX_DAMAGE_NUMBERS, "Active damage labels stay bounded")
-        _check(feedback.get_allocated_label_count() <= feedback.MAX_DAMAGE_NUMBERS, "Damage label pool prevents unlimited allocation")
+        _check(feedback.get_active_number_count() <= GreedCombatFeedback.MAX_DAMAGE_NUMBERS, "Active damage labels stay bounded")
+        _check(feedback.get_allocated_label_count() <= GreedCombatFeedback.MAX_DAMAGE_NUMBERS, "Damage label pool prevents unlimited allocation")
         feedback._process(2.0)
         _check(feedback.get_active_number_count() == 0, "Expired damage labels are returned to pool")
         for index: int in range(200):
             feedback.spawn_damage(Vector2(200.0, 140.0), float(10 + index), false)
-        _check(feedback.get_allocated_label_count() <= feedback.MAX_DAMAGE_NUMBERS, "Damage label pool reuses previous allocations")
+        _check(feedback.get_allocated_label_count() <= GreedCombatFeedback.MAX_DAMAGE_NUMBERS, "Damage label pool reuses previous allocations")
         feedback._process(2.0)
     var impact: PixelImpactSystem = game.get("impact_system") as PixelImpactSystem
     if impact != null:
