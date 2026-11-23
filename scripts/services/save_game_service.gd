@@ -102,6 +102,44 @@ func mark_encyclopedia_seen(entry_id: StringName) -> void:
     save_game()
 
 
+func record_survivor_result(victory: bool, elapsed_seconds: float, reached_level: int, kills: int) -> bool:
+    _ensure_loaded()
+    var statistics: Dictionary = get_survivor_statistics()
+    statistics["total_runs"] = int(statistics["total_runs"]) + 1
+    if victory:
+        statistics["total_victories"] = int(statistics["total_victories"]) + 1
+    else:
+        statistics["total_defeats"] = int(statistics["total_defeats"]) + 1
+    var safe_duration: int = maxi(0, int(floor(elapsed_seconds))) if is_finite(elapsed_seconds) else 0
+    statistics["best_survival_seconds"] = maxi(int(statistics["best_survival_seconds"]), safe_duration)
+    statistics["best_kills"] = maxi(int(statistics["best_kills"]), maxi(0, kills))
+    statistics["best_level"] = maxi(int(statistics["best_level"]), maxi(1, reached_level))
+    statistics["last_run"] = {
+        "victory": victory,
+        "survival_seconds": safe_duration,
+        "level": maxi(1, reached_level),
+        "kills": maxi(0, kills),
+    }
+    data["statistics"] = statistics
+    return save_game()
+
+
+func get_survivor_statistics() -> Dictionary:
+    _ensure_loaded()
+    var raw: Dictionary = data.get("statistics", {}) as Dictionary
+    var result: Dictionary = {
+        "total_runs": maxi(0, int(raw.get("total_runs", 0))),
+        "total_victories": maxi(0, int(raw.get("total_victories", 0))),
+        "total_defeats": maxi(0, int(raw.get("total_defeats", 0))),
+        "best_survival_seconds": maxi(0, int(raw.get("best_survival_seconds", 0))),
+        "best_kills": maxi(0, int(raw.get("best_kills", 0))),
+        "best_level": maxi(1, int(raw.get("best_level", 1))),
+    }
+    var last: Variant = raw.get("last_run", {})
+    result["last_run"] = (last as Dictionary).duplicate(true) if last is Dictionary else {}
+    return result
+
+
 func reset_progress() -> bool:
     data = _default_data()
     recovered_from_backup = false
