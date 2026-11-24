@@ -731,10 +731,14 @@ func _setup_map() -> void:
     ground.texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR
     ground.stretch_mode = TextureRect.STRETCH_TILE
     ground.modulate = Color(0.73, 0.78, 0.75, 1.0)
+    ground.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
     hero_plant.movement_bounds = SurvivorMaps.movement_bounds(map_id)
     if map_id == SurvivorMaps.CLASSIC:
         return
     ground.texture = PixelArtAssets.biome_texture(map_id)
+    if ground.texture.get_width() >= 512:
+        # Use the native high-res tile, not a magnified 32px thumbnail.
+        ground.modulate = Color.WHITE
     var backdrop: ColorRect = get_node("World/Backdrop") as ColorRect
     backdrop.size = SurvivorMaps.world_size(map_id)
     var offset: Vector2 = SurvivorMaps.EXPLORATION_SIZE * 0.5 - hero_plant.global_position

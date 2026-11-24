@@ -8,6 +8,8 @@ func _initialize() -> void:
 func _run() -> void:
     SurvivorBalance.selected_difficulty = 1
     var scene: PackedScene = load("res://scenes/main.tscn") as PackedScene
+    var initial_nodes: int = int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+    var initial_memory: int = OS.get_static_memory_usage()
     var game: Node = scene.instantiate()
     game.set("simulation_mode", true)
     game.set("endless_mode", true)
@@ -51,5 +53,9 @@ func _run() -> void:
     print("ENDURANCE_SUMMARY ", JSON.stringify(result))
     var valid: bool = elapsed >= 600.0 and int(projectiles["idle"]) <= 128 and int(pickups["idle"]) <= 128 and int(game.get("bosses_defeated")) >= 2
     game.queue_free()
-    await process_frame
-    quit(0 if valid else 1)
+    for _i: int in range(12):
+        await process_frame
+    var residual_nodes: int = int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) - initial_nodes
+    var remaining: int = get_nodes_in_group("greed_enemies").size() + get_nodes_in_group("greed_projectiles").size() + get_nodes_in_group("survivor_experience").size()
+    print("ENDURANCE_TEARDOWN ", JSON.stringify({"initial_nodes": initial_nodes, "residual_nodes": residual_nodes, "memory_delta": OS.get_static_memory_usage() - initial_memory, "remaining_combat_nodes": remaining}))
+    quit(0 if valid and remaining == 0 else 1)

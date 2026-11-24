@@ -136,6 +136,13 @@ static func biome_texture(map_id: int) -> Texture2D:
     var i: int = clampi(map_id - 1, 0, 2)
     var key: StringName = StringName("biome_%d" % i)
     if not _texture_cache.has(key):
+        var names: Array[String] = ["forest", "night", "swamp"]
+        var path: String = "res://assets/generated/terrain/%s.png" % names[i]
+        if ResourceLoader.exists(path):
+            var terrain: Texture2D = load(path) as Texture2D
+            if terrain != null:
+                _texture_cache[key] = terrain
+                return terrain
         var source: Image = BIOME_ATLAS.get_image()
         var tile: Image = source.get_region(Rect2i(i * 32, 0, 32, 32))
         tile.resize(128, 128, Image.INTERPOLATE_BILINEAR)

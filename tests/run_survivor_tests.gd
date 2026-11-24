@@ -18,6 +18,7 @@ func _run() -> void:
     _test_animation_and_boss_profiles()
     _test_pool_pressure()
     _test_endurance_rules()
+    _test_visual_theme()
     for mutation_id: StringName in SurvivorArsenal.IDS:
         var icon: AtlasTexture = PixelArtAssets.blessing_icon(mutation_id) as AtlasTexture
         _assert_true(icon != null and icon.atlas == PixelArtAssets.MUTATION_ATLAS and icon.region.size == Vector2(56, 56), "Generated mutation PNG region: %s" % mutation_id)
@@ -406,3 +407,10 @@ func _test_endurance_rules() -> void:
     for i: int in range(9):
         var tile: AtlasTexture = PixelArtAssets.biome_actor(i) as AtlasTexture
         _assert_true(tile != null and tile.region.size == Vector2(48, 48), "Generated biome art region resolves")
+
+
+func _test_visual_theme() -> void:
+    _assert_true(PlayfulUITheme.INK.get_luminance() < 0.15, "Reward text uses dark ink")
+    _assert_true(PlayfulUITheme.CREAM.get_luminance() > 0.8, "Reward surface remains light")
+    _assert_equal_int(SurvivorSpawnDirector.swamp_ranged_cap(1), 4, "Swamp caps simultaneous ranged enemies")
+    _assert_true(SurvivorEndurance.enemy_multiplier(900.0) < 3.2, "Endurance growth softens after six waves")

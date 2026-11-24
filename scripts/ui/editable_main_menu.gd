@@ -321,6 +321,9 @@ func _refresh_archive_tabs() -> void:
     var stats: Dictionary = save_game.get_survivor_statistics()
     _archive_entry(progress_page, null, _t("Seeds %d · Wins %d · Events %d · Evolutions %d", "种子 %d · 胜利 %d · 事件 %d · 进化 %d") % [progress["seeds"], stats["total_victories"], progress["events"], progress["evolutions"]])
     _archive_entry(progress_page, null, _t("Endless best: %ds / %d bosses · Daily: %s", "无尽纪录：%d秒 / %d首领 · 每日：%s") % [progress["endless_best_seconds"], progress["endless_best_bosses"], progress["last_daily_win"]])
+    var map_wins: Array = progress["map_wins"]
+    for map_index: int in range(4):
+        _archive_entry(progress_page, null, _t(SurvivorMaps.NAMES_EN[map_index], SurvivorMaps.NAMES_ZH[map_index]) + " · " + _t("%d wins", "%d 次胜利") % int(map_wins[map_index]))
     for key: String in ["health_rank", "damage_rank", "speed_rank"]:
         var rank: int = int(progress[key])
         var upgrade: Button = Button.new()
@@ -330,8 +333,8 @@ func _refresh_archive_tabs() -> void:
         PlayfulUITheme.apply_button(upgrade, "soft", false)
         progress_page.add_child(upgrade)
     _archive_entry(progress_page, null, _t("Achievements", "成就") + "\n" + _t("First victory: ", "初次胜利：") + str(mini(1, int(stats["total_victories"]))) + "/1 · " + _t("Events: ", "事件达人：") + str(mini(5, int(progress["events"]))) + "/5 · " + _t("Evolutions: ", "进化大师：") + str(mini(3, int(progress["evolutions"]))) + "/3")
-    var achievement_keys: Array[String] = ["first_win", "events", "evolutions", "challenge", "endurance", "map_mastery"]
-    var achievement_names: Array[String] = [_t("First victory", "首次胜利"), _t("Five events", "完成五个事件"), _t("Three evolutions", "三次进化"), _t("Challenge victory", "挑战胜利"), _t("Two endless bosses", "无尽击败两位首领"), _t("All maps unlocked", "全部地图解锁")]
+    var achievement_keys: Array[String] = ["first_win", "events", "evolutions", "challenge", "endurance", "map_mastery", "all_map_wins", "endurance_300"]
+    var achievement_names: Array[String] = [_t("First victory", "首次胜利"), _t("Five events", "完成五个事件"), _t("Three evolutions", "三次进化"), _t("Challenge victory", "挑战胜利"), _t("Two endless bosses", "无尽击败两位首领"), _t("All maps unlocked", "全部地图解锁"), _t("Win on every map", "四张地图均通关"), _t("Survive 300s in endless", "无尽生存300秒")]
     for i: int in range(achievement_keys.size()):
         var claim: Button = Button.new()
         claim.text = achievement_names[i] + " · +15"
