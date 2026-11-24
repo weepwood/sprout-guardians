@@ -9,6 +9,8 @@ const EXPERIENCE_GEM_SCENE: PackedScene = preload("res://scenes/effects/experien
 
 var experience_bar: ProgressBar
 var pixel_skin: PixelSkinController
+var map_id: int = SurvivorMaps.CLASSIC
+var world_camera: Camera2D
 var run_state: SurvivorRunState
 var run_trace: SurvivorRunTrace
 var run_save: SaveGameService
@@ -51,6 +53,7 @@ var familiar_spawn_sprout: Marker2D
 
 func _ready() -> void:
     super._ready()
+    _setup_map()
     pixel_skin = get_node("PixelSkinController") as PixelSkinController
     run_state = get_node("RunState") as SurvivorRunState
     run_trace = get_node("RunTrace") as SurvivorRunTrace
@@ -237,7 +240,8 @@ func _spawn_configured_enemy(config: Dictionary, position_value: Vector2) -> Gre
 # Spawn along the visible playfield boundary, keeping a minimum fair distance
 # from the hero. This also avoids the former fixed four-door bottleneck.
 func _survivor_spawn_edge() -> Vector2:
-    var area: Rect2 = Rect2(12.0, 44.0, 616.0, 275.0)
+    var camera_center: Vector2 = world_camera.get_screen_center_position() if is_instance_valid(world_camera) else Vector2(320.0, 180.0)
+    var area: Rect2 = SurvivorMaps.spawn_area(map_id, camera_center)
     var options: Array[Vector2] = []
     for index: int in range(4):
         match index:
@@ -634,6 +638,33 @@ func _spawn_minions(position_value: Vector2, count: int) -> void:
     for i: int in range(mini(count, available)):
         var offset: Vector2 = Vector2.from_angle(TAU * float(i) / float(count)) * 24.0
         var config: Dictionary = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, 5)
-        var minion: GreedEnemy = _spawn_configured_enemy(config, position_value + offset)
+        var minion: GreedEnemy = _spawn_configured_enemy(config, SurvivorMaps.clamp_spawn(map_id, position_value + offset))
         if choice_open or pause_open:
             minion.process_mode = Node.PROCESS_MODE_DISABLED
+
+
+func _setup_map() -> void:
+    # Keep the existing benchmark arena independent of menu settings.
+    map_id = SurvivorMaps.CLASSIC if simulation_mode else SurvivorMaps.selected
+    var ground: TextureRect = get_node("World/ArenaGround") as TextureRect
+    ground.size = SurvivorMaps.world_size(map_id)
+    ground.texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR
+    ground.stretch_mode = TextureRect.STRETCH_TILE
+    hero_plant.movement_bounds = SurvivorMaps.movement_bounds(map_id)
+    if map_id != SurvivorMaps.EXPLORATION:
+        return
+    var backdrop: ColorRect = get_node("World/Backdrop") as ColorRect
+    backdrop.size = SurvivorMaps.world_size(map_id)
+    var offset: Vector2 = SurvivorMaps.EXPLORATION_SIZE * 0.5 - hero_plant.global_position
+    hero_plant.global_position += offset
+    for familiar: GreedPlant in plants:
+        familiar.global_position += offset
+    world_camera = Camera2D.new()
+    world_camera.name = "WorldCamera"
+    world_camera.limit_left = 0
+    world_camera.limit_top = 0
+    world_camera.limit_right = int(SurvivorMaps.EXPLORATION_SIZE.x)
+    world_camera.limit_bottom = int(SurvivorMaps.EXPLORATION_SIZE.y)
+    hero_plant.add_child(world_camera)
+    world_camera.make_current()
+    world_camera.force_update_scroll()

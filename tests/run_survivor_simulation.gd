@@ -10,6 +10,7 @@ func _initialize() -> void:
 func _run() -> void:
     var scene: PackedScene = load("res://scenes/main.tscn") as PackedScene
     var difficulties: Array[int] = [0, 1, 2]
+    var equal_rewards: bool = OS.get_cmdline_user_args().has("--equal-rewards")
     for argument: String in OS.get_cmdline_user_args():
         if argument.begins_with("--simulation-difficulty="):
             difficulties = [clampi(int(argument.get_slice("=", 1)), 0, 2)]
@@ -31,12 +32,12 @@ func _run() -> void:
                     var choices: Array = game.get("_current_choices")
                     if not choices.is_empty():
                         var choice: int = 0
-                        if policy == 1:
+                        if policy == 1 and not equal_rewards:
                             for i: int in range(choices.size()):
                                 if SurvivorArsenal.IDS.has(choices[i].id):
                                     choice = i
                                     break
-                        elif policy == 2:
+                        elif policy == 2 and not equal_rewards:
                             choice = posmod(frame + seed_value, choices.size())
                         game.call("_select_choice", choice)
                 var direction: Vector2 = Vector2.ZERO
@@ -54,6 +55,7 @@ func _run() -> void:
                 game.set("simulation_direction", direction)
                 await process_frame
             var result: Dictionary = {"seed": seed_value, "difficulty": difficulty, "policy": policy, "victory": bool(game.get("final_boss_defeated")), "elapsed": game.get("survival_elapsed"), "first_upgrade": game.get("first_upgrade_seconds"), "kills": game.get("enemies_defeated"), "level": hero.level, "damage": game.get("total_damage"), "peak_enemies": game.get("peak_enemies")}
+            result["reward_policy"] = "first" if equal_rewards else "mixed"
             result["outcome"] = "victory" if result["victory"] else ("defeat" if bool(game.get("game_ended")) else "timeout")
             if float(result["elapsed"]) <= 0.0 or int(result["kills"]) < 0:
                 push_error("Invalid simulation result: %s" % str(result))

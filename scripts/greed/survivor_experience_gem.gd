@@ -8,6 +8,8 @@ signal collected(amount: int)
 const PICKUP_RADIUS: float = 22.0
 const MAGNET_RADIUS: float = 122.0
 const MAGNET_SPEED: float = 295.0
+const STARTER_MAGNET_RADIUS: float = 340.0
+const MATURE_MAGNET_RADIUS: float = 220.0
 const LIFE_SECONDS: float = 45.0
 
 var target: GreedHeroPlant
@@ -47,8 +49,9 @@ func _process(delta: float) -> void:
         collected.emit(experience_value)
         _retire()
         return
-    if distance_value <= MAGNET_RADIUS:
-        var speed_scale: float = lerpf(0.55, 1.35, 1.0 - distance_value / MAGNET_RADIUS)
+    var radius: float = effective_magnet_radius(age, target.level)
+    if distance_value <= radius:
+        var speed_scale: float = lerpf(0.55, 1.35, 1.0 - distance_value / radius)
         global_position = global_position.move_toward(target.global_position, MAGNET_SPEED * speed_scale * delta)
     if not render_with_sprite:
         queue_redraw()
@@ -71,3 +74,11 @@ func _retire() -> void:
         recycle.call(self)
     else:
         queue_free()
+
+
+# Nearby drops remain immediately collectible; older drops gradually reach
+# new players without forcing a specific movement pattern.
+static func effective_magnet_radius(age_seconds: float, hero_level: int) -> float:
+    var ceiling: float = STARTER_MAGNET_RADIUS if hero_level <= 1 else MATURE_MAGNET_RADIUS
+    var ramp_time: float = 3.0 if hero_level <= 1 else 6.0
+    return lerpf(MAGNET_RADIUS, ceiling, clampf(age_seconds / ramp_time, 0.0, 1.0))
