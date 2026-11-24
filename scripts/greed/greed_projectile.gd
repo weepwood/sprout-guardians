@@ -5,6 +5,8 @@ class_name GreedProjectile
 
 signal impacted(projectile: GreedProjectile, target: GreedEnemy, damage: float, critical: bool)
 signal expired(projectile: GreedProjectile)
+signal damage_applied(source: String, actual_damage: float)
+var source_kind: String = "arsenal"
 
 var target: GreedEnemy
 var damage: float = 1.0
@@ -98,7 +100,9 @@ func _impact() -> void:
 func _damage_enemy(enemy: GreedEnemy, multiplier: float) -> void:
     if enemy == null or not is_instance_valid(enemy):
         return
-    enemy.take_damage(damage * multiplier, critical)
+    var actual: float = enemy.take_damage(damage * multiplier, critical)
+    if actual > 0.0:
+        damage_applied.emit(source_kind, actual)
     if is_instance_valid(enemy):
         enemy.apply_knockback(source_position, knockback_force)
         if slow_ratio > 0.0:

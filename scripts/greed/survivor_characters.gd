@@ -13,12 +13,14 @@ static func configuration(index: int) -> Dictionary:
     config["character_index"] = safe_index
     config["name_en"] = EN[safe_index]
     config["name_zh"] = ZH[safe_index]
+    config["move_speed"] = 155.0
+    config["health_bonus"] = 0
     if safe_index == 1:
-        config.merge({"damage": 23.0, "interval": 0.55, "splash_radius": 28.0, "color_hex": "ffce63"}, true)
+        config.merge({"damage": 23.0, "interval": 0.55, "splash_radius": 34.0, "color_hex": "ffce63", "move_speed": 140.0, "health_bonus": 2}, true)
     elif safe_index == 2:
-        config.merge({"damage": 13.0, "interval": 0.36, "slow_ratio": 0.3, "color_hex": "80dfff"}, true)
+        config.merge({"damage": 13.0, "interval": 0.36, "slow_ratio": 0.4, "color_hex": "80dfff", "move_speed": 170.0, "health_bonus": -1}, true)
     elif safe_index == 3:
-        config.merge({"damage": 16.0, "interval": 0.48, "splash_radius": 20.0, "slow_ratio": 0.18, "color_hex": "c9a7ed"}, true)
+        config.merge({"damage": 16.0, "interval": 0.48, "splash_radius": 20.0, "slow_ratio": 0.22, "color_hex": "c9a7ed", "move_speed": 155.0, "health_bonus": 1}, true)
     return config
 
 

@@ -12,6 +12,10 @@ var pixel_skin: PixelSkinController
 var map_id: int = SurvivorMaps.CLASSIC
 var world_camera: Camera2D
 var simulation_character: int = 0
+var damage_by_source: Dictionary = {"hero": 0.0, "familiar": 0.0, "arsenal": 0.0}
+var damage_received: int = 0
+var _previous_health: int = -1
+var _projectile_source: String = "arsenal"
 var simulation_map: int = 0
 var map_events: SurvivorMapEvents = SurvivorMapEvents.new()
 var event_rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -121,16 +125,20 @@ func _create_arena() -> void:
     if not simulation_mode and run_save != null and not run_save.is_survivor_character_unlocked(character_id):
         character_id = 0
     var hero_config: Dictionary = SurvivorCharacters.configuration(character_id)
+    hero_plant.max_health = maxi(1, hero_plant.max_health + int(hero_config.get("health_bonus", 0)))
+    hero_plant.health = hero_plant.max_health
     if not simulation_mode and run_save != null:
         var progress: Dictionary = run_save.get_survivor_progress()
         hero_config["damage"] = float(hero_config["damage"]) * (1.0 + 0.05 * int(progress["damage_rank"]))
         hero_plant.max_health += int(progress["health_rank"])
         hero_plant.health = hero_plant.max_health
     hero_plant.configure(hero_config, blessing_system)
+    _previous_health = hero_plant.health
+    hero_plant.health_changed.connect(_track_health)
     hero_plant.health_changed.connect(_on_core_health_changed)
     hero_plant.defeated.connect(_on_core_defeated)
     hero_plant.fired.connect(_on_hero_fired)
-    hero_plant.projectile_requested.connect(_on_projectile_requested)
+    hero_plant.projectile_requested.connect(_on_attributed_projectile.bind("hero"))
     hero_plant.dash_started.connect(_on_hero_dash_started)
     core = hero_plant
 
@@ -148,7 +156,7 @@ func _create_arena() -> void:
         familiar.configure(hero_plant, familiar_config, familiar_index, blessing_system)
         familiar.set_focus_source(hero_plant)
         familiar.fired.connect(_on_plant_fired)
-        familiar.projectile_requested.connect(_on_projectile_requested)
+        familiar.projectile_requested.connect(_on_attributed_projectile.bind("familiar"))
         plants.append(familiar)
 
 
@@ -223,6 +231,9 @@ func _on_projectile_requested(
         return
     var projectile: GreedProjectile = projectile_pool.acquire(PROJECTILE_SCENE, projectiles_container) as GreedProjectile
     projectile.recycle = projectile_pool.release
+    projectile.source_kind = _projectile_source
+    if not projectile.damage_applied.is_connected(_record_source_damage):
+        projectile.damage_applied.connect(_record_source_damage)
     projectile.configure(
         origin,
         target,
@@ -239,6 +250,8 @@ func _on_projectile_requested(
 
 func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
     var config: Dictionary = spawn_director.next_enemy(survival_elapsed, force_elite, force_boss)
+    if force_boss:
+        config = SurvivorBiomeBoss.apply(config, map_id)
     if map_id != SurvivorMaps.CLASSIC and not force_elite and not force_boss and survival_elapsed >= 25.0 and event_rng.randf() < 0.18:
         config = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, SurvivorMaps.exclusive_variant(map_id))
         config["biome_enemy"] = map_id
@@ -383,7 +396,7 @@ func _process(delta: float) -> void:
     if not old_second and second_elite_spawned:
         _show_event_banner(_t("ELITE SWARM!", "精英怪群来袭！"))
     if not old_boss and final_boss_spawned:
-        _show_event_banner(_t("FINAL BLOOM BEAST!", "最终花兽出现！"), 3.8)
+        _show_event_banner(_t(SurvivorBiomeBoss.EN[map_id], SurvivorBiomeBoss.ZH[map_id]), 3.8)
 
     if not choice_open and not game_ended:
         _warning_seconds = maxf(0.0, _warning_seconds - delta)
@@ -570,7 +583,7 @@ func _finish_run(victory: bool) -> void:
     if run_save != null and not simulation_mode:
         var saved: bool = run_save.record_survivor_result(
             victory, survival_elapsed, hero_plant.level if is_instance_valid(hero_plant) else 1, enemies_defeated,
-            {"damage": total_damage, "xp": total_xp, "map": map_id, "difficulty": difficulty, "evolutions": evolution_announced.size(), "events": map_events.completed}
+            {"damage": total_damage, "xp": total_xp, "map": map_id, "difficulty": difficulty, "evolutions": evolution_announced.size(), "events": map_events.completed, "source_damage": damage_by_source.duplicate(), "damage_received": damage_received}
         )
         if run_trace != null:
             run_trace.note("run_recorded", "saved=%s victory=%s kills=%d" % [saved, victory, enemies_defeated])
@@ -797,3 +810,19 @@ func _spawn_bitmap_effect(position_value: Vector2, texture_value: Texture2D, tin
 
 func _on_skill_resolved(position_value: Vector2, boss_attack: bool) -> void:
     _spawn_bitmap_effect(position_value, PixelArtAssets.blessing_icon(&"mutation_spore"), Color("e3a0f8") if boss_attack else Color("f5b1cc"))
+
+
+func _on_attributed_projectile(origin: Vector2, target: GreedEnemy, damage: float, critical: bool, speed: float, splash_radius: float, slow_ratio: float, knockback_force: float, color: Color, source: String) -> void:
+    _projectile_source = source
+    _on_projectile_requested(origin, target, damage, critical, speed, splash_radius, slow_ratio, knockback_force, color)
+    _projectile_source = "arsenal"
+
+
+func _record_source_damage(source: String, actual_damage: float) -> void:
+    damage_by_source[source] = float(damage_by_source.get(source, 0.0)) + actual_damage
+
+
+func _track_health(current: int, _maximum: int) -> void:
+    if _previous_health >= 0 and current < _previous_health:
+        damage_received += _previous_health - current
+    _previous_health = current

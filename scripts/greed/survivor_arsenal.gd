@@ -41,6 +41,7 @@ func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: C
         if timers[i] > 0.0:
             continue
         var evolution: bool = evolved(blessings, i)
+        var resonance: bool = evolution and evolved(blessings, EVOLUTION_PARTNERS[i])
         var radius: float = 76.0 if i == 4 else 250.0
         var targets: Array[GreedEnemy] = []
         for node: Node in GreedEnemySpatialIndex.combat_candidates(hero.get_tree(), hero.global_position, radius):
@@ -67,6 +68,12 @@ func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: C
         if evolution and i == 3:
             splash = 44.0
         var damage: float = (8.0 + rank * 5.0) * (1.45 if evolution else 1.0)
+        if resonance:
+            damage *= 1.15
+            if splash > 0.0:
+                splash += 8.0
+            if slow > 0.0:
+                slow = minf(0.8, slow + 0.08)
         for shot: int in range(mini(count, targets.size())):
             fire.call(hero.global_position, targets[shot], damage, false, 400.0, splash, slow, 38.0, COLORS[i])
-        timers[i] = (7.0 if i == 3 else 1.8) * (0.8 if evolution else 1.0)
+        timers[i] = (7.0 if i == 3 else 1.8) * (0.8 if evolution else 1.0) * (0.90 if resonance else 1.0)
