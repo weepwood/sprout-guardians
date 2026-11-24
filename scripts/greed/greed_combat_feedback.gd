@@ -22,7 +22,8 @@ func _ready() -> void:
 func spawn_damage(position_value: Vector2, damage: float, critical: bool) -> void:
     var label: Label = _acquire_label()
     label.text = ("CRIT %d" if critical else "%d") % int(round(damage))
-    label.position = position_value + Vector2(-18.0 if critical else -10.0, -20.0)
+    var world_position: Vector2 = position_value + Vector2(-18.0 if critical else -10.0, -20.0)
+    label.position = get_viewport().get_canvas_transform() * world_position
     label.size = Vector2(72.0 if critical else 44.0, 22.0)
     label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     label.add_theme_font_size_override("font_size", 16 if critical else 12)
@@ -33,6 +34,7 @@ func spawn_damage(position_value: Vector2, damage: float, critical: bool) -> voi
 
     _entries.append({
         "label": label,
+        "world_position": world_position,
         "velocity": Vector2(0.0, -34.0 if critical else -24.0),
         "remaining": CRITICAL_NUMBER_LIFETIME if critical else NORMAL_NUMBER_LIFETIME,
         "maximum": CRITICAL_NUMBER_LIFETIME if critical else NORMAL_NUMBER_LIFETIME,
@@ -84,7 +86,9 @@ func _process(delta: float) -> void:
                 _available_labels.append(label)
             _entries.remove_at(index)
             continue
-        label.position += Vector2(entry["velocity"]) * unscaled_delta
+        var world_position: Vector2 = Vector2(entry["world_position"]) + Vector2(entry["velocity"]) * unscaled_delta
+        entry["world_position"] = world_position
+        label.position = get_viewport().get_canvas_transform() * world_position
         label.modulate.a = clampf(remaining / maximum, 0.0, 1.0)
         entry["remaining"] = remaining
         _entries[index] = entry

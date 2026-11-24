@@ -127,12 +127,12 @@ func _spawn_time_milestones() -> void:
     if survival_elapsed >= FIRST_ELITE_TIME and not first_elite_spawned:
         first_elite_spawned = true
         _spawn_survivor_enemy(true, false)
-        impact_system.spawn_reward(ARENA_RECT.get_center(), Color("f0a34d"))
+        impact_system.spawn_reward(hero_plant.global_position, Color("f0a34d"))
     if survival_elapsed >= SECOND_ELITE_TIME and not second_elite_spawned:
         second_elite_spawned = true
         _spawn_survivor_enemy(true, false)
         _spawn_survivor_enemy(true, false)
-        impact_system.spawn_reward(ARENA_RECT.get_center(), Color("df72ef"))
+        impact_system.spawn_reward(hero_plant.global_position, Color("df72ef"))
 
 
 func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:

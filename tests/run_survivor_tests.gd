@@ -13,6 +13,7 @@ func _run() -> void:
     _test_pool()
     _test_arsenal()
     _test_character_profiles()
+    _test_growth_assist()
     for mutation_id: StringName in SurvivorArsenal.IDS:
         var icon: AtlasTexture = PixelArtAssets.blessing_icon(mutation_id) as AtlasTexture
         _assert_true(icon != null and icon.atlas == PixelArtAssets.MUTATION_ATLAS and icon.region.size == Vector2(56, 56), "Generated mutation PNG region: %s" % mutation_id)
@@ -66,6 +67,7 @@ func _run() -> void:
     menu.queue_free()
     await process_frame
 
+    SurvivorMaps.selected = SurvivorMaps.CLASSIC
     var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
     _assert_true(packed != null, "Default plant survivors scene loads")
     var game: Node = packed.instantiate()
@@ -199,6 +201,21 @@ func _run() -> void:
     _assert_true(bool(game.get("game_ended")), "Defeating the final boss ends the run without chasing leftover minions")
 
     game.queue_free()
+    await process_frame
+    SurvivorMaps.selected = SurvivorMaps.EXPLORATION
+    var exploration: Node = packed.instantiate()
+    root.add_child(exploration)
+    await process_frame
+    var explorer: GreedHeroPlant = exploration.get("hero_plant") as GreedHeroPlant
+    _assert_true(explorer.movement_bounds == SurvivorMaps.movement_bounds(1), "Exploration uses expanded movement bounds")
+    _assert_true(exploration.get("world_camera") is Camera2D, "Exploration activates follow camera")
+    _assert_true((exploration.get_node("World/ArenaGround") as TextureRect).size == Vector2(1280, 720), "Generated terrain fills expanded world")
+    for point_index: int in range(20):
+        var spawn: Vector2 = exploration.call("_survivor_spawn_edge")
+        _assert_true(Rect2(Vector2.ZERO, SurvivorMaps.EXPLORATION_SIZE).has_point(spawn), "Exploration enemy spawns stay inside world")
+        _assert_true(spawn.distance_to(explorer.global_position) >= 112.0, "Exploration spawn remains fair")
+    exploration.queue_free()
+    SurvivorMaps.selected = SurvivorMaps.CLASSIC
     if is_instance_valid(hero):
         hero.queue_free()
     await process_frame
@@ -290,3 +307,9 @@ func _test_character_profiles() -> void:
         _assert_true(PixelArtAssets.generated_actor(i) != null, "Generated character art resolves")
     _assert_true(float(SurvivorCharacters.configuration(1)["splash_radius"]) > 0.0, "Sunflower has area shots")
     _assert_true(float(SurvivorCharacters.configuration(2)["slow_ratio"]) > 0.0, "Frostflower has slow shots")
+
+
+func _test_growth_assist() -> void:
+    _assert_true(is_equal_approx(SurvivorExperienceGem.effective_magnet_radius(0.0, 1), 122.0), "Fresh gems retain immediate pickup radius")
+    _assert_true(SurvivorExperienceGem.effective_magnet_radius(3.0, 1) >= 340.0, "Starter drops gradually magnetize from long range")
+    _assert_true(SurvivorExperienceGem.effective_magnet_radius(6.0, 2) < 340.0, "Later progression retains incentive to move")

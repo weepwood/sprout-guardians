@@ -12,7 +12,7 @@
 [ext_resource type="Script" path="res://scripts/greed/survivor_run_state.gd" id="10_state"]
 [ext_resource type="Script" path="res://scripts/greed/survivor_run_trace.gd" id="11_trace"]
 [ext_resource type="Script" path="res://scripts/greed/survivor_input_controller.gd" id="12_input"]
-[ext_resource type="Texture2D" path="res://assets/backgrounds/garden_meadow.svg" id="13_meadow"]
+[ext_resource type="Texture2D" path="res://assets/generated/meadow.png" id="13_meadow"]
 [ext_resource type="Texture2D" path="res://assets/ui/leaf_sigil.svg" id="14_sigil"]
 [ext_resource type="Shader" path="res://assets/ui/glass_frosted.gdshader" id="15_glass"]
 

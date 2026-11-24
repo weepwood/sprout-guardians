@@ -2,6 +2,7 @@ extends "res://scripts/ui/greed_main_menu.gd"
 
 var difficulty_picker: OptionButton
 var character_picker: OptionButton
+var map_picker: OptionButton
 var archive_backdrop: ColorRect
 var archive_panel: Panel
 var archive_title: Label
@@ -15,6 +16,7 @@ func _ready() -> void:
     settings.load_settings()
     SurvivorBalance.selected_difficulty = settings.survivor_difficulty
     SurvivorCharacters.selected = settings.survivor_character
+    SurvivorMaps.selected = settings.survivor_map
     localization = LocalizationService.new()
     localization.set_locale(settings.locale, false)
     save_game = SaveGameService.new()
@@ -28,16 +30,22 @@ func _ready() -> void:
     _bind_existing_ui()
     difficulty_picker = OptionButton.new()
     difficulty_picker.name = "DifficultyPicker"
-    difficulty_picker.position = Vector2(12, 12)
-    difficulty_picker.size = Vector2(132, 28)
+    difficulty_picker.position = Vector2(28, 145)
+    difficulty_picker.size = Vector2(92, 28)
     get_node("UI/Main").add_child(difficulty_picker)
     difficulty_picker.item_selected.connect(_select_difficulty)
     character_picker = OptionButton.new()
     character_picker.name = "CharacterPicker"
-    character_picker.position = Vector2(12, 46)
-    character_picker.size = Vector2(132, 30)
+    character_picker.position = Vector2(126, 145)
+    character_picker.size = Vector2(94, 28)
     get_node("UI/Main").add_child(character_picker)
     character_picker.item_selected.connect(_select_character)
+    map_picker = OptionButton.new()
+    map_picker.name = "MapPicker"
+    map_picker.position = Vector2(226, 145)
+    map_picker.size = Vector2(102, 28)
+    get_node("UI/Main").add_child(map_picker)
+    map_picker.item_selected.connect(_select_map)
     _apply_locale()
     _apply_playful_design()
     if OS.get_cmdline_user_args().has("--ci-survivors-smoke"):
@@ -132,6 +140,11 @@ func _apply_locale() -> void:
             character_picker.add_icon_item(PixelArtAssets.generated_actor(i), _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]))
             character_picker.set_item_tooltip(i, _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i]))
         character_picker.select(SurvivorCharacters.selected)
+    if map_picker != null:
+        map_picker.clear()
+        map_picker.add_item(_t("Classic", "经典花园"))
+        map_picker.add_item(_t("Explore", "探索花园"))
+        map_picker.select(SurvivorMaps.selected)
     if archive_title == null:
         return
     archive_title.text = _t("GARDEN JOURNAL", "花园战绩")
@@ -202,3 +215,16 @@ func _select_character(index: int) -> void:
     SurvivorCharacters.selected = clampi(index, 0, 2)
     settings.survivor_character = SurvivorCharacters.selected
     settings.save_settings()
+
+
+func _select_map(index: int) -> void:
+    SurvivorMaps.selected = clampi(index, 0, 1)
+    settings.survivor_map = SurvivorMaps.selected
+    settings.save_settings()
+
+
+func _set_main_controls_visible(value: bool) -> void:
+    super._set_main_controls_visible(value)
+    for picker: OptionButton in [difficulty_picker, character_picker, map_picker]:
+        if is_instance_valid(picker):
+            picker.visible = value
