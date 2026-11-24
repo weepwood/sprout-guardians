@@ -288,48 +288,48 @@ jobs:
     name: Sign and package macOS Universal
     needs: export
     runs-on: macos-15
+    timeout-minutes: 45
     permissions:
       contents: read
 
     steps:
+      - name: Check out packaging scripts and native icon
+        uses: actions/checkout@v4
+
       - name: Download macOS application exported by Godot
         uses: actions/download-artifact@v4
         with:
           name: SproutGuardians-macOS-staging-${{ github.sha }}
           path: staging
 
-      - name: Restore, sign, verify, and smoke test app
+      - name: Package and verify macOS disk image
         shell: bash
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.MACOS_CERTIFICATE_BASE64 || '' }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.MACOS_CERTIFICATE_PASSWORD || '' }}
+          MACOS_SIGN_IDENTITY: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.MACOS_SIGN_IDENTITY || '' }}
+          APPLE_ID: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.APPLE_ID || '' }}
+          APPLE_TEAM_ID: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.APPLE_TEAM_ID || '' }}
+          APPLE_APP_PASSWORD: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.APPLE_APP_PASSWORD || '' }}
         run: |
           set -euo pipefail
-          mkdir -p build/macos "$RUNNER_TEMP/sprout-macos"
-          ditto -x -k staging/SproutGuardians-macOS-staging.zip "$RUNNER_TEMP/sprout-macos"
-          APP_PATH="$(find "$RUNNER_TEMP/sprout-macos" -maxdepth 2 -type d -name '*.app' -print -quit)"
-          if [ -z "$APP_PATH" ]; then
-            echo "No macOS application bundle found"
-            exit 1
+          keychain="$RUNNER_TEMP/sprout-signing.keychain-db"
+          cert="$RUNNER_TEMP/sprout-signing.p12"
+          trap 'rm -f "$cert"; security delete-keychain "$keychain" >/dev/null 2>&1 || true' EXIT
+          if [[ -n "$MACOS_CERTIFICATE_BASE64$MACOS_SIGN_IDENTITY$APPLE_ID$APPLE_TEAM_ID$APPLE_APP_PASSWORD$MACOS_CERTIFICATE_PASSWORD" ]]; then
+            : "${MACOS_CERTIFICATE_BASE64:?Missing certificate}" "${MACOS_CERTIFICATE_PASSWORD:?Missing certificate password}" "${MACOS_SIGN_IDENTITY:?Missing signing identity}" "${APPLE_ID:?Missing Apple ID}" "${APPLE_TEAM_ID:?Missing Apple team}" "${APPLE_APP_PASSWORD:?Missing notary password}"
+            password="$(openssl rand -hex 24)"
+            printf '%s' "$MACOS_CERTIFICATE_BASE64" | base64 -D > "$cert"
+            security create-keychain -p "$password" "$keychain"
+            security set-keychain-settings -lut 21600 "$keychain"
+            security unlock-keychain -p "$password" "$keychain"
+            security import "$cert" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
+            security list-keychains -d user -s "$keychain"
+            security find-identity -v -p codesigning "$keychain"
           fi
-          EXECUTABLE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP_PATH/Contents/Info.plist")"
-          EXECUTABLE_PATH="$APP_PATH/Contents/MacOS/$EXECUTABLE_NAME"
-          test -f "$EXECUTABLE_PATH"
-          chmod +x "$EXECUTABLE_PATH"
-          ARCHS="$(lipo -archs "$EXECUTABLE_PATH")"
-          echo "macOS architectures: $ARCHS"
-          [[ " $ARCHS " == *" arm64 "* ]]
-          [[ " $ARCHS " == *" x86_64 "* ]]
-          codesign --force --deep --sign - --timestamp=none "$APP_PATH"
-          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-          "$EXECUTABLE_PATH" --headless --audio-driver Dummy --quit-after 120 -- --ci-survivors-smoke \
-            > build/macos/macos-smoke.log 2>&1
-          cat build/macos/macos-smoke.log
-          if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access to property|Invalid call|on a null instance" build/macos/macos-smoke.log; then
-            exit 1
-          fi
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" \
-            build/macos/SproutGuardians-macOS-Universal.zip
-          hdiutil create -volname "Sprout Guardians" -srcfolder "$APP_PATH" \
-            -ov -format UDZO build/macos/SproutGuardians-macOS-Universal.dmg
-          unzip -l build/macos/SproutGuardians-macOS-Universal.zip | grep -E '\.app/Contents/MacOS/'
+          version="$(grep -m1 '^config/version=' project.godot | cut -d'"' -f2)"
+          bash tools/package_macos.sh staging/SproutGuardians-macOS-staging.zip build/macos "$version"
 
       - name: Upload macOS desktop packages
         uses: actions/upload-artifact@v4
@@ -338,6 +338,7 @@ jobs:
           path: |
             build/macos/SproutGuardians-macOS-Universal.zip
             build/macos/SproutGuardians-macOS-Universal.dmg
+            build/macos/macos-signing-status.txt
           if-no-files-found: error
           retention-days: 14
 
