@@ -102,7 +102,7 @@ func mark_encyclopedia_seen(entry_id: StringName) -> void:
     save_game()
 
 
-func record_survivor_result(victory: bool, elapsed_seconds: float, reached_level: int, kills: int) -> bool:
+func record_survivor_result(victory: bool, elapsed_seconds: float, reached_level: int, kills: int, details: Dictionary = {}) -> bool:
     _ensure_loaded()
     var statistics: Dictionary = get_survivor_statistics()
     statistics["total_runs"] = int(statistics["total_runs"]) + 1
@@ -120,7 +120,13 @@ func record_survivor_result(victory: bool, elapsed_seconds: float, reached_level
         "level": maxi(1, reached_level),
         "kills": maxi(0, kills),
     }
+    statistics["last_run"].merge(details, false)
     data["statistics"] = statistics
+    var progress: Dictionary = get_survivor_progress()
+    progress["seeds"] = mini(999999, int(progress["seeds"]) + floori(float(maxi(0, kills)) / 10.0) + (12 if victory else 0))
+    progress["evolutions"] = int(progress["evolutions"]) + maxi(0, int(details.get("evolutions", 0)))
+    progress["events"] = int(progress["events"]) + maxi(0, int(details.get("events", 0)))
+    data["survivor_progress"] = progress
     return save_game()
 
 
@@ -232,3 +238,38 @@ func _write_text(path: String, text: String) -> bool:
     file.flush()
     file.close()
     return true
+
+
+func get_survivor_progress() -> Dictionary:
+    _ensure_loaded()
+    var value: Variant = data.get("survivor_progress", {})
+    var raw: Dictionary = value if value is Dictionary else {}
+    return {
+        "seeds": clampi(int(raw.get("seeds", 0)), 0, 999999),
+        "health_rank": clampi(int(raw.get("health_rank", 0)), 0, 3),
+        "damage_rank": clampi(int(raw.get("damage_rank", 0)), 0, 3),
+        "evolutions": maxi(0, int(raw.get("evolutions", 0))),
+        "events": maxi(0, int(raw.get("events", 0))),
+    }
+
+
+func is_survivor_character_unlocked(index: int) -> bool:
+    return index >= 0 and (index < 3 or (index == 3 and int(get_survivor_statistics()["total_victories"]) >= 1))
+
+
+func buy_survivor_upgrade(key: String) -> bool:
+    if key not in ["health_rank", "damage_rank"]:
+        return false
+    var progress: Dictionary = get_survivor_progress()
+    var rank: int = int(progress[key])
+    var cost: int = 15 * (rank + 1)
+    if rank >= 3 or int(progress["seeds"]) < cost:
+        return false
+    var old: Dictionary = progress.duplicate(true)
+    progress["seeds"] = int(progress["seeds"]) - cost
+    progress[key] = rank + 1
+    data["survivor_progress"] = progress
+    if save_game():
+        return true
+    data["survivor_progress"] = old
+    return false

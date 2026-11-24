@@ -60,6 +60,9 @@ var familiar_spawn_sprout: Marker2D
 
 
 func _ready() -> void:
+    if not simulation_mode:
+        run_save = SaveGameService.new()
+        run_save.load_game()
     super._ready()
     event_rng.seed = run_seed ^ 0x6375
     _setup_map()
@@ -68,8 +71,6 @@ func _ready() -> void:
     run_trace = get_node("RunTrace") as SurvivorRunTrace
     run_state.phase_changed.connect(_on_run_phase_changed)
     run_state.start_run()
-    run_save = SaveGameService.new()
-    run_save.load_game()
     if simulation_mode:
         combat_feedback.hit_stop_enabled = false
         audio_manager.set_music_enabled(false)
@@ -116,7 +117,16 @@ func _create_arena() -> void:
     hero_plant.name = "MainPlant"
     actors_container.add_child(hero_plant)
     hero_plant.global_position = player_spawn.global_position
-    hero_plant.configure(SurvivorCharacters.configuration(0 if simulation_mode else SurvivorCharacters.selected), blessing_system)
+    var character_id: int = simulation_character if simulation_mode else SurvivorCharacters.selected
+    if not simulation_mode and run_save != null and not run_save.is_survivor_character_unlocked(character_id):
+        character_id = 0
+    var hero_config: Dictionary = SurvivorCharacters.configuration(character_id)
+    if not simulation_mode and run_save != null:
+        var progress: Dictionary = run_save.get_survivor_progress()
+        hero_config["damage"] = float(hero_config["damage"]) * (1.0 + 0.05 * int(progress["damage_rank"]))
+        hero_plant.max_health += int(progress["health_rank"])
+        hero_plant.health = hero_plant.max_health
+    hero_plant.configure(hero_config, blessing_system)
     hero_plant.health_changed.connect(_on_core_health_changed)
     hero_plant.defeated.connect(_on_core_defeated)
     hero_plant.fired.connect(_on_hero_fired)
@@ -558,7 +568,8 @@ func _finish_run(victory: bool) -> void:
     result_label.text += "\n" + _t("Evolved %d · Events %d", "进化 %d · 事件 %d") % [evolution_announced.size(), map_events.completed]
     if run_save != null and not simulation_mode:
         var saved: bool = run_save.record_survivor_result(
-            victory, survival_elapsed, hero_plant.level if is_instance_valid(hero_plant) else 1, enemies_defeated
+            victory, survival_elapsed, hero_plant.level if is_instance_valid(hero_plant) else 1, enemies_defeated,
+            {"damage": total_damage, "xp": total_xp, "map": map_id, "difficulty": difficulty, "evolutions": evolution_announced.size(), "events": map_events.completed}
         )
         if run_trace != null:
             run_trace.note("run_recorded", "saved=%s victory=%s kills=%d" % [saved, victory, enemies_defeated])

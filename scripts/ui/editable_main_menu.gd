@@ -3,6 +3,7 @@ extends "res://scripts/ui/greed_main_menu.gd"
 var difficulty_picker: OptionButton
 var character_picker: OptionButton
 var map_picker: OptionButton
+var archive_tabs: TabContainer
 var archive_backdrop: ColorRect
 var archive_panel: Panel
 var archive_title: Label
@@ -21,6 +22,8 @@ func _ready() -> void:
     localization.set_locale(settings.locale, false)
     save_game = SaveGameService.new()
     save_game.load_game()
+    if not save_game.is_survivor_character_unlocked(SurvivorCharacters.selected):
+        SurvivorCharacters.selected = 0
 
     audio_manager = ProceduralAudioManager.new()
     audio_manager.name = "MenuAudio"
@@ -46,6 +49,7 @@ func _ready() -> void:
     map_picker.size = Vector2(102, 28)
     get_node("UI/Main").add_child(map_picker)
     map_picker.item_selected.connect(_select_map)
+    _create_archive_tabs()
     _apply_locale()
     _apply_playful_design()
     if OS.get_cmdline_user_args().has("--ci-survivors-smoke"):
@@ -136,9 +140,10 @@ func _apply_locale() -> void:
         difficulty_picker.select(SurvivorBalance.selected_difficulty)
     if character_picker != null:
         character_picker.clear()
-        for i: int in range(3):
-            character_picker.add_icon_item(PixelArtAssets.generated_actor(i), _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]))
+        for i: int in range(SurvivorCharacters.EN.size()):
+            character_picker.add_icon_item(PixelArtAssets.generated_actor(SurvivorCharacters.art_index(i)), _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]))
             character_picker.set_item_tooltip(i, _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i]))
+            character_picker.set_item_disabled(i, not save_game.is_survivor_character_unlocked(i))
         character_picker.select(SurvivorCharacters.selected)
     if map_picker != null:
         map_picker.clear()
@@ -151,6 +156,7 @@ func _apply_locale() -> void:
     archive_subtitle.text = _t("Every little run makes the garden grow.", "每一局，都是芽芽成长的足迹。")
     archive_back_button.text = _t("BACK TO GARDEN", "返回花园")
     _refresh_archive()
+    _refresh_archive_tabs()
     var stats: Dictionary = save_game.get_survivor_statistics()
     progress_label.text = _t(
         "Runs %d  ·  Victories %d  ·  Best %ds",
@@ -164,8 +170,10 @@ func _show_collection_summary() -> void:
     archive_backdrop.visible = true
     archive_panel.visible = true
     archive_title.visible = true
-    archive_summary.visible = true
-    archive_subtitle.visible = true
+    archive_summary.visible = false
+    archive_subtitle.visible = false
+    archive_tabs.show()
+    _refresh_archive_tabs()
     archive_back_button.visible = true
     _set_main_chrome_visible(false)
     _set_main_controls_visible(false)
@@ -179,6 +187,8 @@ func _hide_archive() -> void:
         archive_subtitle, archive_back_button
     ]:
         control.visible = false
+    if is_instance_valid(archive_tabs):
+        archive_tabs.hide()
     _set_main_chrome_visible(true)
     _set_main_controls_visible(true)
     collection_button.grab_focus()
@@ -212,7 +222,9 @@ func _select_difficulty(index: int) -> void:
 
 
 func _select_character(index: int) -> void:
-    SurvivorCharacters.selected = clampi(index, 0, 2)
+    if not save_game.is_survivor_character_unlocked(index):
+        return
+    SurvivorCharacters.selected = clampi(index, 0, 3)
     settings.survivor_character = SurvivorCharacters.selected
     settings.save_settings()
 
@@ -228,3 +240,93 @@ func _set_main_controls_visible(value: bool) -> void:
     for picker: OptionButton in [difficulty_picker, character_picker, map_picker]:
         if is_instance_valid(picker):
             picker.visible = value
+
+
+func _create_archive_tabs() -> void:
+    archive_tabs = TabContainer.new()
+    archive_tabs.name = "GardenArchiveTabs"
+    archive_tabs.position = Vector2(139, 82)
+    archive_tabs.size = Vector2(362, 190)
+    get_node("UI/Archive").add_child(archive_tabs)
+    archive_tabs.hide()
+
+
+func _refresh_archive_tabs() -> void:
+    if not is_instance_valid(archive_tabs):
+        return
+    var previous: int = maxi(0, archive_tabs.current_tab)
+    for child: Node in archive_tabs.get_children():
+        archive_tabs.remove_child(child)
+        child.queue_free()
+    var characters: VBoxContainer = _archive_page(_t("Heroes", "角色"))
+    for i: int in range(SurvivorCharacters.EN.size()):
+        var button: Button = Button.new()
+        button.icon = PixelArtAssets.generated_actor(SurvivorCharacters.art_index(i))
+        button.expand_icon = true
+        button.custom_minimum_size = Vector2(320, 34)
+        button.text = _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i])
+        button.tooltip_text = _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i])
+        button.disabled = not save_game.is_survivor_character_unlocked(i)
+        button.pressed.connect(_choose_archive_character.bind(i))
+        characters.add_child(button)
+    var weapons: VBoxContainer = _archive_page(_t("Weapons", "武器"))
+    for i: int in range(SurvivorArsenal.IDS.size()):
+        _archive_entry(weapons, PixelArtAssets.blessing_icon(SurvivorArsenal.IDS[i]), _t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]) + "\n" + _t("Lv.3 + ", "三级 + ") + _t(SurvivorArsenal.NAMES_EN[SurvivorArsenal.EVOLUTION_PARTNERS[i]], SurvivorArsenal.NAMES_ZH[SurvivorArsenal.EVOLUTION_PARTNERS[i]]))
+    var enemies: VBoxContainer = _archive_page(_t("Enemies", "敌人"))
+    var enemy_names: Array[String] = [_t("Chaser", "追击怪"), _t("Charger", "冲锋怪"), _t("Armored", "重甲怪"), _t("Ranged warning", "远程预警"), _t("Splitter", "分裂怪"), _t("Bloom Boss", "黑花首领")]
+    for i: int in range(enemy_names.size()):
+        _archive_entry(enemies, PixelArtAssets.generated_actor(5 if i == 5 else (4 if i == 2 or i == 4 else 3)), enemy_names[i])
+    var progress_page: VBoxContainer = _archive_page(_t("Growth", "成长"))
+    var progress: Dictionary = save_game.get_survivor_progress()
+    var stats: Dictionary = save_game.get_survivor_statistics()
+    _archive_entry(progress_page, null, _t("Seeds %d · Wins %d · Events %d · Evolutions %d", "种子 %d · 胜利 %d · 事件 %d · 进化 %d") % [progress["seeds"], stats["total_victories"], progress["events"], progress["evolutions"]])
+    for key: String in ["health_rank", "damage_rank"]:
+        var rank: int = int(progress[key])
+        var upgrade: Button = Button.new()
+        upgrade.text = (_t("Health +1", "生命 +1") if key == "health_rank" else _t("Damage +5%", "伤害 +5%")) + " · %d/3 · %d" % [rank, 15 * (rank + 1)]
+        upgrade.disabled = rank >= 3 or int(progress["seeds"]) < 15 * (rank + 1)
+        upgrade.pressed.connect(_buy_archive_upgrade.bind(key))
+        progress_page.add_child(upgrade)
+    _archive_entry(progress_page, null, _t("Achievements", "成就") + "\n" + _t("First victory: ", "初次胜利：") + str(mini(1, int(stats["total_victories"]))) + "/1 · " + _t("Events: ", "事件达人：") + str(mini(5, int(progress["events"]))) + "/5 · " + _t("Evolutions: ", "进化大师：") + str(mini(3, int(progress["evolutions"]))) + "/3")
+    _archive_entry(progress_page, null, archive_summary.text)
+    archive_tabs.current_tab = mini(previous, archive_tabs.get_tab_count() - 1)
+
+
+func _archive_page(title_value: String) -> VBoxContainer:
+    var scroll: ScrollContainer = ScrollContainer.new()
+    scroll.name = title_value
+    scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    archive_tabs.add_child(scroll)
+    var column: VBoxContainer = VBoxContainer.new()
+    column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    scroll.add_child(column)
+    return column
+
+
+func _archive_entry(parent: VBoxContainer, texture_value: Texture2D, value: String) -> void:
+    var row: HBoxContainer = HBoxContainer.new()
+    parent.add_child(row)
+    if texture_value != null:
+        var icon: TextureRect = TextureRect.new()
+        icon.texture = texture_value
+        icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+        icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+        icon.custom_minimum_size = Vector2(38, 38)
+        row.add_child(icon)
+    var label: Label = Label.new()
+    label.text = value
+    label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    label.add_theme_font_size_override("font_size", 12)
+    row.add_child(label)
+
+
+func _choose_archive_character(index: int) -> void:
+    _select_character(index)
+    character_picker.select(SurvivorCharacters.selected)
+    _hide_archive()
+
+
+func _buy_archive_upgrade(key: String) -> void:
+    if save_game.buy_survivor_upgrade(key):
+        call_deferred("_refresh_archive_tabs")
