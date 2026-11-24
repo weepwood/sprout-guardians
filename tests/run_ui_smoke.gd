@@ -44,6 +44,9 @@ func _test_main_menu() -> void:
     var title: Label = menu.get("title_label") as Label
     var expected_title: String = "芽芽守卫战" if localization.locale_code == "zh_CN" else "SPROUT GUARDIANS"
     _assert_equal_string(title.text, expected_title, "Main-menu title updates immediately")
+    var difficulty_picker: OptionButton = menu.get("difficulty_picker") as OptionButton
+    _assert_equal_int(difficulty_picker.item_count, 3, "Three difficulty tiers remain")
+    _assert_equal_string(difficulty_picker.get_item_text(0), "简单" if localization.locale_code == "zh_CN" else "Easy", "Easy mode is explicitly labeled")
     var menu_button_style: StyleBoxFlat = (menu.get("play_button") as Button).get_theme_stylebox("normal") as StyleBoxFlat
     _assert_true(menu_button_style != null and menu_button_style.corner_radius_top_left >= 12, "Play button uses rounded toy-like theme")
     _assert_true((menu.get("play_button") as Button).has_focus(), "Main menu starts with a keyboard-friendly focused action")

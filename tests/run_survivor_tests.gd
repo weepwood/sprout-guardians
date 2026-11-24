@@ -96,7 +96,7 @@ func _run() -> void:
     _assert_true(game.has_node("World/Runtime/Effects"), "Effect runtime container exists")
     _assert_true(game.has_node("UI/TopHUD/TimeLabel"), "Top HUD is editable in the scene tree")
     _assert_true(game.has_node("UI/ChoiceLayer/Panel"), "Level-up panel is editable in the scene tree")
-    _assert_equal_int(int(game.get("experience_to_next")), 8, "First level requires eight experience")
+    _assert_equal_int(int(game.get("experience_to_next")), SurvivorBalance.experience_requirement(1, int(game.get("difficulty"))), "First level uses selected difficulty threshold")
     _assert_true(bool(game.get("wave_active")), "Time survival combat is active immediately")
 
     var preview: Node2D = game.get_node("World/EditorPreview") as Node2D
@@ -115,7 +115,7 @@ func _run() -> void:
 
     var experience_progress: ProgressBar = game.get("experience_bar") as ProgressBar
     _assert_true(experience_progress != null, "Pixel HUD includes an experience bar")
-    _assert_equal_int(int(experience_progress.max_value), 8, "Experience bar uses the current level threshold")
+    _assert_equal_int(int(experience_progress.max_value), int(game.get("experience_to_next")), "Experience bar uses the current level threshold")
 
     var input_controller: SurvivorInputController = game.get_node("RunInput") as SurvivorInputController
     _assert_true(input_controller != null, "Survivor movement is handled by an independent input controller")
@@ -138,7 +138,7 @@ func _run() -> void:
         _assert_true(edge_spawn.distance_to(game_hero.global_position) >= 112.0, "Edge spawns preserve minimum distance: %d" % edge_sample)
     input_controller.clear_test_direction()
 
-    game.call("_on_experience_collected", 8)
+    game.call("_on_experience_collected", int(game.get("experience_to_next")))
     _assert_true(bool(game.get("choice_open")), "Reaching the experience threshold opens a level-up choice")
     _assert_equal_int(int(game.get("pending_level_ups")), 1, "One pending level is recorded")
     var title: Label = game.get("choice_title") as Label
@@ -311,6 +311,20 @@ func _test_arsenal() -> void:
     _assert_true(not SurvivorArsenal.evolved(system, 0), "Evolution requires partner")
     system.apply_blessing(rewards[2])
     _assert_true(SurvivorArsenal.evolved(system, 0), "Seed and frost unlock evolution")
+    var common: BlessingData = BlessingData.new()
+    common.id = &"test_common"
+    var rare: BlessingData = BlessingData.new()
+    rare.id = &"test_rare"
+    rare.rarity = BlessingData.Rarity.RARE
+    var epic: BlessingData = BlessingData.new()
+    epic.id = &"test_epic"
+    epic.rarity = BlessingData.Rarity.EPIC
+    var choices: Array[BlessingData] = [common, epic, rare]
+    var expert: Array[BlessingData] = SurvivorArsenal.assist_choices(choices.duplicate(), system, 2)
+    _assert_true(expert == choices, "Expert reward choices unchanged")
+    var assisted: Array[BlessingData] = SurvivorArsenal.assist_choices(choices.duplicate(), system, 1)
+    _assert_true(assisted[0] == common and assisted[1] == epic, "Build assistance preserves first choice and epic")
+    _assert_true(assisted[2].id == SurvivorArsenal.IDS[2], "Build assistance offers useful owned upgrade")
     system.free()
 
 
@@ -449,5 +463,10 @@ func _test_visual_theme() -> void:
             _assert_true(PlayfulUITheme.contrast_ratio(PlayfulUITheme.reward_rarity_ink(rarity), background) >= 7.0, "Every rarity uses high-contrast ink")
         _assert_true(PlayfulUITheme.contrast_ratio(Color("#392e27"), background) >= 7.0, "New reward description contrast")
     _assert_true(PlayfulUITheme.contrast_ratio(Color("#493728"), Color("#fff7e8")) >= 7.0, "Keyboard hint contrasts with light panel")
-    _assert_equal_int(SurvivorSpawnDirector.swamp_ranged_cap(1), 4, "Swamp caps simultaneous ranged enemies")
+    _assert_equal_int(SurvivorSpawnDirector.swamp_ranged_cap(1), 4, "Legacy swamp profile retained")
+    _assert_equal_int(SurvivorSpawnDirector.ranged_cap(1, SurvivorMaps.SWAMP), 3, "Normal swamp caps ranged pressure")
+    _assert_equal_int(SurvivorSpawnDirector.ranged_cap(0, SurvivorMaps.CLASSIC), 2, "Easy caps ranged pressure")
+    _assert_true(is_equal_approx(SurvivorArsenal.shot_damage(1, false, false, 2), 13.0), "Expert weapon damage unchanged")
+    _assert_true(is_equal_approx(SurvivorArsenal.shot_damage(1, false, false, 1), 15.0), "Normal early weapon damage improved")
+    _assert_true(SurvivorArsenal.shot_interval(0, 3, false, false, 1) < SurvivorArsenal.shot_interval(0, 1, false, false, 1), "Weapon rank reduces interval in normal mode")
     _assert_true(SurvivorEndurance.enemy_multiplier(900.0) < 3.2, "Endurance growth softens after six waves")

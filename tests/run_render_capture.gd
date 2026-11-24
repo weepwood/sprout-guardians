@@ -49,12 +49,19 @@ func _run() -> void:
             if not reward_captured:
                 var locale: LocalizationService = game.get("i18n") as LocalizationService
                 locale.set_locale("en", false)
+                game.call("_apply_locale")
                 _audit_reward_contrast(game)
                 await _capture("05-reward")
                 locale.set_locale("zh_CN", false)
+                game.call("_apply_locale")
+                var reward_title: Label = game.get("choice_title") as Label
+                if not reward_title.text.contains("等级提升"):
+                    push_error("Chinese reward screenshot must actually contain Chinese text")
+                    failed = true
                 _audit_reward_contrast(game)
                 await _capture("05-reward-zh")
                 locale.set_locale("en", false)
+                game.call("_apply_locale")
                 reward_captured = true
             var choices: Array = game.get("_current_choices")
             if not choices.is_empty():

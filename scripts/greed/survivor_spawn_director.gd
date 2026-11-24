@@ -33,3 +33,9 @@ static func biome_variant_chance(map_id: int, elapsed: float) -> float:
 
 static func swamp_ranged_cap(difficulty: int) -> int:
     return [3, 4, 6][clampi(difficulty, 0, 2)]
+
+
+static func ranged_cap(difficulty_value: int, map_id: int) -> int:
+    if difficulty_value < 2:
+        return 2 if difficulty_value == 0 else (3 if map_id == SurvivorMaps.SWAMP else 4)
+    return swamp_ranged_cap(difficulty_value) if map_id == SurvivorMaps.SWAMP else 64

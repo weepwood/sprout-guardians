@@ -273,12 +273,12 @@ func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
         config = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, SurvivorMaps.exclusive_variant(map_id))
         config["biome_enemy"] = map_id
         config["health"] = float(config["health"]) * 1.12
-    if map_id == SurvivorMaps.SWAMP and not force_elite and not force_boss and int(config.get("variant", 0)) == 3:
+    if (difficulty < 2 or map_id == SurvivorMaps.SWAMP) and not force_elite and not force_boss and int(config.get("variant", 0)) == 3:
         var nearby_ranged: int = 0
         for node: Node in get_tree().get_nodes_in_group("greed_enemies"):
             if node is GreedEnemy and (node as GreedEnemy).survivor_variant == 3 and (node as GreedEnemy).health > 0.0:
                 nearby_ranged += 1
-        if nearby_ranged >= SurvivorSpawnDirector.swamp_ranged_cap(difficulty):
+        if nearby_ranged >= SurvivorSpawnDirector.ranged_cap(difficulty, map_id):
             config = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, 1)
     if endless_mode:
         config["health"] = float(config["health"]) * SurvivorEndurance.enemy_multiplier(survival_elapsed)
@@ -344,6 +344,7 @@ func _spawn_experience_gem(position_value: Vector2, amount: int) -> SurvivorExpe
 
 func _open_surprise_choice() -> void:
     super._open_surprise_choice()
+    _current_choices = SurvivorArsenal.assist_choices(_current_choices, blessing_system, difficulty)
     if choice_open and run_state != null:
         run_state.open_reward()
     _render_reward_cards()
@@ -389,18 +390,31 @@ func _render_reward_cards() -> void:
         detail.position.y = 109.0
         detail.size.y = 66.0
         var stack: int = blessing_system.get_blessing_stack(data.id) + 1
-        detail.text = "%s\nLv.%d" % [data.localized_description(i18n.locale_code, stack), stack]
         var weapon_index: int = SurvivorArsenal.IDS.find(data.id)
+        var current: int = blessing_system.get_blessing_stack(data.id)
+        var next_rank: int = mini(stack, data.max_stacks)
+        var rank_line: String = _t("Lv.%d → %d", "等级 %d → %d") % [current, next_rank]
+        var full_detail: String = data.localized_description(i18n.locale_code, stack)
         if weapon_index >= 0:
             var partner: int = SurvivorArsenal.EVOLUTION_PARTNERS[weapon_index]
+            var partner_rank: int = blessing_system.get_blessing_stack(SurvivorArsenal.IDS[partner])
             var partner_name: String = _t(SurvivorArsenal.NAMES_EN[partner], SurvivorArsenal.NAMES_ZH[partner])
-            detail.text += "\n" + _t("Evolve: Lv.3 + ", "进化：3级 + ") + partner_name
+            var evolved_now: bool = current >= 3 and partner_rank >= 1
+            var evolved_next: bool = next_rank >= 3 and partner_rank >= 1
+            var old_damage: float = SurvivorArsenal.shot_damage(current, evolved_now, evolved_now and partner_rank >= 3, difficulty)
+            var next_damage: float = SurvivorArsenal.shot_damage(next_rank, evolved_next, evolved_next and partner_rank >= 3, difficulty)
+            var interval: float = SurvivorArsenal.shot_interval(weapon_index, next_rank, evolved_next, evolved_next and partner_rank >= 3, difficulty)
+            detail.text = rank_line + "\n" + _t("Hit %.0f → %.0f · %.2fs", "单发 %.0f → %.0f · %.2f秒") % [old_damage, next_damage, interval]
+            detail.text += "\n" + (_t("Evolution ready!", "本次可进化！") if evolved_next else _t("Evolve: Lv.3 + ", "进化：3级 + ") + partner_name + "  %d/1" % mini(partner_rank, 1))
+            full_detail += "\n" + _t("Base damage per projectile; interval after upgrade.", "基础单发伤害；显示升级后的攻击间隔。")
+        else:
+            detail.text = rank_line + "\n" + _buff_stat_preview(data, current, next_rank)
+        button.tooltip_text = title.text + "\n" + detail.text + "\n" + full_detail
         var card_outline: Color = data.rarity_color().lerp(Color("#c5a88a"), 0.45)
         button.add_theme_stylebox_override("normal", PlayfulUITheme.surface(Color("#fffaf1"), 14, card_outline, 3))
         button.add_theme_stylebox_override("hover", PlayfulUITheme.surface(Color("#fff0d8"), 14, card_outline, 5))
         button.add_theme_stylebox_override("pressed", PlayfulUITheme.surface(Color("#eedebd"), 14, card_outline, 1))
         button.add_theme_stylebox_override("hover_pressed", button.get_theme_stylebox("pressed"))
-        button.tooltip_text = title.text + "\n" + detail.text
         # Reset inherited tint; rarity is communicated by a dark label and outline.
         button.modulate = Color.WHITE
         for label: Label in [rarity, title, detail]:
@@ -695,7 +709,7 @@ func _reroll_reward() -> void:
         return
     reward_rerolls -= 1
     var previous_pity: int = blessing_system.pity_without_high
-    _current_choices = blessing_system.roll_choices(3)
+    _current_choices = SurvivorArsenal.assist_choices(blessing_system.roll_choices(3), blessing_system, difficulty)
     # Rerolls do not advance the guarantee counter.
     blessing_system.pity_without_high = previous_pity
     _render_reward_cards()
@@ -1006,3 +1020,27 @@ func _on_visual_impact(projectile: GreedProjectile, _target: GreedEnemy, _damage
     var image: Texture2D = HDArt.load_png(prefix + str(projectile.visual_weapon))
     if image != null:
         _spawn_bitmap_effect(projectile.global_position, image, Color.WHITE, 76.0 if projectile.visual_evolved else 66.0, 0.85)
+
+
+# Contributions from this particular blessing, not a claim about final DPS.
+# Global caps and other bonuses can affect the final combat value.
+func _buff_stat_preview(data: BlessingData, current: int, next_rank: int) -> String:
+    var attribute: String = ""
+    match data.effect_type:
+        BlessingData.EffectType.DAMAGE:
+            attribute = _t("Damage bonus", "伤害加成")
+        BlessingData.EffectType.ATTACK_SPEED:
+            attribute = _t("Interval reduction", "攻速间隔缩短")
+        BlessingData.EffectType.RANGE:
+            attribute = _t("Range bonus", "射程加成")
+        BlessingData.EffectType.REWARD:
+            attribute = _t("Sunlight bonus", "阳光收益")
+        BlessingData.EffectType.POISON:
+            attribute = _t("Poison bonus", "持续伤害加成")
+        BlessingData.EffectType.SLOW:
+            attribute = _t("Extra slow", "额外减速")
+        BlessingData.EffectType.CRITICAL:
+            attribute = _t("Critical chance bonus", "暴击率加成")
+        BlessingData.EffectType.SUNLIGHT:
+            return _t("Instant sunlight +%d", "立即获得阳光 +%d") % maxi(1, roundi(data.value_per_stack))
+    return attribute + "\n" + "+%.0f%% → +%.0f%%" % [current * data.value_per_stack * 100.0, next_rank * data.value_per_stack * 100.0]

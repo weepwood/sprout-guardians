@@ -30,7 +30,53 @@ static func reward_pool(include_endless: bool = false) -> Array[BlessingData]:
 static func evolved(blessings: BlessingSystem, index: int) -> bool:
     return blessings.get_blessing_stack(IDS[index]) >= 3 and blessings.get_blessing_stack(IDS[EVOLUTION_PARTNERS[index]]) >= 1
 
-func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: Callable, visual_fire: Callable = Callable()) -> void:
+# The same calculation feeds live combat and reward previews.
+static func shot_damage(rank: int, evolution: bool, resonance: bool, difficulty: int) -> float:
+    if rank <= 0:
+        return 0.0
+    return (8.0 + rank * 5.0 + (1.0 + rank if difficulty < 2 else 0.0)) * (1.45 if evolution else 1.0) * (1.15 if resonance else 1.0)
+
+
+static func shot_interval(index: int, rank: int, evolution: bool, resonance: bool, difficulty: int) -> float:
+    var base: float = 7.0 if index == 3 else (1.1 if index == 6 else (2.6 if index == 7 else 1.8))
+    var rank_factor: float = 1.0 - 0.05 * clampi(rank - 1, 0, 2) if difficulty < 2 and index != 3 else 1.0
+    return base * rank_factor * (0.8 if evolution else 1.0) * (0.90 if resonance else 1.0)
+
+
+# Keep one useful weapon option without consuming another RNG draw. Preserve
+# the rolled first choice and any high-rarity guarantee whenever possible.
+static func assist_choices(choices: Array[BlessingData], blessings: BlessingSystem, difficulty: int) -> Array[BlessingData]:
+    if difficulty >= 2 or choices.size() < 2:
+        return choices
+    var owned: bool = false
+    for id: StringName in IDS:
+        if blessings.get_blessing_stack(id) > 0:
+            owned = true
+    var best: BlessingData = null
+    var best_score: int = -1
+    for data: BlessingData in blessings.pool:
+        var index: int = IDS.find(data.id)
+        if index < 0 or blessings.get_blessing_stack(data.id) >= data.max_stacks:
+            continue
+        var rank: int = blessings.get_blessing_stack(data.id)
+        var partner: int = blessings.get_blessing_stack(IDS[EVOLUTION_PARTNERS[index]])
+        var score: int = 1 if not owned else (rank * 3 + partner * 2 if rank > 0 or partner > 0 else 0)
+        if score > best_score:
+            best_score = score
+            best = data
+    if best == null or (owned and best_score <= 0):
+        return choices
+    for data: BlessingData in choices:
+        if data.id == best.id or (not owned and IDS.has(data.id)):
+            return choices
+    for i: int in range(choices.size() - 1, 0, -1):
+        if choices[i].rarity < BlessingData.Rarity.EPIC:
+            choices[i] = best
+            break
+    return choices
+
+
+func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: Callable, visual_fire: Callable = Callable(), difficulty: int = 2) -> void:
     if not is_instance_valid(hero) or blessings == null:
         return
     for i: int in range(IDS.size()):
@@ -78,9 +124,8 @@ func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: C
             slow = maxf(slow, 0.18)
         if i == 7 and blessings.get_blessing_stack(IDS[6]) >= 2:
             count = 2
-        var damage: float = (8.0 + rank * 5.0) * (1.45 if evolution else 1.0)
+        var damage: float = shot_damage(rank, evolution, resonance, difficulty)
         if resonance:
-            damage *= 1.15
             if splash > 0.0:
                 splash += 8.0
             if slow > 0.0:
@@ -90,5 +135,4 @@ func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: C
                 visual_fire.call(hero.global_position, targets[shot], damage, false, 400.0, splash, slow, 38.0, COLORS[i], i, evolution)
             else:
                 fire.call(hero.global_position, targets[shot], damage, false, 400.0, splash, slow, 38.0, COLORS[i])
-        var base_interval: float = 7.0 if i == 3 else (1.1 if i == 6 else (2.6 if i == 7 else 1.8))
-        timers[i] = base_interval * (0.8 if evolution else 1.0) * (0.90 if resonance else 1.0)
+        timers[i] = shot_interval(i, rank, evolution, resonance, difficulty)

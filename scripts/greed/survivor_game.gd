@@ -71,7 +71,7 @@ func _process(delta: float) -> void:
         familiar.fury_multiplier = GreedBalance.fury_multiplier(seconds_since_last_kill)
         familiar.rescue_active = GreedBalance.rescue_active(seconds_since_last_kill)
 
-    arsenal.tick(delta, hero_plant, blessing_system, _on_projectile_requested, _on_arsenal_visual_requested)
+    arsenal.tick(delta, hero_plant, blessing_system, _on_projectile_requested, _on_arsenal_visual_requested, difficulty)
     _spawn_time_milestones()
     if survival_elapsed < SURVIVAL_DURATION or endless_mode:
         survival_spawn_timer -= delta
