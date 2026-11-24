@@ -29,6 +29,9 @@ var audio_save: Timer
 var quick_labels: Array[Label] = []
 var settings_sections: Array[Label] = []
 var display_mode_picker: OptionButton
+var theme_picker: OptionButton
+var glass_picker: OptionButton
+var motion_button: Button
 const WINDOW_SIZES: Array[Vector2i] = [Vector2i(960,540), Vector2i(1280,720), Vector2i(1366,768), Vector2i(1600,900), Vector2i(1920,1080), Vector2i(2560,1440)]
 
 
@@ -90,6 +93,7 @@ func _ready() -> void:
     _apply_hd_menu()
     _layout_fluent_home()
     _create_display_controls()
+    _refresh_appearance()
     responsive = ResponsiveUI.new()
     add_child(responsive)
     responsive.bind(get_node("UI") as CanvasLayer, settings, _layout_menu)
@@ -257,6 +261,8 @@ func _show_collection_summary() -> void:
     archive_back_button.visible = true
     _set_main_chrome_visible(false)
     _set_main_controls_visible(false)
+    PlayfulUITheme.refresh_tree(archive_tabs)
+    PlayfulUITheme.reveal(archive_panel)
     archive_back_button.grab_focus()
 
 
@@ -467,7 +473,9 @@ func _show_character_screen() -> void:
     title.text = _t("CHOOSE YOUR GUARDIAN", "选择你的守护者")
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     title.add_theme_font_size_override("font_size", 22)
-    PlayfulUITheme.apply_label(title, PlayfulUITheme.FLUENT_ACCENT)
+    PlayfulUITheme.apply_label(title, Color("#f4f7fb"))
+    title.add_theme_color_override("font_outline_color", Color("#152536"))
+    title.add_theme_constant_override("outline_size", 4)
     character_screen.add_child(title)
     var scroll: ScrollContainer = ScrollContainer.new()
     scroll.position = Vector2(20, 50)
@@ -494,6 +502,8 @@ func _show_character_screen() -> void:
         if button.disabled:
             button.text += "\n" + _t("LOCKED", "未解锁")
         button.add_theme_font_size_override("font_size", 13)
+        button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+        button.add_theme_constant_override("h_separation", 10)
         button.toggle_mode = true
         button.button_group = group
         button.button_pressed = i == SurvivorCharacters.selected
@@ -588,6 +598,8 @@ func _show_character_screen() -> void:
     endless.pressed.connect(_start_endless)
     PlayfulUITheme.apply_forest_button(endless)
     character_screen.add_child(endless)
+    PlayfulUITheme.refresh_tree(character_screen)
+    PlayfulUITheme.reveal(character_screen)
     if is_instance_valid(responsive):
         responsive.refresh()
     back.grab_focus()
@@ -596,7 +608,7 @@ func _choose_screen_hero(index: int) -> void:
     _select_character(index)
     character_picker.select(SurvivorCharacters.selected)
     _refresh_hero_detail()
-    if is_instance_valid(hero_detail_portrait):
+    if is_instance_valid(hero_detail_portrait) and not settings.reduced_motion:
         if hero_preview_tween != null and hero_preview_tween.is_valid():
             hero_preview_tween.kill()
         hero_detail_portrait.modulate.a = 0.7
@@ -662,21 +674,22 @@ func _apply_hd_menu() -> void:
 
 func _create_display_controls() -> void:
     var group: Control = get_node("UI/Settings") as Control
-    ResponsiveUI.place(settings_panel, Rect2(60, 20, 520, 320))
-    ResponsiveUI.place(settings_title_label, Rect2(80, 29, 480, 32))
+    ResponsiveUI.place(settings_panel, Rect2(60, 12, 520, 336))
+    ResponsiveUI.place(settings_title_label, Rect2(80, 19, 480, 29))
     settings_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
     settings_title_label.add_theme_font_size_override("font_size", 20)
     settings_backdrop.color = Color(0.035, 0.055, 0.085, 0.46)
-    ResponsiveUI.place(settings_language_button, Rect2(326, 151, 234, 32))
-    ResponsiveUI.place(flash_button, Rect2(80, 285, 234, 36))
-    ResponsiveUI.place(music_button, Rect2(80, 219, 234, 28))
-    ResponsiveUI.place(sfx_button, Rect2(326, 219, 234, 28))
-    ResponsiveUI.place(settings_back_button, Rect2(326, 285, 234, 36))
+    ResponsiveUI.place(settings_language_button, Rect2(326, 103, 234, 28))
+    ResponsiveUI.place(flash_button, Rect2(80, 209, 234, 27))
+    ResponsiveUI.place(music_button, Rect2(80, 262, 234, 26))
+    ResponsiveUI.place(sfx_button, Rect2(326, 262, 234, 26))
+    ResponsiveUI.place(settings_back_button, Rect2(80, 315, 480, 25))
     PlayfulUITheme.apply_forest_panel(settings_panel, true)
     PlayfulUITheme.apply_label(settings_title_label, PlayfulUITheme.FLUENT_TEXT)
     for button: Button in [settings_language_button, flash_button, music_button, sfx_button, settings_back_button]:
+        button.toggle_mode = button in [flash_button, music_button, sfx_button]
         PlayfulUITheme.apply_forest_button(button, button == settings_back_button)
-    for rect: Rect2 in [Rect2(80, 72, 480, 22), Rect2(80, 194, 480, 22)]:
+    for rect: Rect2 in [Rect2(80, 49, 480, 18), Rect2(80, 136, 480, 18), Rect2(80, 239, 480, 18)]:
         var section: Label = _make_label(group, rect.position, rect.size, 13)
         PlayfulUITheme.apply_label(section, PlayfulUITheme.FLUENT_MUTED)
         settings_sections.append(section)
@@ -684,30 +697,52 @@ func _create_display_controls() -> void:
     display_mode_picker = OptionButton.new()
     display_mode_picker.name = "DisplayModePicker"
     group.add_child(display_mode_picker)
-    ResponsiveUI.place(display_mode_picker, Rect2(80, 99, 234, 32))
+    ResponsiveUI.place(display_mode_picker, Rect2(80, 70, 234, 28))
     display_mode_picker.item_selected.connect(_select_display_mode)
     resolution_picker = OptionButton.new()
     resolution_picker.name = "ResolutionPicker"
     group.add_child(resolution_picker)
-    ResponsiveUI.place(resolution_picker, Rect2(326, 99, 234, 32))
+    ResponsiveUI.place(resolution_picker, Rect2(326, 70, 234, 28))
     resolution_picker.item_selected.connect(_select_resolution)
     ui_scale_picker = OptionButton.new()
     ui_scale_picker.name = "UIScalePicker"
     group.add_child(ui_scale_picker)
-    ResponsiveUI.place(ui_scale_picker, Rect2(80, 151, 234, 32))
+    ResponsiveUI.place(ui_scale_picker, Rect2(80, 103, 234, 28))
     ui_scale_picker.item_selected.connect(_select_ui_scale)
     for picker: OptionButton in [display_mode_picker, resolution_picker, ui_scale_picker]:
         PlayfulUITheme.apply_forest_picker(picker)
         picker.add_theme_font_size_override("font_size", 13)
         picker.hide()
+    theme_picker = OptionButton.new()
+    theme_picker.name = "ThemePicker"
+    group.add_child(theme_picker)
+    ResponsiveUI.place(theme_picker, Rect2(80, 158, 234, 28))
+    theme_picker.item_selected.connect(_choose_theme)
+    glass_picker = OptionButton.new()
+    glass_picker.name = "GlassPicker"
+    group.add_child(glass_picker)
+    ResponsiveUI.place(glass_picker, Rect2(326, 158, 234, 28))
+    glass_picker.item_selected.connect(_choose_glass)
+    for picker: OptionButton in [theme_picker, glass_picker]:
+        PlayfulUITheme.apply_forest_picker(picker)
+        picker.add_theme_font_size_override("font_size", 13)
+        picker.hide()
+    motion_button = Button.new()
+    motion_button.name = "MotionButton"
+    group.add_child(motion_button)
+    ResponsiveUI.place(motion_button, Rect2(326, 209, 234, 27))
+    PlayfulUITheme.apply_forest_button(motion_button)
+    motion_button.toggle_mode = true
+    motion_button.pressed.connect(_toggle_motion)
+    motion_button.hide()
     fullscreen_button.hide()
     audio_save = Timer.new()
     audio_save.one_shot = true
     audio_save.wait_time = 0.3
     add_child(audio_save)
     audio_save.timeout.connect(settings.save_settings)
-    music_slider = _volume_slider(group, Rect2(88, 251, 218, 22), settings.music_volume_db, true)
-    sfx_slider = _volume_slider(group, Rect2(334, 251, 218, 22), settings.sfx_volume_db, false)
+    music_slider = _volume_slider(group, Rect2(88, 291, 218, 20), settings.music_volume_db, true)
+    sfx_slider = _volume_slider(group, Rect2(334, 291, 218, 20), settings.sfx_volume_db, false)
     _refresh_settings_buttons()
 
 func _volume_slider(group: Control, rect: Rect2, value: float, music: bool) -> HSlider:
@@ -738,7 +773,7 @@ func _refresh_volume_labels() -> void:
     sfx_button.text = _t("Sound: %s · %d dB", "音效：%s · %d dB") % [_on_off(settings.sfx_enabled), settings.sfx_volume_db]
 
 func _display_settings_changed() -> void:
-    if settings_panel.visible and not resolution_picker.get_popup().visible and not ui_scale_picker.get_popup().visible and not display_mode_picker.get_popup().visible:
+    if settings_panel.visible and not resolution_picker.get_popup().visible and not ui_scale_picker.get_popup().visible and not display_mode_picker.get_popup().visible and not theme_picker.get_popup().visible and not glass_picker.get_popup().visible:
         _refresh_settings_buttons()
 
 func _hide_settings() -> void:
@@ -759,8 +794,23 @@ func _refresh_settings_buttons() -> void:
     _refresh_volume_labels()
     var modes: Array[String] = [_t("Windowed", "窗口化"), _t("Borderless fullscreen", "无边框全屏"), _t("Exclusive fullscreen", "独占全屏")]
     fullscreen_button.hide()
-    settings_sections[0].text = _t("Display and language", "显示与语言")
-    settings_sections[1].text = _t("Audio", "音频")
+    settings_sections[0].text = _t("Display & language", "显示与语言")
+    settings_sections[1].text = _t("Appearance and effects", "外观与效果")
+    settings_sections[2].text = _t("Audio", "音频")
+    theme_picker.clear()
+    theme_picker.add_item(_t("Theme: Dark", "主题：深色"), 0)
+    theme_picker.add_item(_t("Theme: Light", "主题：浅色"), 1)
+    theme_picker.select(int(settings.light_ui))
+    glass_picker.clear()
+    for text_value: String in [_t("Glass: Off", "毛玻璃：关闭"), _t("Glass: Low", "毛玻璃：低"), _t("Glass: Medium", "毛玻璃：中"), _t("Glass: High", "毛玻璃：高")]:
+        glass_picker.add_item(text_value)
+    glass_picker.select(settings.glass_strength)
+    motion_button.set_pressed_no_signal(settings.reduced_motion)
+    flash_button.set_pressed_no_signal(settings.screen_flash_enabled)
+    music_button.set_pressed_no_signal(settings.music_enabled)
+    sfx_button.set_pressed_no_signal(settings.sfx_enabled)
+    motion_button.text = _t("Reduced motion: ", "减少动效：") + _on_off(settings.reduced_motion)
+    motion_button.tooltip_text = _t("Disable interface transitions", "关闭界面过渡动画")
     display_mode_picker.clear()
     for i: int in range(modes.size()):
         display_mode_picker.add_item(modes[i], i)
@@ -794,6 +844,10 @@ func _set_settings_controls_visible(value: bool) -> void:
     if is_instance_valid(resolution_picker):
         resolution_picker.visible = value and not OS.has_feature("web")
         ui_scale_picker.visible = value
+    if is_instance_valid(theme_picker):
+        theme_picker.visible = value
+        glass_picker.visible = value
+        motion_button.visible = value
     if is_instance_valid(music_slider):
         music_slider.visible = value
         sfx_slider.visible = value
@@ -885,3 +939,31 @@ func _select_display_mode(index: int) -> void:
     audio_manager.play_event(&"ui_click")
     settings.set_display_mode(display_mode_picker.get_item_id(index))
     _refresh_settings_buttons()
+
+func _show_settings() -> void:
+    super._show_settings()
+    PlayfulUITheme.reveal(settings_panel)
+
+func _refresh_appearance() -> void:
+    PlayfulUITheme.configure_appearance(settings.light_ui, settings.glass_strength, settings.reduced_motion)
+    PlayfulUITheme.refresh_tree(self)
+    for label: Label in [title_label, subtitle_label, progress_label]:
+        PlayfulUITheme.apply_label(label, Color("#f6f8fc"))
+        label.add_theme_color_override("font_outline_color", Color("#152536"))
+        label.add_theme_constant_override("outline_size", 4)
+    _refresh_settings_buttons()
+
+func _choose_theme(index: int) -> void:
+    settings.light_ui = index == 1
+    settings.save_settings()
+    _refresh_appearance()
+
+func _choose_glass(index: int) -> void:
+    settings.glass_strength = clampi(index, 0, 3)
+    settings.save_settings()
+    _refresh_appearance()
+
+func _toggle_motion() -> void:
+    settings.reduced_motion = not settings.reduced_motion
+    settings.save_settings()
+    _refresh_appearance()

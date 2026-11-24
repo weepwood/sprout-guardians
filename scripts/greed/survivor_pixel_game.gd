@@ -17,6 +17,10 @@ var hud_timer_panel: Panel
 var hud_right_panel: Panel
 var hud_weapons: HBoxContainer
 var hud_weapon_signature: String = ""
+var hud_cooldowns: Dictionary = {}
+var hud_boss_panel: Panel
+var hud_boss_name: Label
+var hud_boss_bar: ProgressBar
 var camera_view_size: Vector2 = SurvivorMaps.VIEW_SIZE
 var classic_surround: TextureRect
 var simulation_character: int = 0
@@ -371,6 +375,7 @@ func _open_surprise_choice() -> void:
     if run_state != null:
         run_state.open_reward()
     _render_reward_cards()
+    PlayfulUITheme.reveal(choice_panel)
     audio_manager.play_event(&"chest_open")
 
 
@@ -404,7 +409,7 @@ func _render_reward_cards() -> void:
         var category: String = _t("Weapon", "武器") if is_weapon else _t("Passive", "被动")
         rarity.text = category + " · " + data.rarity_name(i18n.locale_code)
         if index == recommended:
-            rarity.text = "★ " + category + " · " + data.rarity_name(i18n.locale_code)
+            rarity.text = "★ " + _t("Recommended", "推荐") + " · " + category
         rarity.tooltip_text = (_t("Recommended · ", "推荐 · ") if index == recommended else "") + data.rarity_name(i18n.locale_code)
         rarity.add_theme_color_override("font_color", PlayfulUITheme.reward_rarity_ink(data.rarity))
         rarity.add_theme_font_size_override("font_size", 11)
@@ -477,6 +482,7 @@ func _refresh_hud() -> void:
         hud_health_bar.max_value = float(hero_plant.max_health)
         hud_health_bar.value = float(hero_plant.health)
         _refresh_weapon_strip()
+        _refresh_cooldowns_and_boss()
     coins_label.text = "%d" % enemies_defeated
     greed_label.text = _t("LV.%d XP", "等级%d 经验") % hero_plant.level
     if experience_bar != null:
@@ -517,7 +523,7 @@ func _process(delta: float) -> void:
         status_label.text = _warning_message
     combo_label.visible = _combo_seconds > 0.0 and _combo_count >= 3 and not choice_open and not game_ended
     if control_label != null:
-        control_label.visible = survival_elapsed < 4.2 and not choice_open and not game_ended
+        control_label.visible = survival_elapsed < 4.2 and not final_boss_spawned and not choice_open and not game_ended
 
 
 func _show_event_banner(message: String, duration: float = 2.8) -> void:
@@ -612,6 +618,7 @@ func _toggle_pause() -> void:
         if equipped.is_empty():
             pause_build_label.text += _t("No weapons acquired yet", "尚未获得额外武器")
         pause_build_label.tooltip_text = power_label.text + "\n" + " · ".join(equipped)
+        PlayfulUITheme.reveal(pause_panel)
         pause_resume_button.grab_focus()
     else:
         get_viewport().gui_release_focus()
@@ -663,7 +670,9 @@ func _apply_playful_hud() -> void:
     for label: Label in [pause_title, pause_subtitle, pause_build_label]:
         PlayfulUITheme.apply_label(label, PlayfulUITheme.FLUENT_TEXT)
     PlayfulUITheme.apply_label(pause_title, PlayfulUITheme.FLUENT_ACCENT)
-    PlayfulUITheme.apply_label(control_label, PlayfulUITheme.FLUENT_TEXT)
+    PlayfulUITheme.apply_label(control_label, Color("#f4f7fb"))
+    control_label.add_theme_color_override("font_outline_color", Color("#152536"))
+    control_label.add_theme_constant_override("outline_size", 3)
     PlayfulUITheme.apply_label(choice_hint, Color("#344456"))
     PlayfulUITheme.apply_label(status_label, PlayfulUITheme.FLUENT_TEXT)
     PlayfulUITheme.apply_label(combo_label, Color("#ffed92"))
@@ -714,6 +723,10 @@ func _finish_run(victory: bool) -> void:
         )
         if run_trace != null:
             run_trace.note("run_recorded", "saved=%s victory=%s kills=%d" % [saved, victory, enemies_defeated])
+    if is_instance_valid(hud_weapons):
+        hud_weapons.hide()
+    if is_instance_valid(hud_boss_panel):
+        hud_boss_panel.hide()
     _show_result_workspace(victory)
 
 
@@ -1017,7 +1030,7 @@ func _show_result_workspace(victory: bool) -> void:
     for i: int in range(captions.size()):
         var tile: PanelContainer = PanelContainer.new()
         tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-        tile.add_theme_stylebox_override("panel", PlayfulUITheme.fluent_surface(Color("#303d4b"), 7, Color("#526171"), 0))
+        tile.add_theme_stylebox_override("panel", PlayfulUITheme.fluent_surface(PlayfulUITheme.tile_color(), 7, PlayfulUITheme.outline_color(), 0))
         metrics.add_child(tile)
         var labels_box: VBoxContainer = VBoxContainer.new()
         labels_box.add_theme_constant_override("separation", 0)
@@ -1176,8 +1189,8 @@ func _create_responsive_hud() -> void:
     language_button.hide()
     speed_button.hide()
     ResponsiveUI.place(pause_build_label, Rect2(155, 113, 330, 70))
-    ResponsiveUI.place(language_button, Rect2(179, 191, 134, 27))
-    ResponsiveUI.place(speed_button, Rect2(327, 191, 134, 27))
+    ResponsiveUI.place(language_button, Rect2(179, 184, 134, 27))
+    ResponsiveUI.place(speed_button, Rect2(327, 184, 134, 27))
     hud_weapons = HBoxContainer.new()
     hud_weapons.name = "WeaponStrip"
     hud_weapons.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1185,6 +1198,24 @@ func _create_responsive_hud() -> void:
     var ui: CanvasLayer = get_node("UI") as CanvasLayer
     ui.add_child(hud_weapons)
     ui.move_child(hud_weapons, get_node("UI/ChoiceLayer").get_index())
+    hud_boss_panel = Panel.new()
+    hud_boss_panel.name = "BossStatus"
+    hud_boss_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    top.add_child(hud_boss_panel)
+    PlayfulUITheme.apply_forest_panel(hud_boss_panel)
+    hud_boss_name = Label.new()
+    hud_boss_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    hud_boss_name.add_theme_font_size_override("font_size", 11)
+    PlayfulUITheme.apply_label(hud_boss_name, PlayfulUITheme.FLUENT_TEXT)
+    hud_boss_panel.add_child(hud_boss_name)
+    ResponsiveUI.place(hud_boss_name, Rect2(6, 2, 278, 17))
+    hud_boss_bar = ProgressBar.new()
+    hud_boss_bar.show_percentage = false
+    hud_boss_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    hud_boss_panel.add_child(hud_boss_bar)
+    ResponsiveUI.place(hud_boss_bar, Rect2(8, 22, 274, 5))
+    PlayfulUITheme.apply_forest_progress(hud_boss_bar, Color("#e78a91"))
+    hud_boss_panel.hide()
 
 func _refresh_weapon_strip() -> void:
     if not is_instance_valid(hud_weapons):
@@ -1195,6 +1226,7 @@ func _refresh_weapon_strip() -> void:
     if signature == hud_weapon_signature:
         return
     hud_weapon_signature = signature
+    hud_cooldowns.clear()
     for child: Node in hud_weapons.get_children():
         hud_weapons.remove_child(child)
         child.queue_free()
@@ -1206,7 +1238,7 @@ func _refresh_weapon_strip() -> void:
         var slot: PanelContainer = PanelContainer.new()
         slot.name = "Weapon%d" % i
         slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-        slot.add_theme_stylebox_override("panel", PlayfulUITheme.fluent_surface(Color("#263542"), 6, PlayfulUITheme.FLUENT_ACCENT if evolved else Color("#526171")))
+        slot.add_theme_stylebox_override("panel", PlayfulUITheme.fluent_surface(PlayfulUITheme.tile_color(), 6, PlayfulUITheme.accent_color() if evolved else PlayfulUITheme.outline_color()))
         hud_weapons.add_child(slot)
         var stack: VBoxContainer = VBoxContainer.new()
         stack.add_theme_constant_override("separation", 0)
@@ -1226,6 +1258,38 @@ func _refresh_weapon_strip() -> void:
         PlayfulUITheme.apply_label(rank_label, PlayfulUITheme.FLUENT_ACCENT if evolved else PlayfulUITheme.FLUENT_TEXT)
         rank_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
         stack.add_child(rank_label)
+        var cooldown: ProgressBar = ProgressBar.new()
+        cooldown.name = "Cooldown"
+        cooldown.custom_minimum_size = Vector2(24, 3)
+        cooldown.show_percentage = false
+        cooldown.max_value = 1.0
+        cooldown.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        PlayfulUITheme.apply_forest_progress(cooldown, PlayfulUITheme.FLUENT_ACCENT)
+        stack.add_child(cooldown)
+        hud_cooldowns[i] = cooldown
+
+func _refresh_cooldowns_and_boss() -> void:
+    for i: int in hud_cooldowns.keys():
+        var rank: int = blessing_system.get_blessing_stack(SurvivorArsenal.IDS[i])
+        var evolved: bool = SurvivorArsenal.evolved(blessing_system, i)
+        var resonance: bool = evolved and SurvivorArsenal.evolved(blessing_system, SurvivorArsenal.EVOLUTION_PARTNERS[i])
+        var interval: float = SurvivorArsenal.shot_interval(i, rank, evolved, resonance, difficulty)
+        (hud_cooldowns[i] as ProgressBar).value = clampf(1.0 - arsenal.timers[i] / maxf(0.01, interval), 0.0, 1.0)
+    if not is_instance_valid(hud_boss_panel):
+        return
+    hud_boss_panel.hide()
+    if not final_boss_spawned or final_boss_defeated or game_ended:
+        return
+    for node: Node in get_tree().get_nodes_in_group("greed_enemies"):
+        var enemy: GreedEnemy = node as GreedEnemy
+        if is_instance_valid(enemy) and enemy.boss and enemy.health > 0:
+            hud_boss_bar.max_value = maxf(1.0, enemy.max_health)
+            hud_boss_bar.value = enemy.health
+            hud_boss_name.text = _t(SurvivorBiomeBoss.EN[map_id], SurvivorBiomeBoss.ZH[map_id]) + " · %d%%" % roundi(enemy.health / maxf(1.0, enemy.max_health) * 100.0)
+            hud_boss_panel.show()
+            if is_instance_valid(control_label):
+                control_label.hide()
+            break
 
 func _layout_game(view: Vector2) -> void:
     var top: Control = get_node("UI/TopHUD") as Control
@@ -1244,11 +1308,12 @@ func _layout_game(view: Vector2) -> void:
     ResponsiveUI.place(menu_button, Rect2(view.x - 81, 9, 69, 28))
     ResponsiveUI.place(control_label, Rect2(view.x * 0.5 - 195, 44, 390, 22))
     ResponsiveUI.place(combo_label, Rect2(view.x - 174, 43, 158, 25))
-    ResponsiveUI.place(warning_frame, Rect2(view.x * 0.5 - 162, 68, 324, 32))
-    ResponsiveUI.place(status_label, Rect2(view.x * 0.5 - 172, 74, 344, 20))
+    ResponsiveUI.place(warning_frame, Rect2(view.x * 0.5 - 162, 78, 324, 32))
+    ResponsiveUI.place(status_label, Rect2(view.x * 0.5 - 172, 84, 344, 20))
     ResponsiveUI.place(get_node("UI/ExperienceFrame") as Control, Rect2(8, view.y - 14, view.x - 16, 10))
     ResponsiveUI.place(experience_bar, Rect2(12, view.y - 12, view.x - 24, 6))
-    hud_weapons.position = Vector2(10, view.y - 55)
+    hud_weapons.position = Vector2(10, view.y - 61)
+    ResponsiveUI.place(hud_boss_panel, Rect2(view.x * 0.5 - 145, 44, 290, 30))
     ResponsiveUI.center_group(get_node("UI/ChoiceLayer") as Control, view)
     ResponsiveUI.center_group(get_node("UI/PauseLayer") as Control, view)
     _layout_camera()

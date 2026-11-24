@@ -82,6 +82,18 @@ func _test_main_menu() -> void:
     _assert_true(not play_button.visible, "Main menu actions are hidden behind settings")
     _assert_true(settings_title.visible, "Settings title is visible")
     _assert_control_inside_viewport(panel, "Settings panel stays inside viewport")
+    menu.call("_choose_theme", 1)
+    menu.call("_choose_glass", 0)
+    menu.call("_toggle_motion")
+    var appearance: SettingsService = SettingsService.new()
+    appearance.load_settings()
+    _assert_true(appearance.light_ui and appearance.glass_strength == 0 and appearance.reduced_motion, "Appearance choices survive reload")
+    var button: Button = menu.get("settings_language_button") as Button
+    var surface: StyleBoxFlat = button.get_theme_stylebox("normal") as StyleBoxFlat
+    _assert_true(PlayfulUITheme.contrast_ratio(button.get_theme_color("font_color"), surface.bg_color) >= 7.0, "Light controls remain legible")
+    menu.call("_choose_theme", 0)
+    menu.call("_choose_glass", 2)
+    menu.call("_toggle_motion")
 
     menu.call("_hide_settings")
     await process_frame

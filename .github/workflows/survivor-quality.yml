@@ -70,8 +70,8 @@ jobs:
         run: |
           set -euo pipefail
           timeout 90s xvfb-run -a -s '-screen 0 1280x720x24' godot --rendering-method gl_compatibility --audio-driver Dummy --resolution 1280x720 --path . --script res://tests/run_fluent_capture.gd 2>&1 | tee build/quality/fluent.log
-          grep '^FLUENT_SUMMARY captured=9 failed=false$' build/quality/fluent.log
-          test "$(find build/fluent -name '*.png' | wc -l)" -eq 9
+          grep '^FLUENT_SUMMARY captured=14 failed=false$' build/quality/fluent.log
+          test "$(find build/fluent -name '*.png' | wc -l)" -eq 14
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Shader compilation failed|Invalid access|Invalid call|on a null instance' build/quality/fluent.log; then exit 1; fi
       - name: Responsive native-window capture and preferences
         run: |
