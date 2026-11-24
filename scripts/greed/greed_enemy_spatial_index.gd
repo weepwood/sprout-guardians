@@ -36,7 +36,9 @@ func query_radius(center: Vector2, radius: float) -> Array[GreedEnemy]:
         for y: int in range(minimum.y, maximum.y + 1):
             var bucket: Array = _cells.get(Vector2i(x, y), []) as Array
             for value: Variant in bucket:
-                var enemy: GreedEnemy = value as GreedEnemy
+                var enemy: GreedEnemy = instance_from_id(int(value)) as GreedEnemy
+                if enemy == null:
+                    continue
                 if enemy == null or not is_instance_valid(enemy) or enemy.is_queued_for_deletion():
                     continue
                 if enemy.health > 0.0 and center.distance_squared_to(enemy.global_position) <= radius_squared:
@@ -54,7 +56,7 @@ func _rebuild_cells() -> void:
             continue
         var key: Vector2i = _cell_for(enemy.global_position)
         var bucket: Array = _cells.get(key, []) as Array
-        bucket.append(enemy)
+        bucket.append(enemy.get_instance_id())
         _cells[key] = bucket
 
 

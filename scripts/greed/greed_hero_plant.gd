@@ -277,8 +277,8 @@ func _attack(target_enemy: GreedEnemy) -> void:
         damage_value,
         critical,
         projectile_speed,
-        0.0,
-        0.0,
+        float(config.get("splash_radius", 0.0)),
+        float(config.get("slow_ratio", 0.0)),
         70.0 if critical else 38.0,
         body_color
     )

@@ -104,7 +104,7 @@ func _create_arena() -> void:
     hero_plant.name = "MainPlant"
     actors_container.add_child(hero_plant)
     hero_plant.global_position = player_spawn.global_position
-    hero_plant.configure(GreedBalance.STARTER_PLANTS[0], blessing_system)
+    hero_plant.configure(SurvivorCharacters.configuration(0 if simulation_mode else SurvivorCharacters.selected), blessing_system)
     hero_plant.health_changed.connect(_on_core_health_changed)
     hero_plant.defeated.connect(_on_core_defeated)
     hero_plant.fired.connect(_on_hero_fired)
@@ -121,7 +121,9 @@ func _create_arena() -> void:
         familiar.name = "FloatingFamiliar%d" % familiar_index
         actors_container.add_child(familiar)
         familiar.global_position = familiar_spawns[familiar_index].global_position
-        familiar.configure(hero_plant, GreedBalance.STARTER_PLANTS[config_index], familiar_index, blessing_system)
+        var familiar_config: Dictionary = GreedBalance.STARTER_PLANTS[config_index].duplicate(true)
+        familiar_config["survivor_art"] = true
+        familiar.configure(hero_plant, familiar_config, familiar_index, blessing_system)
         familiar.set_focus_source(hero_plant)
         familiar.fired.connect(_on_plant_fired)
         familiar.projectile_requested.connect(_on_projectile_requested)
@@ -216,14 +218,19 @@ func _on_projectile_requested(
 func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
     var config: Dictionary = spawn_director.next_enemy(survival_elapsed, force_elite, force_boss)
 
+    return _spawn_configured_enemy(config, _survivor_spawn_edge())
+
+
+func _spawn_configured_enemy(config: Dictionary, position_value: Vector2) -> GreedEnemy:
     var enemy: GreedEnemy = ENEMY_SCENE.instantiate() as GreedEnemy
     enemy.name = "SurvivorEnemy"
     enemies_container.add_child(enemy)
-    enemy.global_position = _survivor_spawn_edge()
+    enemy.global_position = position_value
     enemy.configure(hero_plant, config, 1.0)
     enemy.damaged.connect(_on_enemy_damaged)
     enemy.defeated.connect(_on_enemy_defeated)
     enemy.core_contact.connect(_on_enemy_core_contact)
+    enemy.summon_requested.connect(_on_summon_requested)
     return enemy
 
 
@@ -371,7 +378,11 @@ func _show_event_banner(message: String, duration: float = 2.8) -> void:
 
 func _on_enemy_defeated(enemy: GreedEnemy, coin_reward: int, elite: bool) -> void:
     var was_boss: bool = enemy != null and is_instance_valid(enemy) and enemy.boss
+    var should_split: bool = is_instance_valid(enemy) and enemy.survivor_variant == 4
+    var death_position: Vector2 = enemy.global_position if is_instance_valid(enemy) else Vector2.ZERO
     super._on_enemy_defeated(enemy, coin_reward, elite)
+    if should_split and not game_ended:
+        call_deferred("_spawn_minions", death_position, 2)
     if was_boss or game_ended:
         return
     _combo_count = _combo_count + 1 if _combo_seconds > 0.0 else 1
@@ -610,3 +621,19 @@ func _skip_reward() -> void:
     _refresh_hud()
     if pending_level_ups > 0:
         call_deferred("_open_surprise_choice")
+
+
+func _on_summon_requested(position_value: Vector2) -> void:
+    call_deferred("_spawn_minions", position_value, 3)
+
+
+func _spawn_minions(position_value: Vector2, count: int) -> void:
+    if game_ended or not is_instance_valid(hero_plant):
+        return
+    var available: int = maxi(0, _active_enemy_cap() - get_tree().get_nodes_in_group("greed_enemies").size())
+    for i: int in range(mini(count, available)):
+        var offset: Vector2 = Vector2.from_angle(TAU * float(i) / float(count)) * 24.0
+        var config: Dictionary = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, 5)
+        var minion: GreedEnemy = _spawn_configured_enemy(config, position_value + offset)
+        if choice_open or pause_open:
+            minion.process_mode = Node.PROCESS_MODE_DISABLED

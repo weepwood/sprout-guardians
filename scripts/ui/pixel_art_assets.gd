@@ -7,6 +7,7 @@ const GRASS_TILE: Texture2D = preload("res://assets/pixel/grass_tile.svg")
 const UI_PANEL: Texture2D = preload("res://assets/pixel/ui_panel.svg")
 const TOY_ATLAS: Texture2D = preload("res://assets/toy/sprout_toy_atlas.png")
 const MUTATION_ATLAS: Texture2D = preload("res://assets/generated/mutation_icons.png")
+const GENERATED_ACTORS: Texture2D = preload("res://assets/generated/actor_atlas.png")
 const MUTATION_IDS: Array[String] = ["mutation_seed", "mutation_spore", "mutation_frost", "mutation_sun", "mutation_thorn", "mutation_symbiosis"]
 
 # 3x3 source art atlas. Each 56px cell is an authored image, never generated
@@ -111,3 +112,15 @@ static func blessing_icon(blessing_id: StringName) -> Texture2D:
     if id_text.contains("spore") or id_text.contains("bloom"):
         return texture(&"projectile_petal")
     return texture(&"icon_leaf")
+
+
+static func generated_actor(index: int) -> Texture2D:
+    var safe_index: int = clampi(index, 0, 5)
+    var key: StringName = StringName("generated_actor_%d" % safe_index)
+    if not _texture_cache.has(key):
+        var icon: AtlasTexture = AtlasTexture.new()
+        icon.atlas = GENERATED_ACTORS
+        icon.region = Rect2(float(safe_index % 3) * 56.0, float(floori(float(safe_index) / 3.0)) * 56.0, 56.0, 56.0)
+        icon.filter_clip = true
+        _texture_cache[key] = icon
+    return _texture_cache[key] as Texture2D

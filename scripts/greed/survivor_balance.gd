@@ -24,6 +24,17 @@ static func enemy_config(elapsed: float, difficulty: int, elite: bool, boss: boo
     elif variant == 2 and not elite and not boss:
         hp *= 1.45
         speed *= 0.72
+    if not elite and not boss:
+        match variant:
+            3:
+                hp *= 0.85
+                speed *= 0.80
+            4:
+                hp *= 1.1
+                speed *= 0.85
+            5:
+                hp *= 0.36
+                speed *= 1.25
     if elite:
         hp = 100.0 if t < 60.0 else 210.0
         speed = 38.0
@@ -32,7 +43,7 @@ static func enemy_config(elapsed: float, difficulty: int, elite: bool, boss: boo
         hp = 850.0
         speed = 40.0
         damage = 3
-    return {"health": hp * p.x, "speed": speed, "damage": maxi(1, roundi(damage * p.z)), "elite": elite or boss, "boss": boss, "variant": variant if not elite and not boss else 0}
+    return {"health": hp * p.x, "speed": speed, "damage": maxi(1, roundi(damage * p.z)), "elite": elite or boss, "boss": boss, "variant": variant if not elite and not boss else 0, "survivor_combat": true}
 
 static func spawn_interval(elapsed: float, difficulty: int) -> float:
     var t: float = clampf(elapsed, 0.0, 90.0)

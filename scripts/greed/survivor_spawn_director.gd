@@ -14,6 +14,10 @@ func next_enemy(elapsed: float, elite: bool, boss: bool) -> Dictionary:
         var roll: float = rng.randf()
         if roll < 0.22:
             variant = 1
+        elif elapsed >= 45.0 and roll < 0.38:
+            variant = 3
+        elif elapsed >= 55.0 and roll < 0.50:
+            variant = 4
         elif elapsed >= 35.0 and roll > 0.78:
             variant = 2
     return SurvivorBalance.enemy_config(elapsed, difficulty, elite, boss, variant)

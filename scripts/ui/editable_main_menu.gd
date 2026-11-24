@@ -1,6 +1,7 @@
 extends "res://scripts/ui/greed_main_menu.gd"
 
 var difficulty_picker: OptionButton
+var character_picker: OptionButton
 var archive_backdrop: ColorRect
 var archive_panel: Panel
 var archive_title: Label
@@ -13,6 +14,7 @@ func _ready() -> void:
     settings = SettingsService.new()
     settings.load_settings()
     SurvivorBalance.selected_difficulty = settings.survivor_difficulty
+    SurvivorCharacters.selected = settings.survivor_character
     localization = LocalizationService.new()
     localization.set_locale(settings.locale, false)
     save_game = SaveGameService.new()
@@ -30,6 +32,12 @@ func _ready() -> void:
     difficulty_picker.size = Vector2(132, 28)
     get_node("UI/Main").add_child(difficulty_picker)
     difficulty_picker.item_selected.connect(_select_difficulty)
+    character_picker = OptionButton.new()
+    character_picker.name = "CharacterPicker"
+    character_picker.position = Vector2(12, 46)
+    character_picker.size = Vector2(132, 30)
+    get_node("UI/Main").add_child(character_picker)
+    character_picker.item_selected.connect(_select_character)
     _apply_locale()
     _apply_playful_design()
     if OS.get_cmdline_user_args().has("--ci-survivors-smoke"):
@@ -118,6 +126,12 @@ func _apply_locale() -> void:
         difficulty_picker.add_item(_t("Normal", "普通"))
         difficulty_picker.add_item(_t("Expert", "专家"))
         difficulty_picker.select(SurvivorBalance.selected_difficulty)
+    if character_picker != null:
+        character_picker.clear()
+        for i: int in range(3):
+            character_picker.add_icon_item(PixelArtAssets.generated_actor(i), _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]))
+            character_picker.set_item_tooltip(i, _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i]))
+        character_picker.select(SurvivorCharacters.selected)
     if archive_title == null:
         return
     archive_title.text = _t("GARDEN JOURNAL", "花园战绩")
@@ -181,4 +195,10 @@ func _unhandled_input(event: InputEvent) -> void:
 func _select_difficulty(index: int) -> void:
     SurvivorBalance.selected_difficulty = clampi(index, 0, 2)
     settings.survivor_difficulty = SurvivorBalance.selected_difficulty
+    settings.save_settings()
+
+
+func _select_character(index: int) -> void:
+    SurvivorCharacters.selected = clampi(index, 0, 2)
+    settings.survivor_character = SurvivorCharacters.selected
     settings.save_settings()

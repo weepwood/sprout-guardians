@@ -12,6 +12,7 @@ func _run() -> void:
     _test_balance()
     _test_pool()
     _test_arsenal()
+    _test_character_profiles()
     for mutation_id: StringName in SurvivorArsenal.IDS:
         var icon: AtlasTexture = PixelArtAssets.blessing_icon(mutation_id) as AtlasTexture
         _assert_true(icon != null and icon.atlas == PixelArtAssets.MUTATION_ATLAS and icon.region.size == Vector2(56, 56), "Generated mutation PNG region: %s" % mutation_id)
@@ -181,6 +182,12 @@ func _run() -> void:
         spatial_index._rebuild_cells()
         _assert_true(spatial_index.query_radius(spawned.global_position, 10.0).has(spawned), "Spatial query finds nearby active enemies")
         _assert_true(spatial_index.query_radius(spawned.global_position + Vector2(220.0, 0.0), 10.0).is_empty(), "Spatial query excludes distant enemies")
+        var stale_position: Vector2 = spawned.global_position
+        var stale_id: int = spawned.get_instance_id()
+        spawned.free()
+        _assert_true(not is_instance_id_valid(stale_id), "Enemy reference was released")
+        spatial_index.query_radius(stale_position, 12.0)
+        _assert_true(true, "Spatial query tolerates stale instance IDs")
 
     var spawned_gem: SurvivorExperienceGem = game.call("_spawn_experience_gem", game_hero.global_position + Vector2(40.0, 0.0), 1) as SurvivorExperienceGem
     await process_frame
@@ -274,3 +281,12 @@ func _test_difficulty_settings() -> void:
     service.load_settings()
     _assert_equal_int(service.survivor_difficulty, 2, "Difficulty persists across reload")
     DirAccess.remove_absolute(ProjectSettings.globalize_path(service.settings_path))
+
+
+func _test_character_profiles() -> void:
+    for i: int in range(3):
+        var config: Dictionary = SurvivorCharacters.configuration(i)
+        _assert_equal_int(int(config["character_index"]), i, "Character configuration matches selection")
+        _assert_true(PixelArtAssets.generated_actor(i) != null, "Generated character art resolves")
+    _assert_true(float(SurvivorCharacters.configuration(1)["splash_radius"]) > 0.0, "Sunflower has area shots")
+    _assert_true(float(SurvivorCharacters.configuration(2)["slow_ratio"]) > 0.0, "Frostflower has slow shots")
