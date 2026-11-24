@@ -138,11 +138,20 @@ func _spawn_time_milestones() -> void:
         first_elite_spawned = true
         _spawn_survivor_enemy(true, false)
         impact_system.spawn_reward(hero_plant.global_position, Color("f0a34d"))
+        _grant_milestone_growth()
     if survival_elapsed >= SECOND_ELITE_TIME and not second_elite_spawned:
         second_elite_spawned = true
         _spawn_survivor_enemy(true, false)
-        _spawn_survivor_enemy(true, false)
+        if difficulty != 0:
+            _spawn_survivor_enemy(true, false)
         impact_system.spawn_reward(hero_plant.global_position, Color("df72ef"))
+        _grant_milestone_growth()
+
+
+func _grant_milestone_growth() -> void:
+    var amount: int = SurvivorBalance.milestone_experience(difficulty)
+    if amount > 0 and is_instance_valid(hero_plant):
+        _spawn_experience_gem(hero_plant.global_position, amount)
 
 
 func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
@@ -165,12 +174,12 @@ func _current_spawn_interval() -> float:
 
 
 func _active_enemy_cap() -> int:
-    return SurvivorBalance.enemy_cap(survival_elapsed)
+    return SurvivorBalance.enemy_cap(survival_elapsed, difficulty)
 
 
 func _on_enemy_defeated(enemy: GreedEnemy, coin_reward: int, elite: bool) -> void:
     var drop_position: Vector2 = hero_plant.global_position if hero_plant != null else ARENA_RECT.get_center()
-    var experience_value: int = 3 if elite else 1
+    var experience_value: int = SurvivorBalance.enemy_experience(difficulty, elite)
     var was_boss: bool = false
     if enemy != null and is_instance_valid(enemy):
         drop_position = enemy.global_position
@@ -188,7 +197,7 @@ func _spawn_experience_gem(position_value: Vector2, amount: int) -> SurvivorExpe
     gem.name = "ExperienceGem"
     gem.global_position = position_value
     add_child(gem)
-    gem.configure(hero_plant, amount)
+    gem.configure(hero_plant, amount, difficulty)
     gem.collected.connect(_on_experience_collected)
     return gem
 

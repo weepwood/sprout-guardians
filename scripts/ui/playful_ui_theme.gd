@@ -178,3 +178,16 @@ static func apply_forest_picker(picker: OptionButton) -> void:
     popup.add_theme_color_override("font_hover_color", Color("#fff4d7"))
     popup.add_theme_color_override("font_disabled_color", Color("#a6b6a4"))
     popup.add_theme_constant_override("v_separation", 7)
+
+
+# Dark semantic inks on light reward surfaces, including pressed state.
+static func reward_rarity_ink(rarity: int) -> Color:
+    match rarity:
+        BlessingData.Rarity.RARE:
+            return Color("#123859")
+        BlessingData.Rarity.EPIC:
+            return Color("#4b2269")
+        BlessingData.Rarity.LEGENDARY:
+            return Color("#583400")
+        _:
+            return Color("#263e20")

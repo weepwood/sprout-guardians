@@ -335,7 +335,7 @@ func _spawn_experience_gem(position_value: Vector2, amount: int) -> SurvivorExpe
     var gem: SurvivorExperienceGem = pickup_pool.acquire(EXPERIENCE_GEM_SCENE, pickups_container) as SurvivorExperienceGem
     gem.recycle = pickup_pool.release
     gem.global_position = position_value
-    gem.configure(hero_plant, amount)
+    gem.configure(hero_plant, amount, difficulty)
     gem.force_magnet = magnet_until > survival_elapsed
     if not gem.collected.is_connected(_on_experience_collected):
         gem.collected.connect(_on_experience_collected)
@@ -372,16 +372,22 @@ func _render_reward_cards() -> void:
         icon_view.texture = HDArt.weapon(data.id)
         var rarity: Label = button.get_node("GiftRarity") as Label
         rarity.text = data.rarity_name(i18n.locale_code).to_upper()
-        rarity.add_theme_color_override("font_color", PlayfulUITheme.readable_on_light(data.rarity_color(), Color("#eedebd")))
+        rarity.add_theme_color_override("font_color", PlayfulUITheme.reward_rarity_ink(data.rarity))
+        rarity.add_theme_font_size_override("font_size", 12)
         var title: Label = button.get_node("GiftName") as Label
         title.text = data.localized_name(i18n.locale_code)
-        PlayfulUITheme.apply_label(title)
-        title.add_theme_font_size_override("font_size", 13)
+        PlayfulUITheme.apply_label(title, Color("#2c251f"))
+        title.add_theme_font_size_override("font_size", 14)
+        title.position.y = 78.0
+        title.size.y = 29.0
+        icon_view.position.y = 8.0
+        icon_view.size.y = 43.0
+        rarity.position.y = 54.0
         var detail: Label = button.get_node("GiftDetail") as Label
-        PlayfulUITheme.apply_label(detail, Color("#665249"))
-        detail.add_theme_font_size_override("font_size", 10)
-        detail.position.y = 119.0
-        detail.size.y = 54.0
+        PlayfulUITheme.apply_label(detail, Color("#392e27"))
+        detail.add_theme_font_size_override("font_size", 12)
+        detail.position.y = 109.0
+        detail.size.y = 66.0
         var stack: int = blessing_system.get_blessing_stack(data.id) + 1
         detail.text = "%s\nLv.%d" % [data.localized_description(i18n.locale_code, stack), stack]
         var weapon_index: int = SurvivorArsenal.IDS.find(data.id)
@@ -393,6 +399,13 @@ func _render_reward_cards() -> void:
         button.add_theme_stylebox_override("normal", PlayfulUITheme.surface(Color("#fffaf1"), 14, card_outline, 3))
         button.add_theme_stylebox_override("hover", PlayfulUITheme.surface(Color("#fff0d8"), 14, card_outline, 5))
         button.add_theme_stylebox_override("pressed", PlayfulUITheme.surface(Color("#eedebd"), 14, card_outline, 1))
+        button.add_theme_stylebox_override("hover_pressed", button.get_theme_stylebox("pressed"))
+        button.tooltip_text = title.text + "\n" + detail.text
+        # Reset inherited tint; rarity is communicated by a dark label and outline.
+        button.modulate = Color.WHITE
+        for label: Label in [rarity, title, detail]:
+            label.modulate = Color.WHITE
+            label.self_modulate = Color.WHITE
     if choice_open and not choice_buttons.is_empty():
         choice_buttons[0].grab_focus()
 
@@ -556,6 +569,9 @@ func _apply_locale() -> void:
         pause_leave_button.text = _t("RETURN TO MENU", "返回主菜单")
     if choice_hint != null:
         choice_hint.text = _t("1 / 2 / 3 · Enter", "1 / 2 / 3 · 回车")
+    if choice_open and choice_hint != null:
+        choice_title.text = _t("LEVEL UP · CHOOSE A GARDEN MUTATION", "等级提升 · 选择花园变异")
+        _render_reward_cards()
 
 
 func _update_control_status() -> void:
@@ -581,7 +597,7 @@ func _apply_playful_hud() -> void:
     for label: Label in [wave_label, health_label, coins_label, greed_label]:
         PlayfulUITheme.apply_label(label, Color("#fffaf0"))
     PlayfulUITheme.apply_label(control_label, Color("#fef7e8"))
-    PlayfulUITheme.apply_label(choice_hint, Color("#fff8df"))
+    PlayfulUITheme.apply_label(choice_hint, Color("#493728"))
     PlayfulUITheme.apply_label(status_label, Color("#fff9e7"))
     PlayfulUITheme.apply_label(combo_label, Color("#ffed92"))
     PlayfulUITheme.apply_forest_button(language_button)

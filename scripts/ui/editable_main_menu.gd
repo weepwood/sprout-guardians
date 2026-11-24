@@ -170,10 +170,14 @@ func _apply_locale() -> void:
         select_hero_button.text = _t("CHOOSE HERO / CHALLENGE", "选择角色 / 挑战")
     if difficulty_picker != null:
         difficulty_picker.clear()
-        difficulty_picker.add_item(_t("Casual", "休闲"))
+        difficulty_picker.add_item(_t("Easy", "简单"))
         difficulty_picker.add_item(_t("Normal", "普通"))
         difficulty_picker.add_item(_t("Expert", "专家"))
+        difficulty_picker.set_item_tooltip(0, _t("Easy: fewer enemies, faster upgrades and generous XP pickup.", "简单：敌人更少，升级更快，经验更容易拾取。"))
+        difficulty_picker.set_item_tooltip(1, _t("Normal: balanced growth, lighter late waves.", "普通：成长与挑战平衡，减轻后期敌群压力。"))
+        difficulty_picker.set_item_tooltip(2, _t("Expert: original high-pressure rules.", "专家：保留原有高压战斗规则。"))
         difficulty_picker.select(SurvivorBalance.selected_difficulty)
+        difficulty_picker.tooltip_text = difficulty_picker.get_item_tooltip(SurvivorBalance.selected_difficulty)
     if character_picker != null:
         character_picker.clear()
         for i: int in range(SurvivorCharacters.EN.size()):
@@ -262,6 +266,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _select_difficulty(index: int) -> void:
     SurvivorBalance.selected_difficulty = clampi(index, 0, 2)
+    difficulty_picker.tooltip_text = difficulty_picker.get_item_tooltip(SurvivorBalance.selected_difficulty)
     settings.survivor_difficulty = SurvivorBalance.selected_difficulty
     settings.save_settings()
 

@@ -265,7 +265,22 @@ func _test_balance() -> void:
             b.configure(difficulty, seed_value)
             for second: int in range(90):
                 _assert_true(a.next_enemy(float(second), false, false) == b.next_enemy(float(second), false, false), "Seeded enemy sequence repeats")
-    _assert_true(SurvivorBalance.spawn_interval(0.0, 0) > SurvivorBalance.spawn_interval(0.0, 2), "Casual spawns more slowly")
+    _assert_true(SurvivorBalance.spawn_interval(0.0, 0) > SurvivorBalance.spawn_interval(0.0, 2), "Easy spawns more slowly")
+    _assert_equal_int(SurvivorBalance.enemy_cap(90.0, 0), 23, "Easy limits late regular enemy spawns")
+    _assert_equal_int(SurvivorBalance.enemy_cap(90.0, 1), 28, "Normal limits late regular enemy spawns")
+    _assert_equal_int(SurvivorBalance.enemy_cap(90.0, 2), 48, "Expert retains original late cap")
+    _assert_true(SurvivorBalance.spawn_interval(90.0, 1) > 0.50, "Normal grants more late-wave breathing room")
+    _assert_true(is_equal_approx(float(SurvivorBalance.enemy_config(90.0, 1, false, false)["health"]), 55.08), "Normal late enemy HP reduced")
+    _assert_true(is_equal_approx(float(SurvivorBalance.enemy_config(90.0, 2, false, false)["health"]), 93.6), "Expert late enemy HP unchanged")
+    _assert_equal_int(SurvivorBalance.experience_requirement(1, 0), 5, "Easy first upgrade costs five XP")
+    _assert_equal_int(SurvivorBalance.experience_requirement(1, 1), 6, "Normal first upgrade costs six XP")
+    _assert_equal_int(SurvivorBalance.experience_requirement(5, 1), 14, "Normal growth stays affordable")
+    _assert_equal_int(SurvivorBalance.experience_requirement(5, 2), 23, "Expert growth unchanged")
+    _assert_equal_int(SurvivorBalance.enemy_experience(0, false), 2, "Easy enemies grant two XP")
+    _assert_equal_int(SurvivorBalance.enemy_experience(1, true), 5, "Normal elite XP improved")
+    _assert_equal_int(SurvivorBalance.milestone_experience(2), 0, "Expert receives no growth subsidy")
+    _assert_true(SurvivorExperienceGem.effective_magnet_radius(4.0, 3, 1) >= 320.0, "Normal later drops travel farther")
+    _assert_true(SurvivorExperienceGem.effective_magnet_radius(2.5, 3, 0) >= 460.0, "Easy later drops travel farther")
 
 
 func _test_pool() -> void:
@@ -430,5 +445,9 @@ func _test_visual_theme() -> void:
         _assert_true(PlayfulUITheme.contrast_ratio(PlayfulUITheme.INK, background) >= 4.5, "Reward title contrast at least 4.5:1")
         _assert_true(PlayfulUITheme.contrast_ratio(Color("#665249"), background) >= 4.5, "Reward detail contrast at least 4.5:1")
         _assert_true(PlayfulUITheme.contrast_ratio(PlayfulUITheme.readable_on_light(Color("#ffd36d"), background), background) >= 4.5, "Bright rarity is darkened to readable contrast")
+        for rarity: int in range(4):
+            _assert_true(PlayfulUITheme.contrast_ratio(PlayfulUITheme.reward_rarity_ink(rarity), background) >= 7.0, "Every rarity uses high-contrast ink")
+        _assert_true(PlayfulUITheme.contrast_ratio(Color("#392e27"), background) >= 7.0, "New reward description contrast")
+    _assert_true(PlayfulUITheme.contrast_ratio(Color("#493728"), Color("#fff7e8")) >= 7.0, "Keyboard hint contrasts with light panel")
     _assert_equal_int(SurvivorSpawnDirector.swamp_ranged_cap(1), 4, "Swamp caps simultaneous ranged enemies")
     _assert_true(SurvivorEndurance.enemy_multiplier(900.0) < 3.2, "Endurance growth softens after six waves")

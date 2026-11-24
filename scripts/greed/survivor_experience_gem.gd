@@ -14,6 +14,7 @@ const LIFE_SECONDS: float = 45.0
 
 var target: GreedHeroPlant
 var experience_value: int = 1
+var difficulty: int = 2
 var age: float = 0.0
 var force_magnet: bool = false
 var _phase: float = 0.0
@@ -21,8 +22,9 @@ var recycle: Callable
 var _collected: bool = false
 
 
-func configure(target_value: GreedHeroPlant, amount: int = 1) -> void:
+func configure(target_value: GreedHeroPlant, amount: int = 1, difficulty_value: int = 2) -> void:
     target = target_value
+    difficulty = clampi(difficulty_value, 0, 2)
     experience_value = maxi(1, amount)
     _phase = fmod(global_position.x * 0.017 + global_position.y * 0.031, TAU)
     _collected = false
@@ -51,7 +53,7 @@ func _process(delta: float) -> void:
         collected.emit(experience_value)
         _retire()
         return
-    var radius: float = 1800.0 if force_magnet else effective_magnet_radius(age, target.level)
+    var radius: float = 1800.0 if force_magnet else effective_magnet_radius(age, target.level, difficulty)
     if distance_value <= radius:
         var speed_scale: float = lerpf(0.55, 1.35, 1.0 - distance_value / radius)
         global_position = global_position.move_toward(target.global_position, MAGNET_SPEED * speed_scale * delta)
@@ -80,7 +82,8 @@ func _retire() -> void:
 
 # Nearby drops remain immediately collectible; older drops gradually reach
 # new players without forcing a specific movement pattern.
-static func effective_magnet_radius(age_seconds: float, hero_level: int) -> float:
-    var ceiling: float = STARTER_MAGNET_RADIUS if hero_level <= 1 else MATURE_MAGNET_RADIUS
-    var ramp_time: float = 3.0 if hero_level <= 1 else 6.0
+static func effective_magnet_radius(age_seconds: float, hero_level: int, difficulty_value: int = 2) -> float:
+    var tier: int = clampi(difficulty_value, 0, 2)
+    var ceiling: float = [520.0, 420.0, STARTER_MAGNET_RADIUS][tier] if hero_level <= 1 else [460.0, 320.0, MATURE_MAGNET_RADIUS][tier]
+    var ramp_time: float = [1.5, 2.0, 3.0][tier] if hero_level <= 1 else [2.5, 4.0, 6.0][tier]
     return lerpf(MAGNET_RADIUS, ceiling, clampf(age_seconds / ramp_time, 0.0, 1.0))
