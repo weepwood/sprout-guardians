@@ -15,6 +15,7 @@ required.update({f"actors/actor_{i}.png": 128 for i in range(6)})
 required.update({f"biome/biome_{i}.png": 128 for i in range(9)})
 required.update({f"weapons/weapon_{i}.png": 128 for i in range(8)})
 required["menu/background.png"] = 720
+required.update({f"props/{name}/prop_{i}.png": 128 for name in ("classic", "forest", "night", "swamp") for i in range(6)})
 required.update({f"vfx/{kind}_{i}.png": 128 for kind in ("projectile", "impact", "evolution") for i in range(8)})
 errors = []
 for relative, minimum in required.items():
@@ -33,7 +34,7 @@ for relative, minimum in required.items():
         errors.append(f"Not native-size full-color RGB/RGBA: {key}")
     if relative.startswith("animations/") and (width % 4 or height != width // 4 * 5 or width // 4 < 128):
         errors.append(f"Invalid 4x5 action sheet: {key}")
-    if relative.startswith(("animations/", "actors/", "biome/", "weapons/", "vfx/")) and color != 6:
+    if relative.startswith(("animations/", "actors/", "biome/", "weapons/", "vfx/", "props/")) and color != 6:
         errors.append(f"Transparent RGBA required: {key}")
     if (width, height) != (meta.get("width"), meta.get("height")) or hashlib.sha256(raw).hexdigest() != meta.get("sha256"):
         errors.append(f"Manifest hash or dimensions mismatch: {key}")

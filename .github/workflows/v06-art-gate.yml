@@ -1,5 +1,7 @@
 name: V0.6 HD art acceptance
 on:
+  push:
+    branches: [main]
   pull_request:
     paths:
       - 'assets/generated/hd/**'
@@ -50,6 +52,9 @@ jobs:
           if [ "$ASSET_OUTCOME" = success ]; then
             grep '^HD_ART_COMPLETE 0' build/hd-art/runtime.log
             test "$(find build/hd-art -name '*.png' | wc -l)" -eq 22
+            grep '^HD_ART_VFX_RUNTIME_CHECKS 24$' build/hd-art/runtime.log
+            test "$(find build/hd-art -name 'weapon-*.jpg' | wc -l)" -eq 24
+            test "$(grep -c '^HD_ART_PROP_RUNTIME [0-3] 6 ' build/hd-art/runtime.log)" -eq 4
           else
             grep '^HD_ART_PREVIEW_COMPLETE 0' build/hd-art/runtime.log
             count=$(sed -n 's/^HD_ART_PREVIEW_COMPLETE 0 CAPTURES //p' build/hd-art/runtime.log)

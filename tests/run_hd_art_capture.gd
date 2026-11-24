@@ -76,6 +76,8 @@ func _run() -> void:
             if sprite != null and sprite.texture != null:
                 var size: Vector2 = sprite.texture.get_size() * sprite.scale.abs()
                 _expect(maxf(size.x, size.y) >= 47.0 and maxf(size.x, size.y) < 60.0, "Hero HD display size is readable without changing combat bounds")
+            if character_id == 0:
+                _audit_map_props(game, map_id)
             await _capture("map-%d-hero-%d" % [map_id, character_id])
             game.queue_free()
             await process_frame
@@ -181,3 +183,27 @@ func _capture_vfx(name_value: String) -> void:
     _expect(image != null and not image.is_empty(), "Actual VFX renderer frame " + name_value)
     if image != null and not image.is_empty():
         _expect(image.save_jpg(ProjectSettings.globalize_path(OUT + "/" + name_value + ".jpg"), 0.95) == OK, "Saved VFX evidence " + name_value)
+
+# Validate actual decoration nodes, not just the existence of PNG files.
+func _audit_map_props(game: Node, map_id: int) -> void:
+    var prefix: String = HDArt.ROOT + "props/" + HDArt.MAPS[map_id] + "/"
+    var layer: Node2D = game.get_node_or_null("World/HDMapDecorations") as Node2D
+    if preview and layer == null:
+        print("HD_ART_PREVIEW missing map props ", map_id)
+        return
+    _expect(layer != null and layer.is_visible_in_tree(), "Map %d decoration layer rendered" % map_id)
+    if layer == null:
+        return
+    var paths: Dictionary = {}
+    for child: Node in layer.get_children():
+        var sprite: Sprite2D = child as Sprite2D
+        if sprite == null:
+            _expect(false, "Map decoration is Sprite2D")
+            continue
+        var path_value: String = _path(sprite.texture)
+        _expect(sprite.is_visible_in_tree() and path_value.begins_with(prefix), "Map %d actual prop texture %s" % [map_id, path_value])
+        paths[path_value] = true
+        _expect(sprite.get_child_count() == 0, "Decoration is visual only")
+    _expect(paths.size() == 6, "Map %d all six independent prop textures" % map_id)
+    _expect(layer.get_child_count() >= (12 if map_id == 0 else 28), "Map %d minimum edge decoration count" % map_id)
+    print("HD_ART_PROP_RUNTIME ", map_id, " ", paths.size(), " ", layer.get_child_count())

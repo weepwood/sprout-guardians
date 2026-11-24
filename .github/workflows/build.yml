@@ -421,8 +421,8 @@ jobs:
             echo "Invalid release version: $VERSION"
             exit 1
           fi
-          if [ "$VERSION" = "v0.5.0" ]; then
-            echo "v0.5.0 must use the separate three-workflow release gate."
+          if [ "$VERSION" = "v0.5.0" ] || [ "$VERSION" = "v0.6.0" ]; then
+            echo "This version must use its separate complete release gate."
             echo "publish=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
