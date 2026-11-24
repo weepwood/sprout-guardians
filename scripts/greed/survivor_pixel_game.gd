@@ -200,19 +200,7 @@ func _on_projectile_requested(
 
 
 func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
-    var config: Dictionary
-    if force_boss:
-        config = GreedBalance.WAVE_TABLE[GreedBalance.WAVE_TABLE.size() - 1].duplicate(true)
-    elif force_elite:
-        var elite_index: int = 4 if survival_elapsed < SECOND_ELITE_TIME else 8
-        config = GreedBalance.WAVE_TABLE[elite_index].duplicate(true)
-    else:
-        var tier: int = clampi(int(floor(survival_elapsed / 10.0)), 0, GreedBalance.WAVE_TABLE.size() - 3)
-        config = GreedBalance.WAVE_TABLE[tier].duplicate(true)
-        config["elite"] = false
-        config["boss"] = false
-        config["health"] = float(config.get("health", 24.0)) * (1.0 + survival_elapsed / 150.0)
-        config["speed"] = float(config.get("speed", 42.0)) * (1.0 + survival_elapsed / 360.0)
+    var config: Dictionary = spawn_director.next_enemy(survival_elapsed, force_elite, force_boss)
 
     var enemy: GreedEnemy = ENEMY_SCENE.instantiate() as GreedEnemy
     enemy.name = "SurvivorEnemy"

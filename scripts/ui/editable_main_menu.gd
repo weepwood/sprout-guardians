@@ -1,5 +1,6 @@
 extends "res://scripts/ui/greed_main_menu.gd"
 
+var difficulty_picker: OptionButton
 var archive_backdrop: ColorRect
 var archive_panel: Panel
 var archive_title: Label
@@ -22,6 +23,12 @@ func _ready() -> void:
     settings.apply_runtime(audio_manager)
 
     _bind_existing_ui()
+    difficulty_picker = OptionButton.new()
+    difficulty_picker.name = "DifficultyPicker"
+    difficulty_picker.position = Vector2(12, 12)
+    difficulty_picker.size = Vector2(132, 28)
+    get_node("UI/Main").add_child(difficulty_picker)
+    difficulty_picker.item_selected.connect(_select_difficulty)
     _apply_locale()
     _apply_playful_design()
     if OS.get_cmdline_user_args().has("--ci-survivors-smoke"):
@@ -104,6 +111,12 @@ func _apply_playful_design() -> void:
 
 func _apply_locale() -> void:
     super._apply_locale()
+    if difficulty_picker != null:
+        difficulty_picker.clear()
+        difficulty_picker.add_item(_t("Casual", "休闲"))
+        difficulty_picker.add_item(_t("Normal", "普通"))
+        difficulty_picker.add_item(_t("Expert", "专家"))
+        difficulty_picker.select(SurvivorBalance.selected_difficulty)
     if archive_title == null:
         return
     archive_title.text = _t("GARDEN JOURNAL", "花园战绩")
@@ -162,3 +175,7 @@ func _unhandled_input(event: InputEvent) -> void:
         get_viewport().set_input_as_handled()
         return
     super._unhandled_input(event)
+
+
+func _select_difficulty(index: int) -> void:
+    SurvivorBalance.selected_difficulty = clampi(index, 0, 2)

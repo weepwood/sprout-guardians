@@ -9,6 +9,7 @@ func _initialize() -> void:
 
 func _run() -> void:
     print("Running plant survivors tests...")
+    _test_balance()
 
     _assert_true(PixelArtAssets.texture(&"hero") != null, "Main-plant pixel texture loads from the actor atlas")
     _assert_true(PixelArtAssets.texture(&"enemy_boss") != null, "Boss pixel texture loads from the actor atlas")
@@ -193,3 +194,21 @@ func _assert_true(condition: bool, message: String) -> void:
 
 func _assert_equal_int(actual: int, expected: int, message: String) -> void:
     _assert_true(actual == expected, "%s (expected %d, got %d)" % [message, expected, actual])
+
+
+func _test_balance() -> void:
+    for difficulty: int in range(3):
+        var previous: float = 0.0
+        for second: int in range(91):
+            var config: Dictionary = SurvivorBalance.enemy_config(float(second), difficulty, false, false)
+            _assert_true(not config["elite"] and not config["boss"], "Ordinary spawn never inherits elite flags")
+            _assert_true(float(config["health"]) >= previous, "Baseline HP curve is monotonic")
+            previous = float(config["health"])
+        for seed_value: int in range(20):
+            var a: SurvivorSpawnDirector = SurvivorSpawnDirector.new()
+            var b: SurvivorSpawnDirector = SurvivorSpawnDirector.new()
+            a.configure(difficulty, seed_value)
+            b.configure(difficulty, seed_value)
+            for second: int in range(90):
+                _assert_true(a.next_enemy(float(second), false, false) == b.next_enemy(float(second), false, false), "Seeded enemy sequence repeats")
+    _assert_true(SurvivorBalance.spawn_interval(0.0, 0) > SurvivorBalance.spawn_interval(0.0, 2), "Casual spawns more slowly")

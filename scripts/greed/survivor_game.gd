@@ -16,9 +16,14 @@ var second_elite_spawned: bool = false
 var final_boss_spawned: bool = false
 var final_boss_defeated: bool = false
 var input_controller: SurvivorInputController
+var spawn_director: SurvivorSpawnDirector = SurvivorSpawnDirector.new()
+var difficulty: int = 1
 
 
 func _ready() -> void:
+    difficulty = SurvivorBalance.selected_difficulty
+    spawn_director.configure(difficulty, randi())
+    experience_to_next = SurvivorBalance.experience_requirement(1, difficulty)
     super._ready()
     input_controller = get_node_or_null("RunInput") as SurvivorInputController
     if hero_plant != null and is_instance_valid(hero_plant):
@@ -110,19 +115,7 @@ func _spawn_time_milestones() -> void:
 
 
 func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
-    var config: Dictionary
-    if force_boss:
-        config = GreedBalance.WAVE_TABLE[GreedBalance.WAVE_TABLE.size() - 1].duplicate(true)
-    elif force_elite:
-        var elite_index: int = 4 if survival_elapsed < SECOND_ELITE_TIME else 8
-        config = GreedBalance.WAVE_TABLE[elite_index].duplicate(true)
-    else:
-        var tier: int = clampi(int(floor(survival_elapsed / 10.0)), 0, GreedBalance.WAVE_TABLE.size() - 3)
-        config = GreedBalance.WAVE_TABLE[tier].duplicate(true)
-        config["elite"] = false
-        config["boss"] = false
-        config["health"] = float(config.get("health", 24.0)) * (1.0 + survival_elapsed / 150.0)
-        config["speed"] = float(config.get("speed", 42.0)) * (1.0 + survival_elapsed / 360.0)
+    var config: Dictionary = spawn_director.next_enemy(survival_elapsed, force_elite, force_boss)
 
     var enemy: GreedEnemy = GreedEnemy.new()
     enemy.name = "SurvivorEnemy"
@@ -136,11 +129,11 @@ func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
 
 
 func _current_spawn_interval() -> float:
-    return maxf(0.14, 0.56 - survival_elapsed * 0.0044)
+    return SurvivorBalance.spawn_interval(survival_elapsed, difficulty)
 
 
 func _active_enemy_cap() -> int:
-    return mini(MAX_ACTIVE_ENEMIES, 18 + int(floor(survival_elapsed / 5.0)) * 2)
+    return SurvivorBalance.enemy_cap(survival_elapsed)
 
 
 func _on_enemy_defeated(enemy: GreedEnemy, coin_reward: int, elite: bool) -> void:
@@ -180,7 +173,7 @@ func _on_experience_collected(amount: int) -> void:
 
 
 func _experience_requirement_for_level(level_value: int) -> int:
-    return BASE_EXPERIENCE_REQUIREMENT + maxi(0, level_value - 1) * 5
+    return SurvivorBalance.experience_requirement(level_value, difficulty)
 
 
 func _open_surprise_choice() -> void:
