@@ -89,7 +89,7 @@ func _audit_reward_contrast(game: Node) -> void:
             continue
         for child_name: String in ["GiftName", "GiftDetail", "GiftRarity"]:
             var label: Label = card.get_node(child_name) as Label
-            if label.position.y + label.size.y > card.size.y or label.get_line_count() > label.get_visible_line_count():
+            if not Rect2(Vector2.ZERO, card.size).grow(0.5).encloses(Rect2(label.position, label.size)) or label.get_line_count() > label.get_visible_line_count():
                 push_error("Reward label overflows card: " + child_name)
                 failed = true
         for state: String in ["normal", "hover", "pressed", "hover_pressed"]:

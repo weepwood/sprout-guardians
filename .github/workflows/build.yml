@@ -36,18 +36,14 @@ jobs:
           trap 'echo "Install failed at line ${LINENO}" >> build/diagnostics/godot-install.log' ERR
 
           GODOT_FILE="Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64"
-          EDITOR_URL="https://downloads.godotengine.org/?flavor=${GODOT_RELEASE}&platform=linux.64&slug=linux.x86_64.zip&version=${GODOT_VERSION}"
-          TEMPLATES_URL="https://downloads.godotengine.org/?flavor=${GODOT_RELEASE}&platform=templates&slug=export_templates.tpz&version=${GODOT_VERSION}"
           {
             echo "Godot version: ${GODOT_VERSION}-${GODOT_RELEASE}"
-            echo "Download service: downloads.godotengine.org"
+            echo "Download service: official GitHub releases, verified fallback"
             echo "Editor asset: ${GODOT_FILE}.zip"
             echo "Downloading editor"
           } > build/diagnostics/godot-install.log
 
-          curl --fail-with-body --location --retry 5 --retry-all-errors --silent --show-error \
-            "$EDITOR_URL" \
-            --output /tmp/godot.zip
+          bash tools/download_godot_linux.sh editor /tmp/godot.zip
           echo "Editor downloaded: $(stat -c%s /tmp/godot.zip) bytes" >> build/diagnostics/godot-install.log
 
           unzip -q /tmp/godot.zip -d /tmp/godot
@@ -58,9 +54,7 @@ jobs:
           echo "Editor extracted" >> build/diagnostics/godot-install.log
 
           echo "Downloading export templates" >> build/diagnostics/godot-install.log
-          curl --fail-with-body --location --retry 5 --retry-all-errors --silent --show-error \
-            "$TEMPLATES_URL" \
-            --output /tmp/export_templates.tpz
+          bash tools/download_godot_linux.sh templates /tmp/export_templates.tpz
           echo "Templates downloaded: $(stat -c%s /tmp/export_templates.tpz) bytes" >> build/diagnostics/godot-install.log
 
           unzip -q /tmp/export_templates.tpz -d /tmp/export_templates
@@ -422,7 +416,7 @@ jobs:
             echo "Invalid release version: $VERSION"
             exit 1
           fi
-          if [ "$VERSION" = "v0.5.0" ] || [ "$VERSION" = "v0.6.0" ]; then
+          if [ "$VERSION" = "v0.5.0" ] || [ "$VERSION" = "v0.6.0" ] || [ "$VERSION" = "v0.7.0" ]; then
             echo "This version must use its separate complete release gate."
             echo "publish=false" >> "$GITHUB_OUTPUT"
             exit 0

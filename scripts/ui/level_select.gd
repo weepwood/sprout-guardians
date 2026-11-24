@@ -33,11 +33,14 @@ func _ready() -> void:
 
     _create_ui()
     _apply_locale()
+    var responsive: ResponsiveUI = ResponsiveUI.new()
+    add_child(responsive)
+    responsive.bind(get_node("UI") as CanvasLayer, settings, _layout_level)
     queue_redraw()
 
 
 func _draw() -> void:
-    draw_rect(Rect2(0.0, 0.0, 640.0, 360.0), Color("102a31"))
+    draw_rect(get_viewport_rect(), Color("102a31"))
     for y_value: int in range(0, 360, 24):
         draw_rect(Rect2(0.0, float(y_value), 640.0, 12.0), Color(0.10, 0.25, 0.27, 0.28))
     draw_circle(Vector2(90.0, 310.0), 90.0, Color("1f5945"))
@@ -175,3 +178,11 @@ func _make_button(parent: Node, position_value: Vector2, size_value: Vector2) ->
     button.add_theme_color_override("font_color", Color("f4f0d1"))
     parent.add_child(button)
     return button
+
+func _layout_level(view: Vector2) -> void:
+    var canvas: CanvasLayer = get_node("UI") as CanvasLayer
+    var full_view: Vector2 = view * canvas.scale
+    var fit: float = minf(1.0, minf(view.x / ResponsiveUI.BASE.x, view.y / ResponsiveUI.BASE.y))
+    canvas.scale *= fit
+    canvas.offset = (full_view - ResponsiveUI.BASE * canvas.scale) * 0.5
+    queue_redraw()

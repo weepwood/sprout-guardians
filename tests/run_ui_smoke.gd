@@ -254,9 +254,9 @@ func _assert_control_inside_viewport(control: Control, message: String) -> void:
     if control == null:
         _assert_true(false, message + " (control missing)")
         return
-    var rect: Rect2 = control.get_global_rect()
-    var inside: bool = rect.position.x >= -0.5 and rect.position.y >= -0.5
-    inside = inside and rect.end.x <= 640.5 and rect.end.y <= 360.5
+    var rect: Rect2 = control.get_global_transform_with_canvas() * Rect2(Vector2.ZERO, control.size)
+    var view: Rect2 = root.get_visible_rect()
+    var inside: bool = view.grow(0.5).encloses(rect)
     _assert_true(inside, "%s (rect %s)" % [message, rect])
 
 

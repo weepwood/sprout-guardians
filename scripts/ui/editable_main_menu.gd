@@ -12,6 +12,21 @@ var archive_title: Label
 var archive_summary: Label
 var archive_subtitle: Label
 var archive_back_button: Button
+var responsive: ResponsiveUI
+var resolution_picker: OptionButton
+var ui_scale_picker: OptionButton
+var hero_detail_portrait: TextureRect
+var hero_detail_name: Label
+var hero_detail_description: Label
+var hero_map_preview: TextureRect
+var hero_map_label: Label
+var hero_map_picker: OptionButton
+var hero_difficulty_picker: OptionButton
+var hero_preview_tween: Tween
+var music_slider: HSlider
+var sfx_slider: HSlider
+var audio_save: Timer
+const WINDOW_SIZES: Array[Vector2i] = [Vector2i(960,540), Vector2i(1280,720), Vector2i(1366,768), Vector2i(1600,900), Vector2i(1920,1080), Vector2i(2560,1440)]
 
 
 func _ready() -> void:
@@ -70,6 +85,11 @@ func _ready() -> void:
     _apply_locale()
     _apply_playful_design()
     _apply_hd_menu()
+    _create_display_controls()
+    responsive = ResponsiveUI.new()
+    add_child(responsive)
+    responsive.bind(get_node("UI") as CanvasLayer, settings, _layout_menu)
+    settings.settings_changed.connect(_display_settings_changed)
     if OS.get_cmdline_user_args().has("--ci-survivors-smoke"):
         # The export-only smoke path opens the actual gameplay scene instead
         # of testing only whether the main menu window can be created.
@@ -289,6 +309,7 @@ func _select_map(index: int) -> void:
 
 func _set_main_controls_visible(value: bool) -> void:
     super._set_main_controls_visible(value)
+    (get_node("World/MenuFrame") as Control).visible = value
     for picker: Control in [difficulty_picker, character_picker, map_picker, select_hero_button]:
         if is_instance_valid(picker):
             picker.visible = value
@@ -416,6 +437,7 @@ func _show_character_screen() -> void:
     character_screen.name = "HeroSelection"
     get_node("UI").add_child(character_screen)
     var backdrop: ColorRect = ColorRect.new()
+    backdrop.name = "Backdrop"
     backdrop.size = Vector2(640, 360)
     backdrop.color = Color(0.07, 0.13, 0.10, 0.93)
     character_screen.add_child(backdrop)
@@ -429,11 +451,11 @@ func _show_character_screen() -> void:
     character_screen.add_child(title)
     var scroll: ScrollContainer = ScrollContainer.new()
     scroll.position = Vector2(20, 50)
-    scroll.size = Vector2(600, 246)
+    scroll.size = Vector2(330, 246)
     scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
     character_screen.add_child(scroll)
     var column: GridContainer = GridContainer.new()
-    column.columns = 2
+    column.columns = 1
     column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     column.add_theme_constant_override("h_separation", 8)
     column.add_theme_constant_override("v_separation", 8)
@@ -444,7 +466,7 @@ func _show_character_screen() -> void:
         var button: Button = Button.new()
         button.icon = HDArt.portrait(i)
         button.expand_icon = true
-        button.custom_minimum_size = Vector2(280, 76)
+        button.custom_minimum_size = Vector2(306, 68)
         button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
         button.text = _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]) + "\n" + _t("DMG %.0f · SPD %.0f · HP %+d", "伤害 %.0f · 移速 %.0f · 生命 %+d") % [cfg["damage"], cfg["move_speed"], cfg["health_bonus"]]
         button.tooltip_text = _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i])
@@ -457,8 +479,66 @@ func _show_character_screen() -> void:
         button.button_pressed = i == SurvivorCharacters.selected
         button.pressed.connect(_choose_screen_hero.bind(i))
         PlayfulUITheme.apply_forest_button(button)
-        button.add_theme_constant_override("icon_max_width", 72)
+        button.add_theme_constant_override("icon_max_width", 60)
         column.add_child(button)
+    var details: Panel = Panel.new()
+    character_screen.add_child(details)
+    ResponsiveUI.place(details, Rect2(360, 50, 260, 246))
+    PlayfulUITheme.apply_forest_panel(details)
+    hero_detail_portrait = TextureRect.new()
+    hero_detail_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    hero_detail_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+    hero_detail_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    details.add_child(hero_detail_portrait)
+    ResponsiveUI.place(hero_detail_portrait, Rect2(80, 6, 100, 82))
+    hero_detail_name = Label.new()
+    hero_detail_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    hero_detail_name.add_theme_font_size_override("font_size", 17)
+    PlayfulUITheme.apply_label(hero_detail_name, Color("#f5df9c"))
+    details.add_child(hero_detail_name)
+    ResponsiveUI.place(hero_detail_name, Rect2(10, 88, 240, 25))
+    hero_detail_description = Label.new()
+    hero_detail_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    hero_detail_description.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    hero_detail_description.add_theme_font_size_override("font_size", 12)
+    PlayfulUITheme.apply_label(hero_detail_description, Color("#f8f3de"))
+    details.add_child(hero_detail_description)
+    ResponsiveUI.place(hero_detail_description, Rect2(12, 113, 236, 43))
+    hero_map_preview = TextureRect.new()
+    hero_map_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    hero_map_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+    hero_map_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    details.add_child(hero_map_preview)
+    ResponsiveUI.place(hero_map_preview, Rect2(12, 166, 77, 62))
+    hero_map_label = Label.new()
+    hero_map_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    hero_map_label.add_theme_font_size_override("font_size", 12)
+    PlayfulUITheme.apply_label(hero_map_label, Color("#f8f3de"))
+    details.add_child(hero_map_label)
+    ResponsiveUI.place(hero_map_label, Rect2(12, 229, 77, 14))
+    hero_map_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    hero_map_label.add_theme_font_size_override("font_size", 10)
+    hero_map_picker = OptionButton.new()
+    details.add_child(hero_map_picker)
+    ResponsiveUI.place(hero_map_picker, Rect2(98, 164, 150, 29))
+    hero_difficulty_picker = OptionButton.new()
+    details.add_child(hero_difficulty_picker)
+    ResponsiveUI.place(hero_difficulty_picker, Rect2(98, 201, 150, 29))
+    for picker: OptionButton in [hero_map_picker, hero_difficulty_picker]:
+        picker.fit_to_longest_item = false
+        picker.clip_text = true
+        PlayfulUITheme.apply_forest_picker(picker)
+        picker.add_theme_font_size_override("font_size", 12)
+    for i: int in range(map_picker.item_count):
+        hero_map_picker.add_item(map_picker.get_item_text(i))
+        hero_map_picker.set_item_disabled(i, map_picker.is_item_disabled(i))
+        hero_map_picker.set_item_tooltip(i, map_picker.get_item_tooltip(i))
+    for i: int in range(difficulty_picker.item_count):
+        hero_difficulty_picker.add_item(difficulty_picker.get_item_text(i))
+        hero_difficulty_picker.set_item_tooltip(i, difficulty_picker.get_item_tooltip(i))
+    hero_map_picker.item_selected.connect(_choose_screen_map)
+    hero_difficulty_picker.item_selected.connect(_choose_screen_difficulty)
+    _refresh_hero_detail()
     var back: Button = Button.new()
     back.position = Vector2(20, 306)
     back.size = Vector2(100, 36)
@@ -488,11 +568,30 @@ func _show_character_screen() -> void:
     endless.pressed.connect(_start_endless)
     PlayfulUITheme.apply_forest_button(endless)
     character_screen.add_child(endless)
+    if is_instance_valid(responsive):
+        responsive.refresh()
     back.grab_focus()
 
 func _choose_screen_hero(index: int) -> void:
     _select_character(index)
     character_picker.select(SurvivorCharacters.selected)
+    _refresh_hero_detail()
+    if is_instance_valid(hero_detail_portrait):
+        if hero_preview_tween != null and hero_preview_tween.is_valid():
+            hero_preview_tween.kill()
+        hero_detail_portrait.modulate.a = 0.7
+        hero_preview_tween = hero_detail_portrait.create_tween()
+        hero_preview_tween.tween_property(hero_detail_portrait, "modulate:a", 1.0, 0.16)
+
+func _choose_screen_map(index: int) -> void:
+    _select_map(index)
+    map_picker.select(SurvivorMaps.selected)
+    _refresh_hero_detail()
+
+func _choose_screen_difficulty(index: int) -> void:
+    _select_difficulty(index)
+    difficulty_picker.select(SurvivorBalance.selected_difficulty)
+    _refresh_hero_detail()
 
 func _hide_character_screen() -> void:
     if is_instance_valid(character_screen):
@@ -540,3 +639,158 @@ func _apply_hd_menu() -> void:
         sprite.scale = Vector2.ONE * HDArt.fit(image, 112.0 if i == 0 else 70.0)
         preview.hide()
         preview.get_parent().add_child(sprite)
+
+func _create_display_controls() -> void:
+    var group: Control = get_node("UI/Settings") as Control
+    ResponsiveUI.place(settings_panel, Rect2(92, 20, 456, 320))
+    ResponsiveUI.place(settings_title_label, Rect2(112, 29, 416, 32))
+    ResponsiveUI.place(settings_language_button, Rect2(112, 64, 202, 30))
+    ResponsiveUI.place(flash_button, Rect2(326, 64, 202, 30))
+    ResponsiveUI.place(music_button, Rect2(112, 100, 202, 28))
+    ResponsiveUI.place(sfx_button, Rect2(326, 100, 202, 28))
+    ResponsiveUI.place(fullscreen_button, Rect2(112, 164, 416, 30))
+    ResponsiveUI.place(settings_back_button, Rect2(220, 294, 200, 32))
+    PlayfulUITheme.apply_forest_panel(settings_panel)
+    PlayfulUITheme.apply_label(settings_title_label, Color("#f5df9c"))
+    for button: Button in [settings_language_button, flash_button, music_button, sfx_button, fullscreen_button, settings_back_button]:
+        PlayfulUITheme.apply_forest_button(button, button == settings_back_button)
+    resolution_picker = OptionButton.new()
+    resolution_picker.name = "ResolutionPicker"
+    group.add_child(resolution_picker)
+    ResponsiveUI.place(resolution_picker, Rect2(112, 204, 416, 32))
+    resolution_picker.item_selected.connect(_select_resolution)
+    ui_scale_picker = OptionButton.new()
+    ui_scale_picker.name = "UIScalePicker"
+    group.add_child(ui_scale_picker)
+    ResponsiveUI.place(ui_scale_picker, Rect2(112, 244, 416, 32))
+    ui_scale_picker.item_selected.connect(_select_ui_scale)
+    for picker: OptionButton in [resolution_picker, ui_scale_picker]:
+        PlayfulUITheme.apply_forest_picker(picker)
+        picker.fit_to_longest_item = false
+        picker.hide()
+    audio_save = Timer.new()
+    audio_save.one_shot = true
+    audio_save.wait_time = 0.3
+    add_child(audio_save)
+    audio_save.timeout.connect(settings.save_settings)
+    music_slider = _volume_slider(group, Rect2(119, 132, 188, 22), settings.music_volume_db, true)
+    sfx_slider = _volume_slider(group, Rect2(333, 132, 188, 22), settings.sfx_volume_db, false)
+    _refresh_settings_buttons()
+
+func _volume_slider(group: Control, rect: Rect2, value: float, music: bool) -> HSlider:
+    var slider: HSlider = HSlider.new()
+    slider.name = "MusicVolume" if music else "SfxVolume"
+    group.add_child(slider)
+    slider.min_value = -60
+    slider.max_value = 0
+    slider.step = 1
+    slider.value = value
+    ResponsiveUI.place(slider, rect)
+    PlayfulUITheme.apply_forest_slider(slider)
+    slider.value_changed.connect(_volume_changed.bind(music))
+    slider.hide()
+    return slider
+
+func _volume_changed(value: float, music: bool) -> void:
+    if music:
+        settings.music_volume_db = value
+    else:
+        settings.sfx_volume_db = value
+    settings.apply_runtime(audio_manager)
+    audio_save.start()
+    _refresh_volume_labels()
+
+func _refresh_volume_labels() -> void:
+    music_button.text = _t("Music: %s · %d dB", "音乐：%s · %d dB") % [_on_off(settings.music_enabled), settings.music_volume_db]
+    sfx_button.text = _t("Sound: %s · %d dB", "音效：%s · %d dB") % [_on_off(settings.sfx_enabled), settings.sfx_volume_db]
+
+func _display_settings_changed() -> void:
+    if settings_panel.visible and not resolution_picker.get_popup().visible and not ui_scale_picker.get_popup().visible:
+        _refresh_settings_buttons()
+
+func _hide_settings() -> void:
+    if is_instance_valid(audio_save) and not audio_save.is_stopped():
+        audio_save.stop()
+        settings.save_settings()
+    super._hide_settings()
+
+func _toggle_fullscreen() -> void:
+    audio_manager.play_event(&"ui_click")
+    settings.set_display_mode((settings.display_mode + 1) % 3)
+    _refresh_settings_buttons()
+
+func _refresh_settings_buttons() -> void:
+    super._refresh_settings_buttons()
+    if not is_instance_valid(resolution_picker):
+        return
+    _refresh_volume_labels()
+    var modes: Array[String] = [_t("Windowed", "窗口化"), _t("Borderless fullscreen", "无边框全屏"), _t("Exclusive fullscreen", "独占全屏")]
+    fullscreen_button.text = _t("Display: ", "显示模式：") + modes[settings.display_mode]
+    resolution_picker.clear()
+    var selected_index: int = -1
+    for i: int in range(WINDOW_SIZES.size()):
+        var value: Vector2i = WINDOW_SIZES[i]
+        resolution_picker.add_item("%d × %d" % [value.x, value.y], i)
+        if value == settings.window_size:
+            selected_index = i
+    if selected_index < 0:
+        selected_index = WINDOW_SIZES.size()
+        resolution_picker.add_item(_t("Custom", "自定义") + " %d × %d" % [settings.window_size.x, settings.window_size.y], selected_index)
+    resolution_picker.select(selected_index)
+    resolution_picker.disabled = settings.display_mode != 0 or not SettingsService.native_display()
+    ui_scale_picker.clear()
+    for percent: int in [80, 90, 100, 110, 125]:
+        ui_scale_picker.add_item(_t("UI scale: ", "界面缩放：") + "%d%%" % percent, percent)
+        if is_equal_approx(settings.ui_scale, percent / 100.0):
+            ui_scale_picker.select(ui_scale_picker.item_count - 1)
+    ui_scale_picker.tooltip_text = _t("Automatically limited to fit the window", "自动限制缩放，防止界面超出窗口")
+
+func _set_settings_controls_visible(value: bool) -> void:
+    super._set_settings_controls_visible(value)
+    if is_instance_valid(resolution_picker):
+        resolution_picker.visible = value and not OS.has_feature("web")
+        ui_scale_picker.visible = value
+    if is_instance_valid(music_slider):
+        music_slider.visible = value
+        sfx_slider.visible = value
+
+func _select_resolution(index: int) -> void:
+    if index >= 0 and index < WINDOW_SIZES.size():
+        settings.set_resolution(WINDOW_SIZES[index])
+        _refresh_settings_buttons()
+
+func _select_ui_scale(index: int) -> void:
+    settings.set_ui_scale(ui_scale_picker.get_item_id(index) / 100.0)
+    responsive.refresh()
+
+func _layout_menu(view: Vector2) -> void:
+    for path: String in ["UI/Main", "UI/Settings", "UI/Archive"]:
+        ResponsiveUI.center_group(get_node(path) as Control, view)
+    if is_instance_valid(character_screen):
+        ResponsiveUI.center_group(character_screen, view)
+    var physical_view: Vector2 = get_viewport().get_visible_rect().size
+    for path: String in ["World/Backdrop", "World/Grass", "World/Shade"]:
+        (get_node(path) as Control).size = physical_view
+    var frame: Panel = get_node("World/MenuFrame") as Panel
+    var factor: float = (get_node("UI") as CanvasLayer).scale.x * (get_node("UI/Main") as Control).scale.x
+    frame.scale = Vector2.ONE * factor
+    frame.position = (physical_view - ResponsiveUI.BASE * factor) * 0.5 + Vector2(338, 76) * factor
+    for child: Node in get_node("World").get_children():
+        if child is Sprite2D and String(child.name).ends_with("PreviewHD"):
+            if not child.has_meta("base_position"):
+                child.set_meta("base_position", child.position)
+                child.set_meta("base_scale", child.scale)
+            child.scale = Vector2(child.get_meta("base_scale")) * factor
+            child.position = (physical_view - ResponsiveUI.BASE * factor) * 0.5 + Vector2(child.get_meta("base_position")) * factor
+
+func _refresh_hero_detail() -> void:
+    if not is_instance_valid(hero_detail_portrait):
+        return
+    var id: int = SurvivorCharacters.selected
+    hero_detail_portrait.texture = HDArt.portrait(id)
+    hero_detail_name.text = _t(SurvivorCharacters.EN[id], SurvivorCharacters.ZH[id])
+    hero_detail_description.text = _t(SurvivorCharacters.DESCRIPTIONS_EN[id], SurvivorCharacters.DESCRIPTIONS_ZH[id])
+    hero_map_preview.texture = HDArt.terrain(SurvivorMaps.selected)
+    hero_map_label.text = _t("MAP", "地图")
+    hero_map_picker.select(SurvivorMaps.selected)
+    hero_difficulty_picker.select(SurvivorBalance.selected_difficulty)

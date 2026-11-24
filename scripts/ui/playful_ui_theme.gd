@@ -191,3 +191,27 @@ static func reward_rarity_ink(rarity: int) -> Color:
             return Color("#583400")
         _:
             return Color("#263e20")
+
+# Compact in-game progress surfaces use forest backing and a single semantic fill.
+static func apply_forest_progress(bar: ProgressBar, color_value: Color) -> void:
+    var backing: StyleBoxFlat = surface(Color("#233a2e"), 3, Color("#4e6853"), 0)
+    var filling: StyleBoxFlat = surface(color_value, 3, color_value, 0)
+    for style: StyleBoxFlat in [backing, filling]:
+        style.set_border_width_all(0)
+        style.content_margin_top = 0
+        style.content_margin_bottom = 0
+        style.content_margin_left = 0
+        style.content_margin_right = 0
+    bar.add_theme_stylebox_override("background", backing)
+    bar.add_theme_stylebox_override("fill", filling)
+
+static func apply_forest_slider(slider: HSlider) -> void:
+    var backing: StyleBoxFlat = surface(Color("#10281e"), 4, Color("#647e60"), 0)
+    var fill: StyleBoxFlat = surface(Color("#a7ca80"), 4, Color("#a7ca80"), 0)
+    for style: StyleBoxFlat in [backing, fill]:
+        style.set_border_width_all(1)
+        style.content_margin_top = 2
+        style.content_margin_bottom = 2
+    slider.add_theme_stylebox_override("slider", backing)
+    slider.add_theme_stylebox_override("grabber_area", fill)
+    slider.add_theme_stylebox_override("grabber_area_highlight", fill)

@@ -11,6 +11,14 @@ var experience_bar: ProgressBar
 var pixel_skin: PixelSkinController
 var map_id: int = SurvivorMaps.CLASSIC
 var world_camera: Camera2D
+var responsive: ResponsiveUI
+var hud_health_bar: ProgressBar
+var hud_timer_panel: Panel
+var hud_right_panel: Panel
+var hud_weapons: HBoxContainer
+var hud_weapon_signature: String = ""
+var camera_view_size: Vector2 = SurvivorMaps.VIEW_SIZE
+var classic_surround: TextureRect
 var simulation_character: int = 0
 var challenge_active: bool = false
 var challenge_date: String = ""
@@ -94,8 +102,12 @@ func _ready() -> void:
     if impact_system != null:
         impact_system.z_index = 9
     _apply_playful_hud()
+    _create_responsive_hud()
     _apply_locale()
     _refresh_hud()
+    responsive = ResponsiveUI.new()
+    add_child(responsive)
+    responsive.bind(get_node("UI") as CanvasLayer, settings, _layout_game)
 
 
 func _draw() -> void:
@@ -303,7 +315,7 @@ func _spawn_configured_enemy(config: Dictionary, position_value: Vector2) -> Gre
 # from the hero. This also avoids the former fixed four-door bottleneck.
 func _survivor_spawn_edge() -> Vector2:
     var camera_center: Vector2 = world_camera.get_screen_center_position() if is_instance_valid(world_camera) else Vector2(320.0, 180.0)
-    var area: Rect2 = SurvivorMaps.spawn_area(map_id, camera_center)
+    var area: Rect2 = SurvivorMaps.spawn_area(map_id, camera_center, SurvivorMaps.VIEW_SIZE if simulation_mode else camera_view_size)
     var options: Array[Vector2] = []
     for index: int in range(4):
         match index:
@@ -343,11 +355,23 @@ func _spawn_experience_gem(position_value: Vector2, amount: int) -> SurvivorExpe
 
 
 func _open_surprise_choice() -> void:
-    super._open_surprise_choice()
-    _current_choices = SurvivorArsenal.assist_choices(_current_choices, blessing_system, difficulty)
-    if choice_open and run_state != null:
+    if game_ended:
+        return
+    _cancel_keyboard_motion()
+    choice_open = true
+    _set_combat_frozen(true)
+    # Pixel cards have separate labels. Do not temporarily assign the legacy
+    # full description to Button.text: its minimum width can grow before the
+    # text is cleared, leaving the child labels wider than the final card.
+    _current_choices = SurvivorArsenal.assist_choices(blessing_system.roll_choices(3), blessing_system, difficulty)
+    choice_backdrop.show()
+    choice_panel.show()
+    choice_title.show()
+    choice_title.text = _t("LEVEL UP · CHOOSE A GARDEN MUTATION", "等级提升 · 选择花园变异")
+    if run_state != null:
         run_state.open_reward()
     _render_reward_cards()
+    audio_manager.play_event(&"chest_open")
 
 
 func _render_reward_cards() -> void:
@@ -367,6 +391,8 @@ func _render_reward_cards() -> void:
         var button: Button = choice_buttons[index]
         button.text = ""
         button.icon = null
+        button.clip_text = true
+        button.size = Vector2(174, 179)
         var icon_view: TextureRect = button.get_node("GiftIcon") as TextureRect
         icon_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         icon_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -378,18 +404,18 @@ func _render_reward_cards() -> void:
         var title: Label = button.get_node("GiftName") as Label
         title.text = data.localized_name(i18n.locale_code)
         PlayfulUITheme.apply_label(title, Color("#2c251f"))
-        title.add_theme_font_size_override("font_size", 14)
+        title.add_theme_font_size_override("font_size", 15)
         title.position.y = 65.0
         title.size.y = 25.0
         icon_view.position.y = 5.0
-        icon_view.size.y = 35.0
+        icon_view.size.y = 37.0
         rarity.position.y = 43.0
         var detail: Label = button.get_node("GiftDetail") as Label
         PlayfulUITheme.apply_label(detail, Color("#392e27"))
         detail.add_theme_font_size_override("font_size", 12)
         detail.add_theme_constant_override("line_spacing", 0)
         detail.position.x = 5.0
-        detail.size.x = button.size.x - 10.0
+        detail.size.x = 164.0
         detail.position.y = 94.0
         detail.size.y = 79.0
         var stack: int = blessing_system.get_blessing_stack(data.id) + 1
@@ -418,6 +444,9 @@ func _render_reward_cards() -> void:
         button.add_theme_stylebox_override("hover", PlayfulUITheme.surface(Color("#fff0d8"), 14, card_outline, 5))
         button.add_theme_stylebox_override("pressed", PlayfulUITheme.surface(Color("#eedebd"), 14, card_outline, 1))
         button.add_theme_stylebox_override("hover_pressed", button.get_theme_stylebox("pressed"))
+        var focus: StyleBoxFlat = PlayfulUITheme.surface(Color(0, 0, 0, 0), 14, Color("#846225"), 0)
+        focus.set_border_width_all(3)
+        button.add_theme_stylebox_override("focus", focus)
         # Reset inherited tint; rarity is communicated by a dark label and outline.
         button.modulate = Color.WHITE
         for label: Label in [rarity, title, detail]:
@@ -436,6 +465,10 @@ func _refresh_hud() -> void:
     if endless_mode:
         wave_label.text = _t("∞ %02d:%02d", "∞ %02d:%02d") % [int(shown_time / 60), shown_time % 60]
     health_label.text = "%d/%d" % [hero_plant.health, hero_plant.max_health]
+    if is_instance_valid(hud_health_bar):
+        hud_health_bar.max_value = float(hero_plant.max_health)
+        hud_health_bar.value = float(hero_plant.health)
+        _refresh_weapon_strip()
     coins_label.text = "%d" % enemies_defeated
     greed_label.text = _t("LV.%d XP", "等级%d 经验") % hero_plant.level
     if experience_bar != null:
@@ -558,7 +591,7 @@ func _toggle_pause() -> void:
         return
     pause_open = run_state.phase == SurvivorRunState.Phase.PAUSED
     _set_combat_frozen(pause_open)
-    for control: Control in [pause_backdrop, pause_panel, pause_title, pause_subtitle, pause_build_label, pause_resume_button, pause_leave_button]:
+    for control: Control in [pause_backdrop, pause_panel, pause_title, pause_subtitle, pause_build_label, pause_resume_button, pause_leave_button, language_button, speed_button]:
         control.visible = pause_open
     if pause_open:
         _cancel_keyboard_motion()
@@ -605,7 +638,7 @@ func _apply_playful_hud() -> void:
     PlayfulUITheme.apply_forest_panel(get_node("UI/ExperienceFrame") as Panel)
     PlayfulUITheme.apply_panel(warning_frame, "glass")
     PlayfulUITheme.apply_panel(choice_panel, "modal")
-    PlayfulUITheme.apply_panel(pause_panel, "modal")
+    PlayfulUITheme.apply_forest_panel(pause_panel)
     PlayfulUITheme.apply_progress(experience_bar)
     for label: Label in [
         choice_title, result_label, pause_title, pause_subtitle, pause_build_label
@@ -613,6 +646,9 @@ func _apply_playful_hud() -> void:
         PlayfulUITheme.apply_label(label)
     for label: Label in [wave_label, health_label, coins_label, greed_label]:
         PlayfulUITheme.apply_label(label, Color("#fffaf0"))
+    for label: Label in [pause_title, pause_subtitle, pause_build_label]:
+        PlayfulUITheme.apply_label(label, Color("#f8f3de"))
+    PlayfulUITheme.apply_label(pause_title, Color("#f5df9c"))
     PlayfulUITheme.apply_label(control_label, Color("#fef7e8"))
     PlayfulUITheme.apply_label(choice_hint, Color("#493728"))
     PlayfulUITheme.apply_label(status_label, Color("#fff9e7"))
@@ -621,12 +657,12 @@ func _apply_playful_hud() -> void:
     PlayfulUITheme.apply_forest_button(speed_button)
     PlayfulUITheme.apply_forest_button(menu_button)
     for button: Button in choice_buttons:
-        PlayfulUITheme.apply_button(button, "soft")
+        PlayfulUITheme.apply_button(button, "soft", false)
     PlayfulUITheme.apply_button(result_button, "primary")
     PlayfulUITheme.apply_button(reroll_button, "soft", false)
     PlayfulUITheme.apply_button(skip_button, "soft", false)
-    PlayfulUITheme.apply_button(pause_resume_button, "primary")
-    PlayfulUITheme.apply_button(pause_leave_button, "soft")
+    PlayfulUITheme.apply_forest_button(pause_resume_button, true)
+    PlayfulUITheme.apply_forest_button(pause_leave_button)
 
 
 func _select_choice(index: int) -> void:
@@ -782,6 +818,21 @@ func _setup_map() -> void:
         ground.modulate = Color(0.84, 0.86, 0.80, 1.0)
     HDArt.decorate_map(get_node("World") as Node2D, map_id)
     if map_id == SurvivorMaps.CLASSIC:
+        # Preserve the original playable rectangle; extra screen space is scenery.
+        classic_surround = TextureRect.new()
+        classic_surround.name = "ClassicSurround"
+        classic_surround.texture = HDArt.terrain(SurvivorMaps.CLASSIC)
+        classic_surround.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+        classic_surround.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+        classic_surround.modulate = Color(0.60, 0.70, 0.55)
+        classic_surround.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        get_node("World/Backdrop").add_child(classic_surround)
+        world_camera = Camera2D.new()
+        world_camera.name = "WorldCamera"
+        world_camera.position = SurvivorMaps.VIEW_SIZE * 0.5
+        get_node("World").add_child(world_camera)
+        world_camera.make_current()
+        world_camera.force_update_scroll()
         return
     if hd_ground == null:
         ground.texture = PixelArtAssets.biome_texture(map_id)
@@ -928,22 +979,52 @@ func _track_health(current: int, _maximum: int) -> void:
 
 func _show_result_workspace(victory: bool) -> void:
     result_label.text = _t("ENDLESS RECORD · %d BOSSES", "无尽纪录 · %d 位首领") % bosses_defeated if endless_mode else (_t("GARDEN BLOOMED", "花园绽放") if victory else _t("GARDEN FELL", "花园倒下"))
+    PlayfulUITheme.apply_forest_panel(choice_panel)
+    PlayfulUITheme.apply_label(result_label, Color("#f5df9c"))
+    PlayfulUITheme.apply_forest_button(result_button, true)
     result_label.position = Vector2(110, 48)
     result_label.size = Vector2(420, 36)
     result_label.add_theme_font_size_override("font_size", 22)
     var column: VBoxContainer = VBoxContainer.new()
     column.position = Vector2(110, 90)
     column.size = Vector2(420, 190)
-    column.add_theme_constant_override("separation", 8)
+    column.add_theme_constant_override("separation", 5)
     get_node("UI/ChoiceLayer").add_child(column)
-    var metrics_label: Label = Label.new()
-    metrics_label.text = _t("Time %.1fs · Kills %d · Level %d\nDamage %.0f · XP %d · Taken %d\nHero %.0f · Familiars %.0f · Weapons %.0f\nEvolutions %d · Events %d", "时间 %.1f秒 · 击杀 %d · 等级 %d\n伤害 %.0f · 经验 %d · 承伤 %d\n主角 %.0f · 随从 %.0f · 武器 %.0f\n进化 %d · 事件 %d") % [survival_elapsed, enemies_defeated, hero_plant.level, total_damage, total_xp, damage_received, damage_by_source["hero"], damage_by_source["familiar"], damage_by_source["arsenal"], evolution_announced.size(), map_events.completed]
-    metrics_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    metrics_label.add_theme_font_size_override("font_size", 13)
-    PlayfulUITheme.apply_label(metrics_label)
-    column.add_child(metrics_label)
+    var metrics: GridContainer = GridContainer.new()
+    metrics.columns = 3
+    metrics.add_theme_constant_override("h_separation", 6)
+    metrics.add_theme_constant_override("v_separation", 6)
+    column.add_child(metrics)
+    var captions: Array[String] = [_t("Time", "存活"), _t("Kills", "击杀"), _t("Level", "等级"), _t("Damage", "伤害"), _t("XP", "经验"), _t("Damage taken", "承伤")]
+    var values: Array[String] = ["%.1fs" % survival_elapsed, str(enemies_defeated), str(hero_plant.level), "%.0f" % total_damage, str(total_xp), str(damage_received)]
+    for i: int in range(captions.size()):
+        var tile: PanelContainer = PanelContainer.new()
+        tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        tile.add_theme_stylebox_override("panel", PlayfulUITheme.surface(Color("#294337"), 7, Color("#55725a"), 0))
+        metrics.add_child(tile)
+        var labels_box: VBoxContainer = VBoxContainer.new()
+        labels_box.add_theme_constant_override("separation", 0)
+        tile.add_child(labels_box)
+        var key: Label = Label.new()
+        key.text = captions[i]
+        key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        key.add_theme_font_size_override("font_size", 10)
+        PlayfulUITheme.apply_label(key, Color("#c7d7b6"))
+        labels_box.add_child(key)
+        var amount: Label = Label.new()
+        amount.text = values[i]
+        amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        amount.add_theme_font_size_override("font_size", 16)
+        PlayfulUITheme.apply_label(amount, Color("#f5df9c"))
+        labels_box.add_child(amount)
+    var summary: Label = Label.new()
+    summary.text = _t("Evolutions %d · Events %d", "进化 %d · 事件 %d") % [evolution_announced.size(), map_events.completed]
+    summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    summary.add_theme_font_size_override("font_size", 12)
+    PlayfulUITheme.apply_label(summary, Color("#f8f3de"))
+    column.add_child(summary)
     var graph: HBoxContainer = HBoxContainer.new()
-    graph.custom_minimum_size.y = 18.0
+    graph.custom_minimum_size.y = 10.0
     column.add_child(graph)
     var sum_damage: float = maxf(1.0, float(damage_by_source["hero"]) + float(damage_by_source["familiar"]) + float(damage_by_source["arsenal"]))
     var keys: Array[String] = ["hero", "familiar", "arsenal"]
@@ -969,7 +1050,7 @@ func _show_result_workspace(victory: bool) -> void:
         var key_label: Label = Label.new()
         key_label.text = labels[i] + " %.0f%%" % (amount / sum_damage * 100.0)
         key_label.add_theme_font_size_override("font_size", 10)
-        PlayfulUITheme.apply_label(key_label)
+        PlayfulUITheme.apply_label(key_label, Color("#f8f3de"))
         legend.add_child(key_label)
     column.add_child(legend)
     var icons: HBoxContainer = HBoxContainer.new()
@@ -981,7 +1062,7 @@ func _show_result_workspace(victory: bool) -> void:
             continue
         var item: TextureRect = TextureRect.new()
         item.texture = HDArt.weapon(SurvivorArsenal.IDS[i])
-        item.custom_minimum_size = Vector2(32, 32)
+        item.custom_minimum_size = Vector2(26, 26)
         item.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         item.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
         item.tooltip_text = _t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]) + " Lv.%d" % rank
@@ -1047,3 +1128,114 @@ func _buff_stat_preview(data: BlessingData, current: int, next_rank: int) -> Str
         BlessingData.EffectType.SUNLIGHT:
             return _t("Instant sunlight +%d", "立即获得阳光 +%d") % maxi(1, roundi(data.value_per_stack))
     return attribute + "\n" + "+%.0f%% → +%.0f%%" % [current * data.value_per_stack * 100.0, next_rank * data.value_per_stack * 100.0]
+
+func _create_responsive_hud() -> void:
+    var top: Control = get_node("UI/TopHUD") as Control
+    top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    (top.get_node("Glass") as Control).hide()
+    hud_timer_panel = Panel.new()
+    hud_timer_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    top.add_child(hud_timer_panel)
+    top.move_child(hud_timer_panel, 0)
+    PlayfulUITheme.apply_forest_panel(hud_timer_panel)
+    hud_right_panel = Panel.new()
+    hud_right_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    top.add_child(hud_right_panel)
+    top.move_child(hud_right_panel, 0)
+    PlayfulUITheme.apply_forest_panel(hud_right_panel)
+    hud_health_bar = ProgressBar.new()
+    hud_health_bar.name = "HealthBar"
+    hud_health_bar.show_percentage = false
+    hud_health_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    top.add_child(hud_health_bar)
+    PlayfulUITheme.apply_forest_progress(hud_health_bar, Color("#9bc879"))
+    PlayfulUITheme.apply_forest_progress(experience_bar, Color("#e2c17a"))
+    wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    wave_label.add_theme_font_size_override("font_size", 16)
+    PlayfulUITheme.apply_label(wave_label, Color("#f5df9c"))
+    var pause_layer: Control = get_node("UI/PauseLayer") as Control
+    language_button.reparent(pause_layer, false)
+    speed_button.reparent(pause_layer, false)
+    language_button.hide()
+    speed_button.hide()
+    ResponsiveUI.place(pause_build_label, Rect2(155, 113, 330, 79))
+    ResponsiveUI.place(language_button, Rect2(179, 191, 134, 27))
+    ResponsiveUI.place(speed_button, Rect2(327, 191, 134, 27))
+    hud_weapons = HBoxContainer.new()
+    hud_weapons.name = "WeaponStrip"
+    hud_weapons.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    hud_weapons.add_theme_constant_override("separation", 4)
+    var ui: CanvasLayer = get_node("UI") as CanvasLayer
+    ui.add_child(hud_weapons)
+    ui.move_child(hud_weapons, get_node("UI/ChoiceLayer").get_index())
+
+func _refresh_weapon_strip() -> void:
+    if not is_instance_valid(hud_weapons):
+        return
+    var signature: String = ""
+    for id: StringName in SurvivorArsenal.IDS:
+        signature += str(blessing_system.get_blessing_stack(id)) + ","
+    if signature == hud_weapon_signature:
+        return
+    hud_weapon_signature = signature
+    for child: Node in hud_weapons.get_children():
+        hud_weapons.remove_child(child)
+        child.queue_free()
+    for i: int in range(SurvivorArsenal.IDS.size()):
+        var rank: int = blessing_system.get_blessing_stack(SurvivorArsenal.IDS[i])
+        if rank <= 0:
+            continue
+        var icon: TextureRect = TextureRect.new()
+        icon.texture = HDArt.weapon(SurvivorArsenal.IDS[i])
+        icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+        icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+        icon.custom_minimum_size = Vector2(23, 23)
+        icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        hud_weapons.add_child(icon)
+
+func _layout_game(view: Vector2) -> void:
+    var top: Control = get_node("UI/TopHUD") as Control
+    top.size = view
+    ResponsiveUI.place(top.get_node("Frame") as Control, Rect2(8, 6, 180, 34))
+    ResponsiveUI.place(top.get_node("HeartIcon") as Control, Rect2(15, 10, 15, 15))
+    ResponsiveUI.place(health_label, Rect2(34, 8, 66, 19))
+    ResponsiveUI.place(top.get_node("LeafIcon") as Control, Rect2(101, 10, 15, 15))
+    ResponsiveUI.place(greed_label, Rect2(119, 8, 67, 19))
+    ResponsiveUI.place(hud_health_bar, Rect2(16, 29, 164, 5))
+    ResponsiveUI.place(hud_timer_panel, Rect2(view.x * 0.5 - 61, 6, 122, 34))
+    ResponsiveUI.place(wave_label, Rect2(view.x * 0.5 - 60, 8, 120, 29))
+    ResponsiveUI.place(hud_right_panel, Rect2(view.x - 165, 6, 157, 34))
+    ResponsiveUI.place(top.get_node("SkullIcon") as Control, Rect2(view.x - 155, 14, 16, 16))
+    ResponsiveUI.place(coins_label, Rect2(view.x - 135, 9, 49, 28))
+    ResponsiveUI.place(menu_button, Rect2(view.x - 81, 9, 69, 28))
+    ResponsiveUI.place(control_label, Rect2(view.x * 0.5 - 195, 44, 390, 22))
+    ResponsiveUI.place(combo_label, Rect2(view.x - 174, 43, 158, 25))
+    ResponsiveUI.place(warning_frame, Rect2(view.x * 0.5 - 162, view.y - 57, 324, 32))
+    ResponsiveUI.place(status_label, Rect2(view.x * 0.5 - 172, view.y - 51, 344, 20))
+    ResponsiveUI.place(get_node("UI/ExperienceFrame") as Control, Rect2(8, view.y - 14, view.x - 16, 10))
+    ResponsiveUI.place(experience_bar, Rect2(12, view.y - 12, view.x - 24, 6))
+    hud_weapons.position = Vector2(10, view.y - 40)
+    ResponsiveUI.center_group(get_node("UI/ChoiceLayer") as Control, view)
+    ResponsiveUI.center_group(get_node("UI/PauseLayer") as Control, view)
+    _layout_camera()
+
+func _layout_camera() -> void:
+    if not is_instance_valid(world_camera):
+        return
+    var view: Vector2 = get_viewport().get_visible_rect().size
+    if simulation_mode:
+        view = SurvivorMaps.VIEW_SIZE
+    if map_id == SurvivorMaps.CLASSIC:
+        camera_view_size = view
+        var outer: ColorRect = get_node("World/Backdrop") as ColorRect
+        outer.position = (SurvivorMaps.VIEW_SIZE - view) * 0.5
+        outer.size = view
+        outer.color = Color("#294638")
+        if is_instance_valid(classic_surround):
+            classic_surround.size = view
+    else:
+        var world: Vector2 = SurvivorMaps.world_size(map_id)
+        var zoom_value: float = maxf(1.0, maxf(view.x / world.x, view.y / world.y))
+        world_camera.zoom = Vector2.ONE * zoom_value
+        camera_view_size = view / zoom_value
+    world_camera.force_update_scroll()
