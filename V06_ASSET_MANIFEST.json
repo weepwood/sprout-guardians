@@ -1,152 +1,157 @@
 {
-  "assets/generated/hd/terrain/classic.png": {
-    "width": 1254,
-    "height": 1254,
-    "sha256": "31c69553c5ec685287a1f9aeb0c1671acbba4e3b4c88002aa18d6457d11e915c"
-  },
-  "assets/generated/hd/terrain/forest.png": {
-    "width": 724,
-    "height": 724,
-    "sha256": "957be6d788c87f2cc2a87e289bbd6f42cacd1b7b23401a195a22191b548a932d"
-  },
-  "assets/generated/hd/terrain/night.png": {
-    "width": 724,
-    "height": 724,
-    "sha256": "23e4e27e60d0bd11ffd78eafd9e0f2447481a392b529771de9bb3984d49ea2a6"
-  },
-  "assets/generated/hd/terrain/swamp.png": {
-    "width": 724,
-    "height": 724,
-    "sha256": "84361397049285bfcea6dc533d021b3764752fcd0c5ee78f3486c46d367ad64f"
-  },
-  "assets/generated/hd/animations/hero_0.png": {
-    "width": 1120,
-    "height": 1400,
-    "sha256": "fbd9dca1772355ca33341e04cb5a079fcf8df711c8ed8532165a697406b41b83"
-  },
-  "assets/generated/hd/animations/hero_1.png": {
-    "width": 1120,
-    "height": 1400,
-    "sha256": "3bc0fa433d2de61ca814bbb9e4592e0f3d05f86ba694c021563befe53af4dcd4"
-  },
-  "assets/generated/hd/animations/hero_2.png": {
-    "width": 1120,
-    "height": 1400,
-    "sha256": "899e6111b359690554d4baf192d94c2de5f0f4b62e9b841156fe690c46d7d174"
-  },
   "assets/generated/hd/actors/actor_0.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "3a78ef2ca3b961ac8676af3be5eaee2936e5535066448645cedd1941f435b5c1"
+    "sha256": "3a78ef2ca3b961ac8676af3be5eaee2936e5535066448645cedd1941f435b5c1",
+    "width": 512
   },
   "assets/generated/hd/actors/actor_1.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "9d9b1b7e68c040eb7789fb2618deb34c2d97876340d76671863b1dc6ae8bd77b"
+    "sha256": "9d9b1b7e68c040eb7789fb2618deb34c2d97876340d76671863b1dc6ae8bd77b",
+    "width": 512
   },
   "assets/generated/hd/actors/actor_2.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "bc813926fee8df2d356fab66da03b9a443ffae692eba378d32698717bebf4b5d"
+    "sha256": "bc813926fee8df2d356fab66da03b9a443ffae692eba378d32698717bebf4b5d",
+    "width": 512
   },
   "assets/generated/hd/actors/actor_3.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "85cb34be3ae2ce068129d26d2d77e817d24c2f0483a787455edb8c3df2df8150"
+    "sha256": "85cb34be3ae2ce068129d26d2d77e817d24c2f0483a787455edb8c3df2df8150",
+    "width": 512
   },
   "assets/generated/hd/actors/actor_4.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "ebe494ca7b4512a20b246d84ea4b3509ea0717752c078aa225d28bf44f62d454"
+    "sha256": "ebe494ca7b4512a20b246d84ea4b3509ea0717752c078aa225d28bf44f62d454",
+    "width": 512
   },
   "assets/generated/hd/actors/actor_5.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "c22fef6027eea1d95868c5645d87b3480cb11126a6d68cde2cb9012847a66951"
+    "sha256": "c22fef6027eea1d95868c5645d87b3480cb11126a6d68cde2cb9012847a66951",
+    "width": 512
+  },
+  "assets/generated/hd/animations/hero_0.png": {
+    "height": 1400,
+    "sha256": "fbd9dca1772355ca33341e04cb5a079fcf8df711c8ed8532165a697406b41b83",
+    "width": 1120
+  },
+  "assets/generated/hd/animations/hero_1.png": {
+    "height": 1400,
+    "sha256": "3bc0fa433d2de61ca814bbb9e4592e0f3d05f86ba694c021563befe53af4dcd4",
+    "width": 1120
+  },
+  "assets/generated/hd/animations/hero_2.png": {
+    "height": 1400,
+    "sha256": "899e6111b359690554d4baf192d94c2de5f0f4b62e9b841156fe690c46d7d174",
+    "width": 1120
+  },
+  "assets/generated/hd/animations/hero_3.png": {
+    "height": 1400,
+    "sha256": "f299a7ef5d96e5b3a6386e04b62191fff56ddef66d2ce4eb79118ed1967b0e93",
+    "width": 1120
   },
   "assets/generated/hd/biome/biome_0.png": {
-    "width": 512,
     "height": 341,
-    "sha256": "1970e7899384bfa0c6b533208274937b24f8ae2e80294c57eb2d58dbd6ec6cf2"
+    "sha256": "1970e7899384bfa0c6b533208274937b24f8ae2e80294c57eb2d58dbd6ec6cf2",
+    "width": 512
   },
   "assets/generated/hd/biome/biome_1.png": {
-    "width": 512,
     "height": 341,
-    "sha256": "7625a99f4b341166625576c7a8e998b8331a04f8d0db113b45593f0205eb89d5"
+    "sha256": "7625a99f4b341166625576c7a8e998b8331a04f8d0db113b45593f0205eb89d5",
+    "width": 512
   },
   "assets/generated/hd/biome/biome_2.png": {
-    "width": 512,
     "height": 341,
-    "sha256": "19adc62219477897e638e29942c5d3031294acaabc56c55bc6ec361fecb9070e"
+    "sha256": "19adc62219477897e638e29942c5d3031294acaabc56c55bc6ec361fecb9070e",
+    "width": 512
   },
   "assets/generated/hd/biome/biome_3.png": {
-    "width": 512,
     "height": 341,
-    "sha256": "ae933c2d0f97c7402816ca616d8b3bda3f441a25a3946f8f2fa6bfec5f9a4911"
+    "sha256": "ae933c2d0f97c7402816ca616d8b3bda3f441a25a3946f8f2fa6bfec5f9a4911",
+    "width": 512
   },
   "assets/generated/hd/biome/biome_4.png": {
-    "width": 512,
     "height": 341,
-    "sha256": "f521c44e31b3faa4e5050d9e7ed6a3b1b00622844b9292ac46527129c60dd484"
+    "sha256": "f521c44e31b3faa4e5050d9e7ed6a3b1b00622844b9292ac46527129c60dd484",
+    "width": 512
   },
   "assets/generated/hd/biome/biome_5.png": {
-    "width": 512,
     "height": 341,
-    "sha256": "9852a9eb0e6d792bc5a73caaa9b40fe4c1518b988dc956c0357ee3e304839d4f"
+    "sha256": "9852a9eb0e6d792bc5a73caaa9b40fe4c1518b988dc956c0357ee3e304839d4f",
+    "width": 512
   },
   "assets/generated/hd/biome/biome_6.png": {
-    "width": 512,
     "height": 341,
-    "sha256": "3e575b68a765efd9fd8ce3a44dfc27a0dd0222c64799fd21c1a331ad2fa60fde"
+    "sha256": "3e575b68a765efd9fd8ce3a44dfc27a0dd0222c64799fd21c1a331ad2fa60fde",
+    "width": 512
   },
   "assets/generated/hd/biome/biome_7.png": {
-    "width": 512,
     "height": 341,
-    "sha256": "6e71dc646c1c27711fa72aea8cb3a1fa9f217f7a688900b1107e8fa78378a05e"
+    "sha256": "6e71dc646c1c27711fa72aea8cb3a1fa9f217f7a688900b1107e8fa78378a05e",
+    "width": 512
   },
   "assets/generated/hd/biome/biome_8.png": {
-    "width": 512,
     "height": 341,
-    "sha256": "1bef329d3019486ed2a62daae9e3f3f502f1e5913a1971a493d3a7d1585b3165"
+    "sha256": "1bef329d3019486ed2a62daae9e3f3f502f1e5913a1971a493d3a7d1585b3165",
+    "width": 512
+  },
+  "assets/generated/hd/terrain/classic.png": {
+    "height": 1254,
+    "sha256": "31c69553c5ec685287a1f9aeb0c1671acbba4e3b4c88002aa18d6457d11e915c",
+    "width": 1254
+  },
+  "assets/generated/hd/terrain/forest.png": {
+    "height": 724,
+    "sha256": "957be6d788c87f2cc2a87e289bbd6f42cacd1b7b23401a195a22191b548a932d",
+    "width": 724
+  },
+  "assets/generated/hd/terrain/night.png": {
+    "height": 724,
+    "sha256": "23e4e27e60d0bd11ffd78eafd9e0f2447481a392b529771de9bb3984d49ea2a6",
+    "width": 724
+  },
+  "assets/generated/hd/terrain/swamp.png": {
+    "height": 724,
+    "sha256": "84361397049285bfcea6dc533d021b3764752fcd0c5ee78f3486c46d367ad64f",
+    "width": 724
   },
   "assets/generated/hd/weapons/weapon_0.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "90c0a646a3c6d9aa0d0b9683fbf06a2e8fa6b29f854167c7c9e1178f6be06291"
+    "sha256": "90c0a646a3c6d9aa0d0b9683fbf06a2e8fa6b29f854167c7c9e1178f6be06291",
+    "width": 512
   },
   "assets/generated/hd/weapons/weapon_1.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "c1e97c8d55c84ce82c85857dc895b770c2d57717220a40f199662966226eaef5"
+    "sha256": "c1e97c8d55c84ce82c85857dc895b770c2d57717220a40f199662966226eaef5",
+    "width": 512
   },
   "assets/generated/hd/weapons/weapon_2.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "d7f6b982d23a6510dd997f9151185755db09788fe2054da4ab1c1b82d35fb460"
+    "sha256": "d7f6b982d23a6510dd997f9151185755db09788fe2054da4ab1c1b82d35fb460",
+    "width": 512
   },
   "assets/generated/hd/weapons/weapon_3.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "2ded908d8e0938a28fc81494d7c460560fac0c4df9a77b55ed69c491b748afd4"
+    "sha256": "2ded908d8e0938a28fc81494d7c460560fac0c4df9a77b55ed69c491b748afd4",
+    "width": 512
   },
   "assets/generated/hd/weapons/weapon_4.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "c67bd3dd0a3be1aafe9d37ef3b881425fbc91500089a351d3172136b1c84f0ae"
+    "sha256": "c67bd3dd0a3be1aafe9d37ef3b881425fbc91500089a351d3172136b1c84f0ae",
+    "width": 512
   },
   "assets/generated/hd/weapons/weapon_5.png": {
-    "width": 512,
     "height": 512,
-    "sha256": "6ded4221e1d272e9939247b82d08aeda00403f980ce80dd3409425afd94a7710"
+    "sha256": "6ded4221e1d272e9939247b82d08aeda00403f980ce80dd3409425afd94a7710",
+    "width": 512
   },
   "assets/generated/hd/weapons/weapon_6.png": {
-    "width": 887,
     "height": 887,
-    "sha256": "95a6ad6d57141e95f30b12edf7863f3639a1847d1c521caee23b31ad53e2a94d"
+    "sha256": "95a6ad6d57141e95f30b12edf7863f3639a1847d1c521caee23b31ad53e2a94d",
+    "width": 887
   },
   "assets/generated/hd/weapons/weapon_7.png": {
-    "width": 887,
     "height": 887,
-    "sha256": "161ada0202723566a1d5763ca2e8d88da5724f796a2fb8059ffbbfbdc8c80091"
+    "sha256": "161ada0202723566a1d5763ca2e8d88da5724f796a2fb8059ffbbfbdc8c80091",
+    "width": 887
   }
 }
