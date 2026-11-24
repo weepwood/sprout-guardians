@@ -267,6 +267,13 @@ func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
         config = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, SurvivorMaps.exclusive_variant(map_id))
         config["biome_enemy"] = map_id
         config["health"] = float(config["health"]) * 1.12
+    if map_id == SurvivorMaps.SWAMP and not force_elite and not force_boss and int(config.get("variant", 0)) == 3:
+        var nearby_ranged: int = 0
+        for node: Node in get_tree().get_nodes_in_group("greed_enemies"):
+            if node is GreedEnemy and (node as GreedEnemy).survivor_variant == 3 and (node as GreedEnemy).health > 0.0:
+                nearby_ranged += 1
+        if nearby_ranged >= SurvivorSpawnDirector.swamp_ranged_cap(difficulty):
+            config = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, 1)
     if endless_mode:
         config["health"] = float(config["health"]) * SurvivorEndurance.enemy_multiplier(survival_elapsed)
     return _spawn_configured_enemy(config, _survivor_spawn_edge())
@@ -357,10 +364,16 @@ func _render_reward_cards() -> void:
         icon_view.texture = PixelArtAssets.blessing_icon(data.id)
         var rarity: Label = button.get_node("GiftRarity") as Label
         rarity.text = data.rarity_name(i18n.locale_code).to_upper()
-        rarity.add_theme_color_override("font_color", data.rarity_color())
+        rarity.add_theme_color_override("font_color", data.rarity_color().darkened(0.48))
         var title: Label = button.get_node("GiftName") as Label
         title.text = data.localized_name(i18n.locale_code)
+        PlayfulUITheme.apply_label(title)
+        title.add_theme_font_size_override("font_size", 13)
         var detail: Label = button.get_node("GiftDetail") as Label
+        PlayfulUITheme.apply_label(detail, Color("#665249"))
+        detail.add_theme_font_size_override("font_size", 10)
+        detail.position.y = 119.0
+        detail.size.y = 54.0
         var stack: int = blessing_system.get_blessing_stack(data.id) + 1
         detail.text = "%s\nLv.%d" % [data.localized_description(i18n.locale_code, stack), stack]
         var weapon_index: int = SurvivorArsenal.IDS.find(data.id)
@@ -371,6 +384,7 @@ func _render_reward_cards() -> void:
         var card_outline: Color = data.rarity_color().lerp(Color("#c5a88a"), 0.45)
         button.add_theme_stylebox_override("normal", PlayfulUITheme.surface(Color("#fffaf1"), 14, card_outline, 3))
         button.add_theme_stylebox_override("hover", PlayfulUITheme.surface(Color("#fff0d8"), 14, card_outline, 5))
+        button.add_theme_stylebox_override("pressed", PlayfulUITheme.surface(Color("#eedebd"), 14, card_outline, 1))
     if choice_open and not choice_buttons.is_empty():
         choice_buttons[0].grab_focus()
 
@@ -523,6 +537,8 @@ func _toggle_pause() -> void:
 
 func _apply_locale() -> void:
     super._apply_locale()
+    if language_button != null:
+        language_button.text = "ZH" if i18n.locale_code == "en" else "EN"
     if menu_button != null:
         menu_button.text = _t("PAUSE", "暂停")
     if pause_title != null:
@@ -566,6 +582,8 @@ func _apply_playful_hud() -> void:
     for button: Button in choice_buttons:
         PlayfulUITheme.apply_button(button, "soft")
     PlayfulUITheme.apply_button(result_button, "primary")
+    PlayfulUITheme.apply_button(reroll_button, "soft", false)
+    PlayfulUITheme.apply_button(skip_button, "soft", false)
     PlayfulUITheme.apply_button(pause_resume_button, "primary")
     PlayfulUITheme.apply_button(pause_leave_button, "soft")
 
@@ -712,6 +730,7 @@ func _setup_map() -> void:
     ground.size = SurvivorMaps.world_size(map_id)
     ground.texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR
     ground.stretch_mode = TextureRect.STRETCH_TILE
+    ground.modulate = Color(0.73, 0.78, 0.75, 1.0)
     hero_plant.movement_bounds = SurvivorMaps.movement_bounds(map_id)
     if map_id == SurvivorMaps.CLASSIC:
         return
@@ -850,11 +869,11 @@ func _track_health(current: int, _maximum: int) -> void:
 
 func _show_result_workspace(victory: bool) -> void:
     result_label.text = _t("ENDLESS RECORD · %d BOSSES", "无尽纪录 · %d 位首领") % bosses_defeated if endless_mode else (_t("GARDEN BLOOMED", "花园绽放") if victory else _t("GARDEN FELL", "花园倒下"))
-    result_label.position = Vector2(110, 32)
+    result_label.position = Vector2(110, 48)
     result_label.size = Vector2(420, 36)
-    result_label.add_theme_font_size_override("font_size", 24)
+    result_label.add_theme_font_size_override("font_size", 22)
     var column: VBoxContainer = VBoxContainer.new()
-    column.position = Vector2(110, 76)
+    column.position = Vector2(110, 90)
     column.size = Vector2(420, 190)
     get_node("UI/ChoiceLayer").add_child(column)
     var metrics_label: Label = Label.new()
@@ -870,6 +889,8 @@ func _show_result_workspace(victory: bool) -> void:
     var keys: Array[String] = ["hero", "familiar", "arsenal"]
     var labels: Array[String] = [_t("Hero", "主角"), _t("Familiars", "随从"), _t("Weapons", "武器")]
     var colors: Array[Color] = [Color("99c57c"), Color("e4bb70"), Color("b69bd1")]
+    var legend: HBoxContainer = HBoxContainer.new()
+    legend.alignment = BoxContainer.ALIGNMENT_CENTER
     for i: int in range(keys.size()):
         var amount: float = float(damage_by_source[keys[i]])
         if amount <= 0.0:
@@ -881,6 +902,16 @@ func _show_result_workspace(victory: bool) -> void:
         bar.mouse_filter = Control.MOUSE_FILTER_PASS
         bar.tooltip_text = labels[i] + " %.1f%%" % (amount / sum_damage * 100.0)
         graph.add_child(bar)
+        var swatch: ColorRect = ColorRect.new()
+        swatch.color = colors[i]
+        swatch.custom_minimum_size = Vector2(9, 9)
+        legend.add_child(swatch)
+        var key_label: Label = Label.new()
+        key_label.text = labels[i] + " %.0f%%" % (amount / sum_damage * 100.0)
+        key_label.add_theme_font_size_override("font_size", 10)
+        PlayfulUITheme.apply_label(key_label)
+        legend.add_child(key_label)
+    column.add_child(legend)
     var icons: HBoxContainer = HBoxContainer.new()
     icons.alignment = BoxContainer.ALIGNMENT_CENTER
     column.add_child(icons)

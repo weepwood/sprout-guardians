@@ -8,7 +8,8 @@ static func stage(elapsed: float) -> int:
     return maxi(0, floori(elapsed / BOSS_PERIOD))
 
 static func enemy_multiplier(elapsed: float) -> float:
-    return minf(6.0, 1.0 + 0.22 * stage(elapsed))
+    var wave: int = stage(elapsed)
+    return minf(6.0, 1.0 + 0.22 * mini(wave, 6) + 0.12 * maxi(0, wave - 6))
 
 static func spawn_interval(elapsed: float, base: float) -> float:
     return maxf(0.12, base / (1.0 + 0.12 * stage(elapsed)))

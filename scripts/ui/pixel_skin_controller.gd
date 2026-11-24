@@ -141,7 +141,7 @@ func _texture_for_node(node: Node) -> Texture2D:
 func _configure_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedHeroPlant:
         sprite.position = Vector2(0.0, -5.0)
-        sprite.scale = Vector2.ONE * 0.56
+        sprite.scale = Vector2.ONE * 0.70
         sprite.z_index = 5
     elif node is GreedPlant:
         sprite.position = Vector2(0.0, -2.0)
