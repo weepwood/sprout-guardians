@@ -119,6 +119,11 @@ func _test_settings_persistence() -> void:
     settings.music_enabled = false
     settings.sfx_enabled = false
     settings.screen_flash_enabled = false
+    settings.display_mode = 2
+    settings.fullscreen = true
+    settings.window_size = Vector2i(1260, 540)
+    settings.ui_scale = 0.9
+    settings.music_volume_db = -28.0
     _assert_true(settings.save_settings(), "Settings service writes a configuration file")
 
     var reloaded: SettingsService = SettingsService.new()
@@ -128,6 +133,17 @@ func _test_settings_persistence() -> void:
     _assert_true(not reloaded.music_enabled, "Music preference survives settings reload")
     _assert_true(not reloaded.sfx_enabled, "SFX preference survives settings reload")
     _assert_true(not reloaded.screen_flash_enabled, "Effects preference survives settings reload")
+    _assert_true(reloaded.display_mode == 2 and reloaded.fullscreen, "Display mode survives settings reload")
+    _assert_true(reloaded.window_size == Vector2i(1260, 540), "Custom resolution survives settings reload")
+    _assert_true(is_equal_approx(reloaded.ui_scale, 0.9), "UI scale survives settings reload")
+    _assert_true(is_equal_approx(reloaded.music_volume_db, -28.0), "Music volume survives settings reload")
+    var legacy: ConfigFile = ConfigFile.new()
+    legacy.set_value("meta", "version", 1)
+    legacy.set_value("display", "fullscreen", true)
+    legacy.save(path)
+    reloaded.load_settings()
+    _assert_true(reloaded.display_mode == 1 and reloaded.fullscreen, "V1 fullscreen migrates without losing preference")
+    _assert_true(reloaded.window_size == Vector2i(1280, 720), "V1 missing resolution uses safe default")
     _remove_test_file(path)
 
 

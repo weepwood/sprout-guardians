@@ -10,6 +10,8 @@ on:
       - 'assets/generated/**'
       - 'tests/run_endurance_benchmark.gd'
       - 'tests/run_render_capture.gd'
+      - 'tests/run_responsive_capture.gd'
+      - 'project.godot'
       - 'tests/run_render_benchmark.gd'
       - 'tests/run_save_recovery.gd'
       - '.github/workflows/survivor-quality.yml'
@@ -54,6 +56,13 @@ jobs:
           test "$(find build/visual -name '*.png' | wc -l)" -eq 7
           test -s build/visual/05-reward-zh.png
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Invalid access|Invalid call|on a null instance' build/quality/render.log; then exit 1; fi
+      - name: Responsive native-window capture and preferences
+        run: |
+          set -euo pipefail
+          timeout 180s xvfb-run -a -s '-screen 0 1920x1080x24' godot --rendering-method gl_compatibility --audio-driver Dummy --resolution 1280x720 --path . --script res://tests/run_responsive_capture.gd 2>&1 | tee build/quality/responsive.log
+          grep '^RESPONSIVE_SUMMARY failures=0 captures=20$' build/quality/responsive.log
+          test "$(find build/responsive -name '*.png' | wc -l)" -eq 20
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Invalid access|Invalid call|on a null instance' build/quality/responsive.log; then exit 1; fi
       - name: Rendered low-resolution performance benchmark
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
@@ -69,6 +78,7 @@ jobs:
           path: |
             build/quality/
             build/visual/
+            build/responsive/
   save-recovery:
     strategy:
       fail-fast: false

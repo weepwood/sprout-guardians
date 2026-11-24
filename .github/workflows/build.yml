@@ -422,7 +422,7 @@ jobs:
             echo "Invalid release version: $VERSION"
             exit 1
           fi
-          if [ "$VERSION" = "v0.5.0" ] || [ "$VERSION" = "v0.6.0" ]; then
+          if [ "$VERSION" = "v0.5.0" ] || [ "$VERSION" = "v0.6.0" ] || [ "$VERSION" = "v0.7.0" ]; then
             echo "This version must use its separate complete release gate."
             echo "publish=false" >> "$GITHUB_OUTPUT"
             exit 0
