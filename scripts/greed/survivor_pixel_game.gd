@@ -355,11 +355,23 @@ func _spawn_experience_gem(position_value: Vector2, amount: int) -> SurvivorExpe
 
 
 func _open_surprise_choice() -> void:
-    super._open_surprise_choice()
-    _current_choices = SurvivorArsenal.assist_choices(_current_choices, blessing_system, difficulty)
-    if choice_open and run_state != null:
+    if game_ended:
+        return
+    _cancel_keyboard_motion()
+    choice_open = true
+    _set_combat_frozen(true)
+    # Pixel cards have separate labels. Do not temporarily assign the legacy
+    # full description to Button.text: its minimum width can grow before the
+    # text is cleared, leaving the child labels wider than the final card.
+    _current_choices = SurvivorArsenal.assist_choices(blessing_system.roll_choices(3), blessing_system, difficulty)
+    choice_backdrop.show()
+    choice_panel.show()
+    choice_title.show()
+    choice_title.text = _t("LEVEL UP · CHOOSE A GARDEN MUTATION", "等级提升 · 选择花园变异")
+    if run_state != null:
         run_state.open_reward()
     _render_reward_cards()
+    audio_manager.play_event(&"chest_open")
 
 
 func _render_reward_cards() -> void:
@@ -379,6 +391,8 @@ func _render_reward_cards() -> void:
         var button: Button = choice_buttons[index]
         button.text = ""
         button.icon = null
+        button.clip_text = true
+        button.size = Vector2(174, 179)
         var icon_view: TextureRect = button.get_node("GiftIcon") as TextureRect
         icon_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         icon_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -401,7 +415,7 @@ func _render_reward_cards() -> void:
         detail.add_theme_font_size_override("font_size", 12)
         detail.add_theme_constant_override("line_spacing", 0)
         detail.position.x = 5.0
-        detail.size.x = button.size.x - 10.0
+        detail.size.x = 164.0
         detail.position.y = 94.0
         detail.size.y = 79.0
         var stack: int = blessing_system.get_blessing_stack(data.id) + 1
@@ -643,7 +657,7 @@ func _apply_playful_hud() -> void:
     PlayfulUITheme.apply_forest_button(speed_button)
     PlayfulUITheme.apply_forest_button(menu_button)
     for button: Button in choice_buttons:
-        PlayfulUITheme.apply_button(button, "soft")
+        PlayfulUITheme.apply_button(button, "soft", false)
     PlayfulUITheme.apply_button(result_button, "primary")
     PlayfulUITheme.apply_button(reroll_button, "soft", false)
     PlayfulUITheme.apply_button(skip_button, "soft", false)

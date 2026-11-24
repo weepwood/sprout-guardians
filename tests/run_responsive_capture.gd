@@ -139,12 +139,22 @@ func _run() -> void:
         (game.get("responsive") as ResponsiveUI).refresh()
         await _capture("pause-%d" % map_id)
         game.call("_toggle_pause")
+        # Force English here: wide English buff text was the actual CI
+        # screenshot defect. The standard render test covers both locales.
+        var locale: LocalizationService = game.get("i18n") as LocalizationService
+        locale.set_locale("en", false)
+        game.call("_apply_locale")
         game.call("_on_experience_collected", int(game.get("experience_to_next")))
         await process_frame
         var buttons: Array = game.get("choice_buttons")
         _expect(bool(game.get("choice_open")), "Reward opened")
         for button: Button in buttons:
             _inside(button, "Reward card " + String(button.name))
+            _expect(button.size.is_equal_approx(Vector2(174, 179)), "Reward card remains authored size")
+            for child_name: String in ["GiftName", "GiftDetail", "GiftRarity"]:
+                var label: Label = button.get_node(child_name) as Label
+                _expect(Rect2(Vector2.ZERO, button.size).grow(0.5).encloses(Rect2(label.position, label.size)), "Reward label inside card " + child_name + " " + str(label.size))
+                _expect(label.get_line_count() <= label.get_visible_line_count(), "All reward label lines visible " + child_name)
         await _capture("reward-%d" % map_id)
         game.call("_select_choice", 0)
         game.call("_finish_run", false)

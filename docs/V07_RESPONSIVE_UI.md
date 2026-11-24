@@ -10,3 +10,8 @@
 - 原始本机截图：测试隔离目录 /tmp/sprout-v07-isolated.xmgPk3/build/responsive；上一轮实际截图汇总 /tmp/sprout-v07-final-review.jpg。最后一轮可能覆盖部分文件，不能把此目录视为最终提交的完整视觉证据。
 
 发布检查：PR与main必须通过Build and Package、Survivor balance simulation、Survivor endurance and visual quality、V0.6 HD art acceptance。质量CI新增真实原生窗口采集20图。专用 publish-v0.7.0.yml 核对同一main SHA四项结果并下载同构建包；保留签名及公证门禁。
+
+## 候选 063469b 复验与奖励卡修复
+四套工作流最终通过，质量45460003713仅补跑被取消的macOS存档恢复任务（attempt 2）。质量产物14952253113含27张图；发现21:9英文Buff详情越出卡片右侧。修复后避免旧按钮长文本参与最小宽度计算，明确卡片174×179和详情164×79，新增全部文字边界及可见行断言；Mac实际中英文各20图零失败，奖励截图均已审查。新提交需重新验收。
+
+原候选实际600秒辅助仿真P95墙钟0.934ms、残余节点0、内存相对初始增加67790720字节，不能解释为无泄漏；软件渲染640×360 P95 7.305ms（llvmpipe）。Mac构建产物14952279794 ZIP和DMG校验通过，临时签名未公证，尚非正式V0.7发布制品。
