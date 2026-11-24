@@ -99,6 +99,11 @@
     "sha256": "1bef329d3019486ed2a62daae9e3f3f502f1e5913a1971a493d3a7d1585b3165",
     "width": 512
   },
+  "assets/generated/hd/menu/background.png": {
+    "height": 941,
+    "sha256": "01f208406fb4de84ad2f107f29cf66c5e5afb3d5774e8a5a1c2950f086d73e3e",
+    "width": 1672
+  },
   "assets/generated/hd/terrain/classic.png": {
     "height": 1254,
     "sha256": "31c69553c5ec685287a1f9aeb0c1671acbba4e3b4c88002aa18d6457d11e915c",
