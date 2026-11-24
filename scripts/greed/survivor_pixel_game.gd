@@ -383,6 +383,7 @@ func _render_reward_cards() -> void:
     skip_button.text = _t("Skip (X)", "跳过 (X)")
     choice_hint.visible = choice_open
     choice_badge.visible = choice_open
+    var recommended: int = SurvivorArsenal.recommended_index(_current_choices, blessing_system)
     for index: int in range(choice_buttons.size()):
         choice_buttons[index].visible = choice_open and index < _current_choices.size()
         if index >= _current_choices.size():
@@ -396,11 +397,17 @@ func _render_reward_cards() -> void:
         var icon_view: TextureRect = button.get_node("GiftIcon") as TextureRect
         icon_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         icon_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-        icon_view.texture = HDArt.weapon(data.id)
+        icon_view.texture = HDArt.reward_icon(data)
+        icon_view.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
         var rarity: Label = button.get_node("GiftRarity") as Label
-        rarity.text = data.rarity_name(i18n.locale_code).to_upper()
+        var is_weapon: bool = SurvivorArsenal.IDS.has(data.id)
+        var category: String = _t("Weapon", "武器") if is_weapon else _t("Passive", "被动")
+        rarity.text = category + " · " + data.rarity_name(i18n.locale_code)
+        if index == recommended:
+            rarity.text = "★ " + category + " · " + data.rarity_name(i18n.locale_code)
+        rarity.tooltip_text = (_t("Recommended · ", "推荐 · ") if index == recommended else "") + data.rarity_name(i18n.locale_code)
         rarity.add_theme_color_override("font_color", PlayfulUITheme.reward_rarity_ink(data.rarity))
-        rarity.add_theme_font_size_override("font_size", 12)
+        rarity.add_theme_font_size_override("font_size", 11)
         var title: Label = button.get_node("GiftName") as Label
         title.text = data.localized_name(i18n.locale_code)
         PlayfulUITheme.apply_label(title, Color("#2c251f"))
@@ -434,20 +441,27 @@ func _render_reward_cards() -> void:
             var next_damage: float = SurvivorArsenal.shot_damage(next_rank, evolved_next, evolved_next and partner_rank >= 3, difficulty)
             var interval: float = SurvivorArsenal.shot_interval(weapon_index, next_rank, evolved_next, evolved_next and partner_rank >= 3, difficulty)
             detail.text = rank_line + "\n" + _t("Hit %.0f → %.0f · %.2fs", "单发 %.0f → %.0f · %.2f秒") % [old_damage, next_damage, interval]
-            detail.text += "\n" + (_t("Evolution ready!", "本次可进化！") if evolved_next else _t("Evolve at Lv.3", "进化要求：3级") + "\n" + partner_name + " %d/1" % mini(partner_rank, 1))
+            var unlock_partner: bool = current == 0 and partner_rank >= 3
+            if unlock_partner:
+                detail.text += "\n" + _t("Evolves partner", "本次进化搭档") + "\n" + partner_name
+            elif evolved_next:
+                detail.text += "\n" + _t("Evolution ready!", "本次可进化！")
+            else:
+                detail.text += "\n" + _t("Evolution %d/3", "进化进度 %d/3") % next_rank + "\n" + partner_name + " %d/1" % mini(partner_rank, 1)
             full_detail += "\n" + _t("Base damage per projectile; interval after upgrade.", "基础单发伤害；显示升级后的攻击间隔。")
         else:
             detail.text = rank_line + "\n" + _buff_stat_preview(data, current, next_rank)
-        button.tooltip_text = title.text + "\n" + detail.text + "\n" + full_detail
+        button.tooltip_text = (_t("Recommended · ", "推荐 · ") if index == recommended else "") + title.text + " · " + category + " · " + data.rarity_name(i18n.locale_code) + "\n" + detail.text + "\n" + full_detail
         var card_outline: Color = data.rarity_color().lerp(Color("#b9c6d4"), 0.65)
-        PlayfulUITheme.apply_light_reward(button, card_outline)
+        PlayfulUITheme.apply_light_reward(button, Color("#386c9f") if index == recommended else card_outline)
         # Reset inherited tint; rarity is communicated by a dark label and outline.
         button.modulate = Color.WHITE
         for label: Label in [rarity, title, detail]:
             label.modulate = Color.WHITE
             label.self_modulate = Color.WHITE
     if choice_open and not choice_buttons.is_empty():
-        choice_buttons[0].grab_focus()
+        reward_focus_index = recommended if difficulty < 2 and recommended >= 0 else 0
+        choice_buttons[reward_focus_index].grab_focus()
 
 
 func _refresh_hud() -> void:
@@ -594,7 +608,10 @@ func _toggle_pause() -> void:
             var rank: int = blessing_system.get_blessing_stack(SurvivorArsenal.IDS[i])
             if rank > 0:
                 equipped.append(_t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]) + " Lv.%d%s" % [rank, " ★" if SurvivorArsenal.evolved(blessing_system, i) else ""])
-        pause_build_label.text = _t("YOUR GARDEN\n", "当前构筑\n") + power_label.text + "\n" + " · ".join(equipped)
+        pause_build_label.text = _t("Build · ", "构筑 · ") + str(equipped.size()) + _t(" weapons", " 项武器") + "\n" + " · ".join(equipped)
+        if equipped.is_empty():
+            pause_build_label.text += _t("No weapons acquired yet", "尚未获得额外武器")
+        pause_build_label.tooltip_text = power_label.text + "\n" + " · ".join(equipped)
         pause_resume_button.grab_focus()
     else:
         get_viewport().gui_release_focus()
@@ -607,12 +624,13 @@ func _apply_locale() -> void:
     if menu_button != null:
         menu_button.text = _t("PAUSE", "暂停")
     if pause_title != null:
-        pause_title.text = _t("TAKE A LITTLE BREAK", "歇一会儿吧")
+        pause_title.text = _t("Game paused", "游戏暂停")
         pause_subtitle.text = _t("Your garden is waiting for you.", "芽芽们会在这里等你回来。")
         pause_resume_button.text = _t("RESUME GAME", "继续游戏")
         pause_leave_button.text = _t("RETURN TO MENU", "返回主菜单")
     if choice_hint != null:
         choice_hint.text = _t("1 / 2 / 3 · Enter", "1 / 2 / 3 · 回车")
+        choice_hint.tooltip_text = _t("★ Recommended build option", "★ 推荐构筑选项")
     if choice_open and choice_hint != null:
         choice_title.text = _t("LEVEL UP · CHOOSE A GARDEN MUTATION", "等级提升 · 选择花园变异")
         _render_reward_cards()
@@ -665,7 +683,10 @@ func _select_choice(index: int) -> void:
     var allowed: bool = choice_open and index >= 0 and index < _current_choices.size()
     if not allowed:
         return
+    var chosen: BlessingData = _current_choices[index]
     super._select_choice(index)
+    if not simulation_mode and _warning_seconds <= 0.0:
+        _show_event_banner(_t("Acquired: ", "已获得：") + chosen.localized_name(i18n.locale_code), 1.4)
     _hide_reward_actions()
     choice_hint.visible = false
     choice_badge.visible = false
@@ -718,7 +739,7 @@ func _on_plant_fired(_plant: GreedPlant, _target: GreedEnemy, _critical: bool, _
 func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void:
     super._on_enemy_damaged(enemy, damage, critical)
     if critical and is_instance_valid(enemy):
-        _spawn_bitmap_effect(enemy.global_position, HDArt.weapon(&"mutation_seed"), Color("ffe071"))
+        _spawn_bitmap_effect(enemy.global_position, HDArt.load_png("vfx/impact_0"), Color("ffe071"), 48.0, 0.8)
     var now: int = Time.get_ticks_msec()
     if now >= _next_hit_sound:
         _next_hit_sound = now + (90 if critical else 65)
@@ -1154,7 +1175,7 @@ func _create_responsive_hud() -> void:
     speed_button.reparent(pause_layer, false)
     language_button.hide()
     speed_button.hide()
-    ResponsiveUI.place(pause_build_label, Rect2(155, 113, 330, 79))
+    ResponsiveUI.place(pause_build_label, Rect2(155, 113, 330, 70))
     ResponsiveUI.place(language_button, Rect2(179, 191, 134, 27))
     ResponsiveUI.place(speed_button, Rect2(327, 191, 134, 27))
     hud_weapons = HBoxContainer.new()

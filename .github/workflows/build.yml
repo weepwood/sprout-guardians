@@ -28,6 +28,13 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Restore verified Godot archives
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/sprout-godot
+          key: sprout-godot-linux-${{ hashFiles('tools/download_godot_linux.sh') }}-full
+      - name: Configure archive cache
+        run: echo "GODOT_ASSET_CACHE=$HOME/.cache/sprout-godot" >> "$GITHUB_ENV"
       - name: Install Godot editor and export templates
         shell: bash
         run: |
@@ -154,6 +161,15 @@ jobs:
           set -e
           echo "$SESSION_STATUS" > build/diagnostics/session-integration.status
           cat build/diagnostics/session-integration.log
+
+      - name: Replay actual player input in Easy and Normal
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 90s godot --headless --audio-driver Dummy --fixed-fps 60 --disable-render-loop --path "$GITHUB_WORKSPACE" --script res://tests/run_player_input_replay.gd 2>&1 | tee build/diagnostics/player-input.log
+          grep '^PLAYER_REPLAY_SUMMARY failures=0$' build/diagnostics/player-input.log
+          test "$(grep -c '^PLAYER_REPLAY ' build/diagnostics/player-input.log)" -eq 2
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Invalid access|Invalid call|on a null instance' build/diagnostics/player-input.log; then exit 1; fi
 
       - name: Enforce test results
         shell: bash

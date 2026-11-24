@@ -10,3 +10,7 @@ Windows 11 Fluent 风格的冷灰蓝 Acrylic 面板、浅蓝主操作、细描�
 ## 验收
 Godot 4.7.1 Mac M4 GL compatibility：导入、UI smoke、核心Survivor及会话集成通过，81项高清PNG一致。实际固定1280×720九图成功，已审查。Mac 多次调整窗口比例时渲染帧超时（旧版本也出现），该轮完整响应式验收未通过，新增根场景暂停计时修正尚待完整CI；不放宽20图验收。Windows/Linux/Web实际材质及性能待新CI和玩家实测。既有ObjectDB警告仍需后续治理。
 本机运行：godot --path <隔离测试项目> --rendering-method gl_compatibility --audio-driver Dummy --resolution 1280x720 --script res://tests/run_fluent_capture.gd
+
+
+## 玩家体验后续实施
+推荐算法按真实进化条件计算，不改变武器伤害/敌人生成参数。武器与被动明确分类，推荐星号与默认焦点，进化进度和搭档，Lucide八个被动语义矢量图标（0.456.0，ISC/MIT）。同版本36组策略仿真：简单和普通first各0/9进化，recommended各9/9；均9/9胜，推荐平均4/3次进化。两次真实正常场景输入回放（非真人试玩）成功通关，另有9张双语实机截图。无头音频对象残留消除；原生Dummy有10个WAV/Playback残留，尚未根治。地图缓存治理及官方下载缓存回读校验，包体和真实内存仍待测。正式v0.6.0 Mac DMG校验通过，未公证且Gatekeeper拒绝；不放宽正式发布门禁。

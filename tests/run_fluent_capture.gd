@@ -69,9 +69,13 @@ func _run() -> void:
     var locale: LocalizationService = game.get("i18n") as LocalizationService
     locale.set_locale("en", false)
     game.call("_apply_locale")
+    await process_frame
+    _check_reward(game)
     await _capture("07-reward-en")
     locale.set_locale("zh_CN", false)
     game.call("_apply_locale")
+    await process_frame
+    _check_reward(game)
     await _capture("08-reward-zh")
     game.call("_select_choice", 0)
     game.call("_finish_run", false)
@@ -80,3 +84,22 @@ func _run() -> void:
     await process_frame
     print("FLUENT_SUMMARY captured=", captured, " failed=", failed)
     quit(0 if captured == 9 and not failed else 1)
+
+func _check_reward(game: Node) -> void:
+    var choices: Array = game.get("_current_choices")
+    var seen: int = 0
+    for i: int in range(choices.size()):
+        var card: Button = (game.get("choice_buttons") as Array)[i] as Button
+        var icon: TextureRect = card.get_node("GiftIcon") as TextureRect
+        if icon.texture == null:
+            failed = true
+        var rarity: Label = card.get_node("GiftRarity") as Label
+        if rarity.text.begins_with("★"):
+            seen += 1
+        for child_name: String in ["GiftName", "GiftDetail", "GiftRarity"]:
+            var label: Label = card.get_node(child_name) as Label
+            if label.get_line_count() > label.get_visible_line_count() or not Rect2(Vector2.ZERO, card.size).grow(0.5).encloses(Rect2(label.position, label.size)):
+                push_error("Reward label overflow " + child_name + ": " + label.text)
+                failed = true
+    if seen > 1:
+        failed = true

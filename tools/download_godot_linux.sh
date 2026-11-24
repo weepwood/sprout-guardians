@@ -21,6 +21,17 @@ if [[ "${GODOT_VERSION:-$version}" != "$version" || "${GODOT_RELEASE:-$release}"
   echo 'Engine version differs from pinned release digests' >&2
   exit 2
 fi
+cache_dir="${GODOT_ASSET_CACHE:-}"
+cache_file=""
+if [[ -n "$cache_dir" ]]; then
+  mkdir -p "$cache_dir"
+  cache_file="$cache_dir/$digest-$asset"
+  if [[ -f "$cache_file" ]] && printf '%s  %s\n' "$digest" "$cache_file" | sha256sum -c -; then
+    cp "$cache_file" "$out"
+    echo "Using verified cached $asset"
+    exit 0
+  fi
+fi
 primary="https://github.com/godotengine/godot-builds/releases/download/$version-$release/Godot_v${version}-${release}_$asset"
 fallback="https://downloads.godotengine.org/?flavor=$release&platform=$platform&slug=$asset&version=$version"
 tmp="$(mktemp "$out.XXXXXX")"
@@ -30,6 +41,10 @@ for url in "$primary" "$fallback"; do
   if curl --fail --location --retry 2 --retry-all-errors --connect-timeout 20 --max-time 300 --silent --show-error "$url" -o "$tmp"; then
     if printf '%s  %s\n' "$digest" "$tmp" | sha256sum -c -; then
       mv -f "$tmp" "$out"
+      if [[ -n "$cache_file" ]]; then
+        cp "$out" "$cache_file.tmp"
+        mv -f "$cache_file.tmp" "$cache_file"
+      fi
       exit 0
     fi
     echo 'Downloaded asset failed SHA256 verification' >&2
