@@ -568,8 +568,8 @@ func _update_control_status() -> void:
 
 
 func _apply_playful_hud() -> void:
-    PlayfulUITheme.apply_panel(get_node("UI/TopHUD/Frame") as Panel, "glass")
-    PlayfulUITheme.apply_panel(get_node("UI/ExperienceFrame") as Panel, "glass")
+    PlayfulUITheme.apply_forest_panel(get_node("UI/TopHUD/Frame") as Panel)
+    PlayfulUITheme.apply_forest_panel(get_node("UI/ExperienceFrame") as Panel)
     PlayfulUITheme.apply_panel(warning_frame, "glass")
     PlayfulUITheme.apply_panel(choice_panel, "modal")
     PlayfulUITheme.apply_panel(pause_panel, "modal")
@@ -747,6 +747,7 @@ func _setup_map() -> void:
         ground.texture = hd_ground
         ground.stretch_mode = TextureRect.STRETCH_SCALE
         ground.modulate = Color(0.84, 0.86, 0.80, 1.0)
+    HDArt.decorate_map(get_node("World") as Node2D, map_id)
     if map_id == SurvivorMaps.CLASSIC:
         return
     if hd_ground == null:

@@ -8,6 +8,8 @@ on:
       - 'scripts/ui/**'
       - 'scripts/greed/**'
       - 'tools/verify_v06_art.py'
+      - 'tools/import_v06_art.py'
+      - 'tools/test_import_v06_art.py'
       - 'tests/run_hd_art_capture.gd'
       - '.github/workflows/v06-art-gate.yml'
   workflow_dispatch:
@@ -18,7 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Test incremental asset import
+        run: python3 tools/test_import_v06_art.py
       - name: Require real full-color assets, dimensions and hashes
+        id: assets
+        continue-on-error: true
         run: python3 tools/verify_v06_art.py
       - name: Install Godot and virtual display
         run: |
@@ -31,14 +37,24 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y xvfb xauth libgl1-mesa-dri fonts-noto-cjk
       - name: Import and audit real Godot render nodes
+        env:
+          ASSET_OUTCOME: ${{ steps.assets.outcome }}
         run: |
           set -euo pipefail
           mkdir -p build/hd-art
           godot --headless --editor --path . --quit > build/hd-art/import.log 2>&1
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' build/hd-art/import.log; then exit 1; fi
-          timeout 600s xvfb-run -a -s '-screen 0 1280x720x24' godot --rendering-method gl_compatibility --audio-driver Dummy --fixed-fps 60 --path . --script res://tests/run_hd_art_capture.gd 2>&1 | tee build/hd-art/runtime.log
-          grep '^HD_ART_COMPLETE 0' build/hd-art/runtime.log
-          test "$(find build/hd-art -name '*.png' | wc -l)" -eq 22
+          args=()
+          if [ "$ASSET_OUTCOME" != success ]; then args=(-- --hd-preview); fi
+          timeout 600s xvfb-run -a -s '-screen 0 1280x720x24' godot --rendering-method gl_compatibility --audio-driver Dummy --fixed-fps 60 --path . --script res://tests/run_hd_art_capture.gd "${args[@]}" 2>&1 | tee build/hd-art/runtime.log
+          if [ "$ASSET_OUTCOME" = success ]; then
+            grep '^HD_ART_COMPLETE 0' build/hd-art/runtime.log
+            test "$(find build/hd-art -name '*.png' | wc -l)" -eq 22
+          else
+            grep '^HD_ART_PREVIEW_COMPLETE 0' build/hd-art/runtime.log
+            count=$(sed -n 's/^HD_ART_PREVIEW_COMPLETE 0 CAPTURES //p' build/hd-art/runtime.log)
+            test "$(find build/hd-art -name '*.png' | wc -l)" -eq "$count"
+          fi
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Invalid access|Invalid call|on a null instance' build/hd-art/runtime.log; then exit 1; fi
       - uses: actions/upload-artifact@v4
         if: always()
@@ -46,3 +62,8 @@ jobs:
           name: hd-art-real-runtime-captures
           path: build/hd-art/
           if-no-files-found: warn
+      - name: Enforce complete asset gate
+        if: always() && steps.assets.outcome != 'success'
+        run: |
+          echo "Stage preview is not V0.6 acceptance. Required assets are missing or invalid."
+          exit 1

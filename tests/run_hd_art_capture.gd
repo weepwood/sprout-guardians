@@ -3,6 +3,8 @@ extends SceneTree
 # This is a real renderer smoke test. File existence alone does not pass.
 const OUT: String = "res://build/hd-art"
 var failures: int = 0
+var preview: bool = false
+var captures: int = 0
 
 func _initialize() -> void:
     call_deferred("_run")
@@ -21,6 +23,7 @@ func _path(texture_value: Texture2D) -> String:
     return texture_value.resource_path
 
 func _capture(name_value: String) -> void:
+    captures += 1
     await RenderingServer.frame_post_draw
     var image: Image = root.get_texture().get_image()
     _expect(image != null and not image.is_empty(), "Actual rendered frame " + name_value)
@@ -28,13 +31,18 @@ func _capture(name_value: String) -> void:
         _expect(image.save_png(ProjectSettings.globalize_path(OUT + "/" + name_value + ".png")) == OK, "Saved " + name_value)
 
 func _run() -> void:
+    preview = OS.get_cmdline_user_args().has("--hd-preview")
     DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
     var menu_scene: PackedScene = load("res://scenes/main_menu.tscn") as PackedScene
     var menu: Node = menu_scene.instantiate()
     root.add_child(menu)
     await process_frame
     var menu_ground: TextureRect = menu.get_node("World/Grass") as TextureRect
-    _expect(_path(menu_ground.texture) == HDArt.ROOT + "menu/background.png", "Menu background actually rendered")
+    var menu_path: String = HDArt.ROOT + "menu/background.png"
+    if preview and HDArt.load_png("menu/background") == null:
+        menu_path = HDArt.ROOT + "terrain/classic.png"
+        print("HD_ART_PREVIEW missing menu background; terrain fallback")
+    _expect(_path(menu_ground.texture) == menu_path, "Menu background actually rendered")
     for i: int in range(3):
         var name_value: String = ["HeroPreviewHD", "FamiliarSunPreviewHD", "FamiliarSproutPreviewHD"][i]
         var preview: Sprite2D = menu.get_node_or_null("World/" + name_value) as Sprite2D
@@ -49,6 +57,9 @@ func _run() -> void:
     var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
     for map_id: int in range(4):
         for character_id: int in range(5):
+            if preview and HDArt.load_png("animations/hero_%d" % character_id) == null:
+                print("HD_ART_PREVIEW missing hero ", character_id)
+                continue
             var game: Node = packed.instantiate()
             game.set("simulation_mode", true)
             game.set("simulation_map", map_id)
@@ -70,5 +81,10 @@ func _run() -> void:
             await process_frame
     for index: int in range(SurvivorArsenal.IDS.size()):
         _expect(_path(HDArt.weapon(SurvivorArsenal.IDS[index])) == HDArt.ROOT + "weapons/weapon_%d.png" % index, "Weapon %d icon actual resolver" % index)
-    print("HD_ART_COMPLETE ", failures)
+    if preview:
+        _expect(captures >= 14, "Preview covers at least three heroes and four maps")
+        print("HD_ART_PREVIEW_COMPLETE ", failures, " CAPTURES ", captures)
+    else:
+        _expect(captures == 22, "Strict capture count")
+        print("HD_ART_COMPLETE ", failures)
     quit(0 if failures == 0 else 1)

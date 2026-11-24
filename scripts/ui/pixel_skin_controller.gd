@@ -2,6 +2,7 @@ extends Node
 class_name PixelSkinController
 
 var _sprites: Dictionary = {}
+var _enemy_poses: Dictionary = {}
 var _elapsed: float = 0.0
 var _frame_delta: float = 0.0
 var _hero_animation_state: int = -1
@@ -37,6 +38,7 @@ func _process(delta: float) -> void:
         _update_sprite(node, sprite)
     for stale_id: int in stale_ids:
         _sprites.erase(stale_id)
+        _enemy_poses.erase(stale_id)
 
 
 func _skin_existing_nodes() -> void:
@@ -199,6 +201,25 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
 
     if node is GreedEnemy:
         var enemy: GreedEnemy = node as GreedEnemy
+        var instance_id_value: int = enemy.get_instance_id()
+        var previous: Dictionary = _enemy_poses.get(instance_id_value, {})
+        var old_position: Vector2 = previous.get("position", enemy.global_position)
+        var movement: Vector2 = enemy.global_position - old_position
+        var state: int = 1 if movement.length_squared() > 0.01 else 0
+        if float(enemy.get("_warning_left")) > 0.0 or float(enemy.get("_contact_cooldown")) > 0.7:
+            state = 2
+        if float(enemy.get("_flash_time")) > 0.0:
+            state = 3
+        var clock: float = float(previous.get("clock", 0.0)) + _frame_delta if int(previous.get("state", -1)) == state else 0.0
+        _enemy_poses[instance_id_value] = {"position": enemy.global_position, "state": state, "clock": clock}
+        var frame: Texture2D = HDArt.enemy_frame(_enemy_art_key(enemy), state, clock) if enemy.survivor_combat else null
+        if frame != null:
+            sprite.texture = frame
+        if absf(movement.x) > 0.15:
+            sprite.flip_h = movement.x < 0.0
+        # Static HD art remains a visibly distinct fallback, not frame animation.
+        var phase: float = _elapsed * (5.0 if enemy.boss else 9.0) + float(instance_id_value % 97) * 0.13
+        sprite.position.y = -3.0 + (sin(phase) * 0.8 if frame == null and state == 1 else 0.0)
         var squash_active: bool = float(enemy.get("_squash_time")) > 0.0
         var base_scale: float = 0.92 if enemy.boss else (0.53 if enemy.elite else 0.40)
         base_scale *= HDArt.fit(sprite.texture, 56.0)
@@ -235,3 +256,12 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is SurvivorExperienceGem:
         sprite.rotation = _elapsed * 1.4
         sprite.scale = Vector2.ONE * (0.23 + sin(_elapsed * 5.0) * 0.018)
+
+func _enemy_art_key(enemy: GreedEnemy) -> String:
+    if enemy.boss:
+        return "boss_%d" % enemy.boss_profile
+    if enemy.biome_enemy > 0:
+        return "biome_%d" % enemy.biome_enemy
+    if enemy.elite:
+        return "elite"
+    return "enemy_%d" % enemy.survivor_variant

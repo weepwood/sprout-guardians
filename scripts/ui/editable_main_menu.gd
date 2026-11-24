@@ -151,6 +151,16 @@ func _apply_playful_design() -> void:
         picker.add_theme_font_size_override("font_size", 12)
     if is_instance_valid(archive_tabs):
         PlayfulUITheme.apply_tabs(archive_tabs)
+    PlayfulUITheme.apply_forest_panel(get_node("World/MenuFrame") as Panel)
+    PlayfulUITheme.apply_forest_button(play_button, true)
+    for button: Button in [settings_button, collection_button, quit_button, language_button, select_hero_button]:
+        PlayfulUITheme.apply_forest_button(button)
+    for label: Label in [title_label, subtitle_label, progress_label]:
+        PlayfulUITheme.apply_label(label, Color("#fff4d7"))
+        label.add_theme_color_override("font_shadow_color", Color(0.02, 0.07, 0.04, 0.8))
+        label.add_theme_constant_override("shadow_offset_x", 1)
+        label.add_theme_constant_override("shadow_offset_y", 1)
+
 
 
 func _apply_locale() -> void:
@@ -402,7 +412,7 @@ func _show_character_screen() -> void:
     get_node("UI").add_child(character_screen)
     var backdrop: ColorRect = ColorRect.new()
     backdrop.size = Vector2(640, 360)
-    backdrop.color = Color("273a2c")
+    backdrop.color = Color(0.07, 0.13, 0.10, 0.96)
     character_screen.add_child(backdrop)
     var title: Label = Label.new()
     title.position = Vector2(20, 16)
@@ -410,6 +420,7 @@ func _show_character_screen() -> void:
     title.text = _t("CHOOSE YOUR GUARDIAN", "选择你的守护者")
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     title.add_theme_font_size_override("font_size", 22)
+    PlayfulUITheme.apply_label(title, Color("#f5df9c"))
     character_screen.add_child(title)
     var scroll: ScrollContainer = ScrollContainer.new()
     scroll.position = Vector2(20, 55)
@@ -440,21 +451,22 @@ func _show_character_screen() -> void:
         button.button_group = group
         button.button_pressed = i == SurvivorCharacters.selected
         button.pressed.connect(_choose_screen_hero.bind(i))
-        PlayfulUITheme.apply_button(button, "mint")
+        PlayfulUITheme.apply_forest_button(button)
+        button.add_theme_constant_override("icon_max_width", 62)
         column.add_child(button)
     var back: Button = Button.new()
     back.position = Vector2(20, 306)
     back.size = Vector2(100, 36)
     back.text = _t("BACK", "返回")
     back.pressed.connect(_hide_character_screen)
-    PlayfulUITheme.apply_button(back, "soft", false)
+    PlayfulUITheme.apply_forest_button(back)
     character_screen.add_child(back)
     var start: Button = Button.new()
     start.position = Vector2(126, 306)
     start.size = Vector2(154, 36)
     start.text = _t("START RUN", "开始冒险")
     start.pressed.connect(_start_screen_run.bind(false))
-    PlayfulUITheme.apply_button(start, "primary", false)
+    PlayfulUITheme.apply_forest_button(start, true)
     character_screen.add_child(start)
     var challenge: Button = Button.new()
     challenge.position = Vector2(286, 306)
@@ -462,14 +474,14 @@ func _show_character_screen() -> void:
     challenge.text = _t("DAILY CHALLENGE", "每日挑战")
     challenge.tooltip_text = SurvivorChallenge.date_key() + " · " + _t("UTC seed · Night garden · no permanent bonuses", "UTC每日种子 · 夜间花园 · 禁用永久加成")
     challenge.pressed.connect(_start_screen_run.bind(true))
-    PlayfulUITheme.apply_button(challenge, "mint", false)
+    PlayfulUITheme.apply_forest_button(challenge)
     character_screen.add_child(challenge)
     var endless: Button = Button.new()
     endless.position = Vector2(462, 306)
     endless.size = Vector2(158, 36)
     endless.text = _t("ENDLESS", "无尽模式")
     endless.pressed.connect(_start_endless)
-    PlayfulUITheme.apply_button(endless, "coral", false)
+    PlayfulUITheme.apply_forest_button(endless)
     character_screen.add_child(endless)
     back.grab_focus()
 
@@ -507,8 +519,8 @@ func _apply_hd_menu() -> void:
         grass.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         grass.texture = background
         grass.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-        grass.modulate = Color(0.75, 0.82, 0.70, 1.0)
-        (get_node("World/Shade") as ColorRect).color = Color(0.96, 0.92, 0.78, 0.36)
+        grass.modulate = Color(0.82, 0.90, 0.78, 1.0)
+        (get_node("World/Shade") as ColorRect).color = Color(0.06, 0.13, 0.09, 0.48)
     var names: Array[String] = ["HeroPreview", "FamiliarSunPreview", "FamiliarSproutPreview"]
     var ids: Array[int] = [0, 1, 2]
     for i: int in range(names.size()):
