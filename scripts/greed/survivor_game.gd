@@ -282,7 +282,7 @@ func _finish_run(victory: bool) -> void:
 func _create_services() -> void:
     super._create_services()
     var rewards: Array[BlessingData] = blessing_system.pool.duplicate()
-    rewards.append_array(SurvivorArsenal.reward_pool())
+    rewards.append_array(SurvivorArsenal.reward_pool(endless_mode))
     blessing_system.setup(rewards, run_seed)
 
 

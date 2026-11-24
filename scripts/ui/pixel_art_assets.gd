@@ -100,6 +100,10 @@ static func projectile_texture(splash_radius: float, slow_ratio: float) -> Textu
 
 static func blessing_icon(blessing_id: StringName) -> Texture2D:
     var id_text: String = String(blessing_id).to_lower()
+    if id_text == "mutation_barrage":
+        return blessing_icon(&"mutation_thorn")
+    if id_text == "mutation_mist":
+        return blessing_icon(&"mutation_frost")
     var index: int = MUTATION_IDS.find(id_text)
     if index >= 0:
         if not _texture_cache.has(blessing_id):

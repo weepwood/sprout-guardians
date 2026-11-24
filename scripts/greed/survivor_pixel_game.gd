@@ -706,6 +706,8 @@ func _spawn_minions(position_value: Vector2, count: int) -> void:
 func _setup_map() -> void:
     # Keep the existing benchmark arena independent of menu settings.
     map_id = simulation_map if simulation_mode else (SurvivorMaps.NIGHT if challenge_active else SurvivorMaps.selected)
+    if not simulation_mode and not challenge_active and run_save != null and not run_save.is_survivor_map_unlocked(map_id):
+        map_id = SurvivorMaps.CLASSIC
     var ground: TextureRect = get_node("World/ArenaGround") as TextureRect
     ground.size = SurvivorMaps.world_size(map_id)
     ground.texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR

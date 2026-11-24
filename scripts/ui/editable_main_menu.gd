@@ -28,6 +28,8 @@ func _ready() -> void:
     save_game.load_game()
     if not save_game.is_survivor_character_unlocked(SurvivorCharacters.selected):
         SurvivorCharacters.selected = 0
+    if not save_game.is_survivor_map_unlocked(SurvivorMaps.selected):
+        SurvivorMaps.selected = 0
 
     audio_manager = ProceduralAudioManager.new()
     audio_manager.name = "MenuAudio"
@@ -166,6 +168,9 @@ func _apply_locale() -> void:
         map_picker.clear()
         for i: int in range(SurvivorMaps.NAMES_EN.size()):
             map_picker.add_item(_t(SurvivorMaps.NAMES_EN[i], SurvivorMaps.NAMES_ZH[i]))
+            map_picker.set_item_disabled(i, not save_game.is_survivor_map_unlocked(i))
+            if not save_game.is_survivor_map_unlocked(i):
+                map_picker.set_item_tooltip(i, _t("Clear the previous map", "通关前一张地图解锁"))
         map_picker.select(SurvivorMaps.selected)
     if archive_title == null:
         return
@@ -251,6 +256,8 @@ func _select_character(index: int) -> void:
 
 
 func _select_map(index: int) -> void:
+    if not save_game.is_survivor_map_unlocked(index):
+        return
     SurvivorMaps.selected = clampi(index, 0, 3)
     settings.survivor_map = SurvivorMaps.selected
     settings.save_settings()
@@ -313,8 +320,8 @@ func _refresh_archive_tabs() -> void:
         upgrade.pressed.connect(_buy_archive_upgrade.bind(key))
         progress_page.add_child(upgrade)
     _archive_entry(progress_page, null, _t("Achievements", "成就") + "\n" + _t("First victory: ", "初次胜利：") + str(mini(1, int(stats["total_victories"]))) + "/1 · " + _t("Events: ", "事件达人：") + str(mini(5, int(progress["events"]))) + "/5 · " + _t("Evolutions: ", "进化大师：") + str(mini(3, int(progress["evolutions"]))) + "/3")
-    var achievement_keys: Array[String] = ["first_win", "events", "evolutions", "challenge"]
-    var achievement_names: Array[String] = [_t("First victory", "首次胜利"), _t("Five events", "完成五个事件"), _t("Three evolutions", "三次进化"), _t("Challenge victory", "挑战胜利")]
+    var achievement_keys: Array[String] = ["first_win", "events", "evolutions", "challenge", "endurance", "map_mastery"]
+    var achievement_names: Array[String] = [_t("First victory", "首次胜利"), _t("Five events", "完成五个事件"), _t("Three evolutions", "三次进化"), _t("Challenge victory", "挑战胜利"), _t("Two endless bosses", "无尽击败两位首领"), _t("All maps unlocked", "全部地图解锁")]
     for i: int in range(achievement_keys.size()):
         var claim: Button = Button.new()
         claim.text = achievement_names[i] + " · +15"
