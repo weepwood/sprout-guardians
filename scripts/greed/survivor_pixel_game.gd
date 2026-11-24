@@ -364,7 +364,7 @@ func _render_reward_cards() -> void:
         icon_view.texture = PixelArtAssets.blessing_icon(data.id)
         var rarity: Label = button.get_node("GiftRarity") as Label
         rarity.text = data.rarity_name(i18n.locale_code).to_upper()
-        rarity.add_theme_color_override("font_color", data.rarity_color().darkened(0.48))
+        rarity.add_theme_color_override("font_color", PlayfulUITheme.readable_on_light(data.rarity_color(), Color("#eedebd")))
         var title: Label = button.get_node("GiftName") as Label
         title.text = data.localized_name(i18n.locale_code)
         PlayfulUITheme.apply_label(title)

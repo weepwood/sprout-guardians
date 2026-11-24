@@ -49,9 +49,19 @@ func _run() -> void:
             if not reward_captured:
                 var title: Label = game.get_node("UI/ChoiceLayer/ChoiceButton0/GiftName") as Label
                 var detail: Label = game.get_node("UI/ChoiceLayer/ChoiceButton0/GiftDetail") as Label
-                if title.get_theme_color("font_color").get_luminance() > 0.25 or detail.get_theme_color("font_color").get_luminance() > 0.35:
-                    push_error("Reward card text must contrast with its light surface")
-                    failed = true
+                var card: Button = game.get_node("UI/ChoiceLayer/ChoiceButton0") as Button
+                var rarity: Label = card.get_node("GiftRarity") as Label
+                for state: String in ["normal", "hover", "pressed"]:
+                    var surface: StyleBoxFlat = card.get_theme_stylebox(state) as StyleBoxFlat
+                    if surface == null:
+                        failed = true
+                        continue
+                    for label: Label in [title, detail, rarity]:
+                        var ratio: float = PlayfulUITheme.contrast_ratio(label.get_theme_color("font_color"), surface.bg_color)
+                        print("REWARD_CONTRAST ", state, " ", label.name, " ", ratio)
+                        if ratio < 4.5:
+                            push_error("Reward card text contrast below 4.5:1")
+                            failed = true
                 await _capture("05-reward")
                 reward_captured = true
             var choices: Array = game.get("_current_choices")

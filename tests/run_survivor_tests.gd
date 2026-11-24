@@ -410,7 +410,11 @@ func _test_endurance_rules() -> void:
 
 
 func _test_visual_theme() -> void:
-    _assert_true(PlayfulUITheme.INK.get_luminance() < 0.15, "Reward text uses dark ink")
-    _assert_true(PlayfulUITheme.CREAM.get_luminance() > 0.8, "Reward surface remains light")
+    _assert_true(is_equal_approx(PlayfulUITheme.contrast_ratio(Color.BLACK, Color.WHITE), 21.0), "Black-white reference contrast is 21:1")
+    _assert_true(is_equal_approx(PlayfulUITheme.contrast_ratio(Color.WHITE, Color.WHITE), 1.0), "Identical reference colors are 1:1")
+    for background: Color in [Color("#fffaf1"), Color("#fff0d8"), Color("#eedebd")]:
+        _assert_true(PlayfulUITheme.contrast_ratio(PlayfulUITheme.INK, background) >= 4.5, "Reward title contrast at least 4.5:1")
+        _assert_true(PlayfulUITheme.contrast_ratio(Color("#665249"), background) >= 4.5, "Reward detail contrast at least 4.5:1")
+        _assert_true(PlayfulUITheme.contrast_ratio(PlayfulUITheme.readable_on_light(Color("#ffd36d"), background), background) >= 4.5, "Bright rarity is darkened to readable contrast")
     _assert_equal_int(SurvivorSpawnDirector.swamp_ranged_cap(1), 4, "Swamp caps simultaneous ranged enemies")
     _assert_true(SurvivorEndurance.enemy_multiplier(900.0) < 3.2, "Endurance growth softens after six waves")

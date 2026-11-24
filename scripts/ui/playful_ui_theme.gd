@@ -122,3 +122,19 @@ static func apply_tabs(tabs: TabContainer) -> void:
     tabs.add_theme_color_override("font_selected_color", INK)
     tabs.add_theme_color_override("font_unselected_color", MUTED)
     tabs.add_theme_color_override("font_hovered_color", INK)
+
+
+# WCAG relative luminance is linear sRGB, not the encoded RGB components.
+static func contrast_ratio(foreground: Color, background: Color) -> float:
+    var a: float = foreground.srgb_to_linear().get_luminance()
+    var b: float = background.srgb_to_linear().get_luminance()
+    return (maxf(a, b) + 0.05) / (minf(a, b) + 0.05)
+
+
+static func readable_on_light(foreground: Color, background: Color) -> Color:
+    var candidate: Color = foreground
+    for _i: int in range(12):
+        if contrast_ratio(candidate, background) >= 4.5:
+            return candidate
+        candidate = candidate.darkened(0.12)
+    return INK
