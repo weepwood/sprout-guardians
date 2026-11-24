@@ -1,0 +1,59 @@
+extends SceneTree
+
+# Real scene, normal enemy contact damage, actual weapons and XP pickups.
+# Run with --fixed-fps 60; this measures scripted policies, not human win rate.
+var results: Array[Dictionary] = []
+
+func _initialize() -> void:
+    call_deferred("_run")
+
+func _run() -> void:
+    var scene: PackedScene = load("res://scenes/main.tscn") as PackedScene
+    for difficulty: int in range(3):
+        for seed_value: int in [101, 202, 303]:
+            SurvivorBalance.selected_difficulty = difficulty
+            var game: Node = scene.instantiate()
+            game.set("run_seed", seed_value)
+            game.set("simulation_mode", true)
+            root.add_child(game)
+            var hero: GreedHeroPlant = game.get("hero_plant") as GreedHeroPlant
+            var policy: int = seed_value % 3
+            # Vary policies independently of seed: stationary, orbit, evasive.
+            policy = [101, 202, 303].find(seed_value)
+            for frame: int in range(60 * 125):
+                if bool(game.get("game_ended")):
+                    break
+                if bool(game.get("choice_open")):
+                    var choices: Array = game.get("_current_choices")
+                    if not choices.is_empty():
+                        var choice: int = 0
+                        if policy == 1:
+                            for i: int in range(choices.size()):
+                                if SurvivorArsenal.IDS.has(choices[i].id):
+                                    choice = i
+                                    break
+                        elif policy == 2:
+                            choice = posmod(frame + seed_value, choices.size())
+                        game.call("_select_choice", choice)
+                var direction: Vector2 = Vector2.ZERO
+                if policy == 1:
+                    var target: Vector2 = Vector2(320, 181) + Vector2(cos(frame / 110.0) * 170.0, sin(frame / 110.0) * 95.0)
+                    direction = (target - hero.global_position).limit_length(1.0)
+                elif policy == 2:
+                    var repel: Vector2 = Vector2.ZERO
+                    for node: Node in get_nodes_in_group("greed_enemies"):
+                        var enemy: GreedEnemy = node as GreedEnemy
+                        if is_instance_valid(enemy) and enemy.health > 0:
+                            var offset: Vector2 = hero.global_position - enemy.global_position
+                            repel += offset.normalized() / maxf(10.0, offset.length())
+                    direction = (repel * 130.0 + (Vector2(320,181) - hero.global_position) / 160.0).limit_length(1.0)
+                game.set("simulation_direction", direction)
+                await process_frame
+            var result: Dictionary = {"seed": seed_value, "difficulty": difficulty, "policy": policy, "victory": bool(game.get("final_boss_defeated")), "elapsed": game.get("survival_elapsed"), "first_upgrade": game.get("first_upgrade_seconds"), "kills": game.get("enemies_defeated"), "level": hero.level, "damage": game.get("total_damage"), "peak_enemies": game.get("peak_enemies")}
+            results.append(result)
+            print("SIMULATION ", JSON.stringify(result))
+            game.queue_free()
+            await process_frame
+            await process_frame
+    print("SIMULATION_SUMMARY ", JSON.stringify(results))
+    quit(0)

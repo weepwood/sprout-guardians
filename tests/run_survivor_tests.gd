@@ -12,6 +12,7 @@ func _run() -> void:
     _test_balance()
     _test_pool()
     _test_arsenal()
+    _test_difficulty_settings()
 
     _assert_true(PixelArtAssets.texture(&"hero") != null, "Main-plant pixel texture loads from the actor atlas")
     _assert_true(PixelArtAssets.texture(&"enemy_boss") != null, "Boss pixel texture loads from the actor atlas")
@@ -245,3 +246,14 @@ func _test_arsenal() -> void:
     system.apply_blessing(rewards[2])
     _assert_true(SurvivorArsenal.evolved(system, 0), "Seed and frost unlock evolution")
     system.free()
+
+
+func _test_difficulty_settings() -> void:
+    var service: SettingsService = SettingsService.new()
+    service.settings_path = "user://survivor_difficulty_test.cfg"
+    service.survivor_difficulty = 2
+    _assert_true(service.save_settings(), "Difficulty settings save")
+    service.survivor_difficulty = 0
+    service.load_settings()
+    _assert_equal_int(service.survivor_difficulty, 2, "Difficulty persists across reload")
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(service.settings_path))

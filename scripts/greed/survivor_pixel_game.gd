@@ -55,6 +55,10 @@ func _ready() -> void:
     run_state.start_run()
     run_save = SaveGameService.new()
     run_save.load_game()
+    if simulation_mode:
+        combat_feedback.hit_stop_enabled = false
+        audio_manager.set_music_enabled(false)
+        audio_manager.set_sfx_enabled(false)
     if impact_system != null:
         impact_system.z_index = 9
     _apply_playful_hud()
@@ -415,7 +419,12 @@ func _toggle_pause() -> void:
         control.visible = pause_open
     if pause_open:
         _cancel_keyboard_motion()
-        pause_build_label.text = _t("YOUR GARDEN\n", "当前构筑\n") + power_label.text
+        var equipped: PackedStringArray = []
+        for i: int in range(SurvivorArsenal.IDS.size()):
+            var rank: int = blessing_system.get_blessing_stack(SurvivorArsenal.IDS[i])
+            if rank > 0:
+                equipped.append(_t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]) + " Lv.%d%s" % [rank, " ★" if SurvivorArsenal.evolved(blessing_system, i) else ""])
+        pause_build_label.text = _t("YOUR GARDEN\n", "当前构筑\n") + power_label.text + "\n" + " · ".join(equipped)
         pause_resume_button.grab_focus()
     else:
         get_viewport().gui_release_focus()
@@ -491,7 +500,8 @@ func _finish_run(victory: bool) -> void:
     combo_label.visible = false
     if run_state != null:
         run_state.finish(victory)
-    if run_save != null:
+    result_label.text += "\n" + _t("Damage %.0f · XP %d · Peak %d", "伤害 %.0f · 经验 %d · 敌群峰值 %d") % [total_damage, total_xp, peak_enemies]
+    if run_save != null and not simulation_mode:
         var saved: bool = run_save.record_survivor_result(
             victory, survival_elapsed, hero_plant.level if is_instance_valid(hero_plant) else 1, enemies_defeated
         )

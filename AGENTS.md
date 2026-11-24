@@ -19,3 +19,8 @@
 - 每局种子控制敌人配置、边缘随机顺序、奖励与暴击；simulation_mode 提供脚本移动入口。
 - 快速敌人蓄力冲锋、重型敌人减速、Boss 半血加速；保留既有角色图集，新增原创共生徽章及走路形变。
 - 真实胜率测试、完整第三方动画素材、独立六套图标和更深行为机制仍待完成。新增代码等待 CI。
+
+## M2/M3 集中推进
+- PR #23 已合并。新增真实场景仿真入口 tests/run_survivor_simulation.gd，运行：godot --headless --audio-driver Dummy --fixed-fps 60 --disable-render-loop --path . --script res://tests/run_survivor_simulation.gd。九组难度与策略样本，非人类胜率；需专项运行后校准。
+- 难度持久化、实际伤害/经验/敌群峰值统计、暂停构筑与进化状态、六张原创武器图标。仿真不写战绩并禁用实时停顿。
+- 尚未实测仿真输出或检查截图，不宣称数值达标。第三方动画素材、地图、远程/分裂敌人及高级奖励交互仍待完成。

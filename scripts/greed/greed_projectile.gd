@@ -56,7 +56,7 @@ func _process(delta: float) -> void:
     if _finished:
         return
     lifetime -= delta
-    if lifetime <= 0.0 or target == null or not is_instance_valid(target):
+    if lifetime <= 0.0 or target == null or not is_instance_valid(target) or target.health <= 0.0:
         _finish()
         return
 

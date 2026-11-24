@@ -12,6 +12,7 @@ var archive_back_button: Button
 func _ready() -> void:
     settings = SettingsService.new()
     settings.load_settings()
+    SurvivorBalance.selected_difficulty = settings.survivor_difficulty
     localization = LocalizationService.new()
     localization.set_locale(settings.locale, false)
     save_game = SaveGameService.new()
@@ -179,3 +180,5 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _select_difficulty(index: int) -> void:
     SurvivorBalance.selected_difficulty = clampi(index, 0, 2)
+    settings.survivor_difficulty = SurvivorBalance.selected_difficulty
+    settings.save_settings()

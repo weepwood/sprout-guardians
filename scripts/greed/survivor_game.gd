@@ -22,6 +22,10 @@ var run_seed: int = 0
 var arsenal: SurvivorArsenal = SurvivorArsenal.new()
 var simulation_direction: Vector2 = Vector2.ZERO
 var simulation_mode: bool = false
+var total_damage: float = 0.0
+var total_xp: int = 0
+var first_upgrade_seconds: float = -1.0
+var peak_enemies: int = 0
 var _hud_refresh_remaining: float = 0.0
 
 
@@ -70,6 +74,7 @@ func _process(delta: float) -> void:
     if survival_elapsed < SURVIVAL_DURATION:
         survival_spawn_timer -= delta
         var active_enemies: int = get_tree().get_nodes_in_group("greed_enemies").size()
+        peak_enemies = maxi(peak_enemies, active_enemies)
         if survival_spawn_timer <= 0.0 and active_enemies < _active_enemy_cap():
             _spawn_survivor_enemy(false, false)
             survival_spawn_timer = _current_spawn_interval()
@@ -178,12 +183,15 @@ func _spawn_experience_gem(position_value: Vector2, amount: int) -> SurvivorExpe
 
 
 func _on_experience_collected(amount: int) -> void:
+    total_xp += maxi(1, amount)
     experience += maxi(1, amount)
     while experience >= experience_to_next:
         experience -= experience_to_next
         pending_level_ups += 1
         experience_to_next = _experience_requirement_for_level(hero_plant.level + pending_level_ups)
     if pending_level_ups > 0 and not choice_open:
+        if first_upgrade_seconds < 0.0:
+            first_upgrade_seconds = survival_elapsed
         _open_surprise_choice()
     _refresh_hud()
 
@@ -265,3 +273,8 @@ func _create_services() -> void:
     var rewards: Array[BlessingData] = blessing_system.pool.duplicate()
     rewards.append_array(SurvivorArsenal.reward_pool())
     blessing_system.setup(rewards, run_seed)
+
+
+func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void:
+    total_damage += damage
+    super._on_enemy_damaged(enemy, damage, critical)

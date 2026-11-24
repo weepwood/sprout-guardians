@@ -106,7 +106,7 @@ func _process(delta: float) -> void:
 func take_damage(amount: float, critical: bool = false) -> float:
     if _finished or amount <= 0.0:
         return 0.0
-    var final_damage: float = maxf(1.0, amount)
+    var final_damage: float = minf(health, maxf(1.0, amount))
     health -= final_damage
     _flash_time = 0.08
     _squash_time = 0.09
