@@ -21,7 +21,12 @@ func _run() -> void:
     _test_visual_theme()
     for mutation_id: StringName in SurvivorArsenal.IDS:
         var icon: AtlasTexture = PixelArtAssets.blessing_icon(mutation_id) as AtlasTexture
-        _assert_true(icon != null and icon.atlas == PixelArtAssets.MUTATION_ATLAS and icon.region.size == Vector2(56, 56), "Generated mutation PNG region: %s" % mutation_id)
+        var endless_icon: bool = mutation_id in [&"mutation_barrage", &"mutation_mist"]
+        var expected_atlas: Texture2D = PixelArtAssets.ENDLESS_ICONS if endless_icon else PixelArtAssets.MUTATION_ATLAS
+        var expected_size: Vector2 = Vector2(48, 48) if endless_icon else Vector2(56, 56)
+        _assert_true(icon != null and icon.atlas == expected_atlas and icon.region.size == expected_size, "Generated mutation PNG region: %s" % mutation_id)
+        if icon != null:
+            _assert_true(Rect2(Vector2.ZERO, expected_atlas.get_size()).encloses(icon.region), "Mutation icon stays inside its source texture: %s" % mutation_id)
     _test_difficulty_settings()
 
     _assert_true(PixelArtAssets.texture(&"hero") != null, "Main-plant pixel texture loads from the actor atlas")
