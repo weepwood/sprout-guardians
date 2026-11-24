@@ -43,6 +43,22 @@ func _run() -> void:
     await _capture("01-home")
     menu.call("_show_settings")
     await _capture("02-settings")
+    menu.call("_choose_theme", 1)
+    menu.call("_choose_glass", 3)
+    await _capture("10-light-settings")
+    var settings_panel: Panel = menu.get("settings_panel") as Panel
+    var acrylic: ColorRect = settings_panel.get_node_or_null("AcrylicBackdrop") as ColorRect
+    if acrylic == null or not acrylic.visible or not is_equal_approx(float((acrylic.material as ShaderMaterial).get_shader_parameter("blur_lod")), 4.8):
+        failed = true
+    menu.call("_choose_glass", 0)
+    if acrylic.visible:
+        failed = true
+    await _capture("11-light-solid")
+    menu.call("_hide_settings")
+    await _capture("12-light-home")
+    menu.call("_choose_theme", 0)
+    menu.call("_choose_glass", 2)
+    menu.call("_show_settings")
     menu.call("_hide_settings")
     menu.call("_show_collection_summary")
     await _capture("03-journal")
@@ -78,12 +94,56 @@ func _run() -> void:
     _check_reward(game)
     await _capture("08-reward-zh")
     game.call("_select_choice", 0)
+    var blessings: BlessingSystem = game.get("blessing_system") as BlessingSystem
+    blessings.apply_blessing(SurvivorArsenal.reward_pool()[0])
+    var arsenal: SurvivorArsenal = game.get("arsenal") as SurvivorArsenal
+    arsenal.timers[0] = 0.9
+    game.set("final_boss_spawned", true)
+    var boss: GreedEnemy = game.call("_spawn_survivor_enemy", true, true) as GreedEnemy
+    boss.health = boss.max_health * 0.65
+    game.call("_refresh_hud")
+    var boss_bar: ProgressBar = game.get("hud_boss_bar") as ProgressBar
+    var cooldowns: Dictionary = game.get("hud_cooldowns")
+    if (game.get("control_label") as Label).visible or not (game.get("hud_boss_panel") as Panel).visible or not is_equal_approx(boss_bar.value / boss_bar.max_value, 0.65) or not cooldowns.has(0) or (cooldowns[0] as ProgressBar).value <= 0.0 or (cooldowns[0] as ProgressBar).value >= 1.0:
+        failed = true
+    await _capture("13-boss-cooldown")
+    var previous_stacks: Dictionary = blessings.stacks.duplicate()
+    for id: StringName in SurvivorArsenal.IDS:
+        blessings.stacks[String(id)] = 3
+    game.call("_refresh_hud")
+    game.call("_toggle_pause")
+    for language: String in ["en", "zh_CN"]:
+        locale.set_locale(language, false)
+        game.call("_apply_locale")
+        await process_frame
+        var grid: GridContainer = game.get("pause_weapon_grid") as GridContainer
+        if grid.get_child_count() != 8 or grid.position.y + grid.size.y > (game.get("language_button") as Button).position.y + 0.5:
+            failed = true
+        await _capture("15-full-build-en" if language == "en" else "16-full-build-zh")
+    game.call("_toggle_pause")
+    blessings.stacks = previous_stacks
+    game.call("_refresh_hud")
     game.call("_finish_run", false)
     await _capture("09-result")
     game.queue_free()
     await process_frame
+    var prefs: SettingsService = SettingsService.new()
+    prefs.load_settings()
+    prefs.light_ui = true
+    prefs.glass_strength = 2
+    prefs.save_settings()
+    var light_game: Node = (load("res://scenes/main.tscn") as PackedScene).instantiate()
+    light_game.set("simulation_mode", true)
+    root.add_child(light_game)
+    light_game.set_process(false)
+    light_game.call("_toggle_pause")
+    await _capture("14-light-pause")
+    light_game.queue_free()
+    await process_frame
+    prefs.light_ui = false
+    prefs.save_settings()
     print("FLUENT_SUMMARY captured=", captured, " failed=", failed)
-    quit(0 if captured == 9 and not failed else 1)
+    quit(0 if captured == 16 and not failed else 1)
 
 func _check_reward(game: Node) -> void:
     var choices: Array = game.get("_current_choices")

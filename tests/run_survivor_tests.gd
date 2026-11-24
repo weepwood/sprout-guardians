@@ -142,7 +142,7 @@ func _run() -> void:
     _assert_true(bool(game.get("choice_open")), "Reaching the experience threshold opens a level-up choice")
     _assert_equal_int(int(game.get("pending_level_ups")), 1, "One pending level is recorded")
     var title: Label = game.get("choice_title") as Label
-    _assert_true(title.text.contains("LEVEL UP") or title.text.contains("等级提升"), "Level-up overlay uses survivor wording")
+    _assert_true(title.text.to_lower().contains("level up") or title.text.contains("等级提升"), "Level-up overlay uses survivor wording")
     var choice_buttons: Array = game.get("choice_buttons") as Array
     _assert_true(((choice_buttons[0] as Button).get_node("GiftIcon") as TextureRect).texture != null, "Level-up cards display authored icons")
     _assert_true((choice_buttons[1] as Button).position.x > (choice_buttons[0] as Button).position.x + 50.0, "Upgrade choices are arranged horizontally")

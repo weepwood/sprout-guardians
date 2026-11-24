@@ -82,6 +82,18 @@ func _test_main_menu() -> void:
     _assert_true(not play_button.visible, "Main menu actions are hidden behind settings")
     _assert_true(settings_title.visible, "Settings title is visible")
     _assert_control_inside_viewport(panel, "Settings panel stays inside viewport")
+    menu.call("_choose_theme", 1)
+    menu.call("_choose_glass", 0)
+    menu.call("_toggle_motion")
+    var appearance: SettingsService = SettingsService.new()
+    appearance.load_settings()
+    _assert_true(appearance.light_ui and appearance.glass_strength == 0 and appearance.reduced_motion, "Appearance choices survive reload")
+    var button: Button = menu.get("settings_language_button") as Button
+    var surface: StyleBoxFlat = button.get_theme_stylebox("normal") as StyleBoxFlat
+    _assert_true(PlayfulUITheme.contrast_ratio(button.get_theme_color("font_color"), surface.bg_color) >= 7.0, "Light controls remain legible")
+    menu.call("_choose_theme", 0)
+    menu.call("_choose_glass", 2)
+    menu.call("_toggle_motion")
 
     menu.call("_hide_settings")
     await process_frame
@@ -218,7 +230,9 @@ func _test_survivor_scene() -> void:
     var wave_label: Label = game.get("wave_label") as Label
     var greed_label: Label = game.get("greed_label") as Label
     _assert_true(wave_label.text.contains("TIME") or wave_label.text.contains("时间"), "HUD displays survival time")
-    _assert_true(greed_label.text.contains("XP") or greed_label.text.contains("经验"), "HUD displays level and experience")
+    _assert_true(greed_label.text.contains("Lv.") or greed_label.text.contains("等级"), "HUD displays level")
+    var xp_label: Label = game.get("hud_xp_label") as Label
+    _assert_true(xp_label.text.contains("XP") or xp_label.text.contains("经验"), "HUD displays experience in dedicated bottom slot")
 
     var effects: PixelImpactSystem = game.get("impact_system") as PixelImpactSystem
     effects.spawn_hit(Vector2(320.0, 180.0), Color("ffffff"), 25.0, true)

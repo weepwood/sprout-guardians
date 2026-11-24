@@ -28,7 +28,11 @@ var sfx_slider: HSlider
 var audio_save: Timer
 var quick_labels: Array[Label] = []
 var settings_sections: Array[Label] = []
+var settings_dividers: Array[ColorRect] = []
 var display_mode_picker: OptionButton
+var theme_picker: OptionButton
+var glass_picker: OptionButton
+var motion_button: Button
 const WINDOW_SIZES: Array[Vector2i] = [Vector2i(960,540), Vector2i(1280,720), Vector2i(1366,768), Vector2i(1600,900), Vector2i(1920,1080), Vector2i(2560,1440)]
 
 
@@ -90,6 +94,8 @@ func _ready() -> void:
     _apply_hd_menu()
     _layout_fluent_home()
     _create_display_controls()
+    _refresh_appearance()
+    _apply_chrome_icons()
     responsive = ResponsiveUI.new()
     add_child(responsive)
     responsive.bind(get_node("UI") as CanvasLayer, settings, _layout_menu)
@@ -242,6 +248,8 @@ func _apply_locale() -> void:
         "Runs %d  ·  Victories %d  ·  Best %ds",
         "累计 %d 局  ·  胜利 %d 局  ·  最长 %d 秒"
     ) % [stats["total_runs"], stats["total_victories"], stats["best_survival_seconds"]]
+    if is_instance_valid(responsive):
+        _fit_chrome_buttons()
 
 
 func _show_collection_summary() -> void:
@@ -257,6 +265,8 @@ func _show_collection_summary() -> void:
     archive_back_button.visible = true
     _set_main_chrome_visible(false)
     _set_main_controls_visible(false)
+    PlayfulUITheme.refresh_tree(archive_tabs)
+    PlayfulUITheme.reveal(archive_panel)
     archive_back_button.grab_focus()
 
 
@@ -415,8 +425,12 @@ func _archive_page(title_value: String) -> VBoxContainer:
 
 
 func _archive_entry(parent: VBoxContainer, texture_value: Texture2D, value: String) -> void:
+    var tile: PanelContainer = PanelContainer.new()
+    tile.add_theme_stylebox_override("panel", PlayfulUITheme.fluent_surface(PlayfulUITheme.tile_color(), 7, PlayfulUITheme.outline_color()))
+    parent.add_child(tile)
     var row: HBoxContainer = HBoxContainer.new()
-    parent.add_child(row)
+    row.add_theme_constant_override("separation", 10)
+    tile.add_child(row)
     if texture_value != null:
         var icon: TextureRect = TextureRect.new()
         icon.texture = texture_value
@@ -429,7 +443,8 @@ func _archive_entry(parent: VBoxContainer, texture_value: Texture2D, value: Stri
     label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     label.add_theme_font_size_override("font_size", 12)
-    label.add_theme_color_override("font_color", PlayfulUITheme.FLUENT_TEXT)
+    label.add_theme_constant_override("line_spacing", 2)
+    PlayfulUITheme.apply_label(label, PlayfulUITheme.FLUENT_TEXT)
     row.add_child(label)
 
 
@@ -466,8 +481,10 @@ func _show_character_screen() -> void:
     title.size = Vector2(600, 30)
     title.text = _t("CHOOSE YOUR GUARDIAN", "选择你的守护者")
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    title.add_theme_font_size_override("font_size", 22)
-    PlayfulUITheme.apply_label(title, PlayfulUITheme.FLUENT_ACCENT)
+    PlayfulUITheme.heading(title, 22)
+    PlayfulUITheme.apply_label(title, Color("#f4f7fb"))
+    title.add_theme_color_override("font_outline_color", Color("#152536"))
+    title.add_theme_constant_override("outline_size", 4)
     character_screen.add_child(title)
     var scroll: ScrollContainer = ScrollContainer.new()
     scroll.position = Vector2(20, 50)
@@ -494,6 +511,8 @@ func _show_character_screen() -> void:
         if button.disabled:
             button.text += "\n" + _t("LOCKED", "未解锁")
         button.add_theme_font_size_override("font_size", 13)
+        button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+        button.add_theme_constant_override("h_separation", 10)
         button.toggle_mode = true
         button.button_group = group
         button.button_pressed = i == SurvivorCharacters.selected
@@ -523,13 +542,13 @@ func _show_character_screen() -> void:
     hero_detail_description.add_theme_font_size_override("font_size", 12)
     PlayfulUITheme.apply_label(hero_detail_description, PlayfulUITheme.FLUENT_TEXT)
     details.add_child(hero_detail_description)
-    ResponsiveUI.place(hero_detail_description, Rect2(12, 113, 236, 43))
+    ResponsiveUI.place(hero_detail_description, Rect2(12, 112, 236, 49))
     hero_map_preview = TextureRect.new()
     hero_map_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
     hero_map_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
     hero_map_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
     details.add_child(hero_map_preview)
-    ResponsiveUI.place(hero_map_preview, Rect2(12, 166, 77, 62))
+    ResponsiveUI.place(hero_map_preview, Rect2(12, 164, 77, 58))
     hero_map_label = Label.new()
     hero_map_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     hero_map_label.add_theme_font_size_override("font_size", 12)
@@ -566,6 +585,8 @@ func _show_character_screen() -> void:
     back.pressed.connect(_hide_character_screen)
     PlayfulUITheme.apply_forest_button(back)
     character_screen.add_child(back)
+    PlayfulUITheme.button_icon(back, "arrow-left")
+    PlayfulUITheme.fit_button(back)
     var start: Button = Button.new()
     start.position = Vector2(126, 306)
     start.size = Vector2(154, 36)
@@ -573,6 +594,8 @@ func _show_character_screen() -> void:
     start.pressed.connect(_start_screen_run.bind(false))
     PlayfulUITheme.apply_forest_button(start, true)
     character_screen.add_child(start)
+    PlayfulUITheme.button_icon(start, "play")
+    PlayfulUITheme.fit_button(start)
     var challenge: Button = Button.new()
     challenge.position = Vector2(286, 306)
     challenge.size = Vector2(170, 36)
@@ -581,6 +604,8 @@ func _show_character_screen() -> void:
     challenge.pressed.connect(_start_screen_run.bind(true))
     PlayfulUITheme.apply_forest_button(challenge)
     character_screen.add_child(challenge)
+    PlayfulUITheme.button_icon(challenge, "calendar-days")
+    PlayfulUITheme.fit_button(challenge)
     var endless: Button = Button.new()
     endless.position = Vector2(462, 306)
     endless.size = Vector2(158, 36)
@@ -588,6 +613,10 @@ func _show_character_screen() -> void:
     endless.pressed.connect(_start_endless)
     PlayfulUITheme.apply_forest_button(endless)
     character_screen.add_child(endless)
+    PlayfulUITheme.button_icon(endless, "infinity")
+    PlayfulUITheme.fit_button(endless)
+    PlayfulUITheme.refresh_tree(character_screen)
+    PlayfulUITheme.reveal(character_screen)
     if is_instance_valid(responsive):
         responsive.refresh()
     back.grab_focus()
@@ -596,7 +625,7 @@ func _choose_screen_hero(index: int) -> void:
     _select_character(index)
     character_picker.select(SurvivorCharacters.selected)
     _refresh_hero_detail()
-    if is_instance_valid(hero_detail_portrait):
+    if is_instance_valid(hero_detail_portrait) and not settings.reduced_motion:
         if hero_preview_tween != null and hero_preview_tween.is_valid():
             hero_preview_tween.kill()
         hero_detail_portrait.modulate.a = 0.7
@@ -662,52 +691,86 @@ func _apply_hd_menu() -> void:
 
 func _create_display_controls() -> void:
     var group: Control = get_node("UI/Settings") as Control
-    ResponsiveUI.place(settings_panel, Rect2(60, 20, 520, 320))
-    ResponsiveUI.place(settings_title_label, Rect2(80, 29, 480, 32))
+    ResponsiveUI.place(settings_panel, Rect2(60, 12, 520, 336))
+    ResponsiveUI.place(settings_title_label, Rect2(80, 19, 480, 29))
     settings_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-    settings_title_label.add_theme_font_size_override("font_size", 20)
+    PlayfulUITheme.heading(settings_title_label, 19)
     settings_backdrop.color = Color(0.035, 0.055, 0.085, 0.46)
-    ResponsiveUI.place(settings_language_button, Rect2(326, 151, 234, 32))
-    ResponsiveUI.place(flash_button, Rect2(80, 285, 234, 36))
-    ResponsiveUI.place(music_button, Rect2(80, 219, 234, 28))
-    ResponsiveUI.place(sfx_button, Rect2(326, 219, 234, 28))
-    ResponsiveUI.place(settings_back_button, Rect2(326, 285, 234, 36))
+    ResponsiveUI.place(settings_language_button, Rect2(326, 103, 234, 28))
+    ResponsiveUI.place(flash_button, Rect2(80, 197, 234, 32))
+    ResponsiveUI.place(music_button, Rect2(80, 261, 234, 27))
+    ResponsiveUI.place(sfx_button, Rect2(326, 261, 234, 27))
+    ResponsiveUI.place(settings_back_button, Rect2(80, 313, 480, 28))
     PlayfulUITheme.apply_forest_panel(settings_panel, true)
     PlayfulUITheme.apply_label(settings_title_label, PlayfulUITheme.FLUENT_TEXT)
     for button: Button in [settings_language_button, flash_button, music_button, sfx_button, settings_back_button]:
+        button.toggle_mode = button in [flash_button, music_button, sfx_button]
         PlayfulUITheme.apply_forest_button(button, button == settings_back_button)
-    for rect: Rect2 in [Rect2(80, 72, 480, 22), Rect2(80, 194, 480, 22)]:
-        var section: Label = _make_label(group, rect.position, rect.size, 13)
+        button.add_theme_font_size_override("font_size", 12)
+    for rect: Rect2 in [Rect2(80, 49, 480, 18), Rect2(80, 136, 480, 18), Rect2(80, 239, 480, 18)]:
+        var section: Label = _make_label(group, rect.position, rect.size, PlayfulUITheme.TYPE_BODY)
         PlayfulUITheme.apply_label(section, PlayfulUITheme.FLUENT_MUTED)
         settings_sections.append(section)
         section.hide()
+    for y: float in [134.0, 237.0]:
+        var separator: ColorRect = ColorRect.new()
+        separator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        group.add_child(separator)
+        ResponsiveUI.place(separator, Rect2(80, y, 480, 1))
+        separator.color = PlayfulUITheme.outline_color()
+        separator.hide()
+        settings_dividers.append(separator)
     display_mode_picker = OptionButton.new()
     display_mode_picker.name = "DisplayModePicker"
     group.add_child(display_mode_picker)
-    ResponsiveUI.place(display_mode_picker, Rect2(80, 99, 234, 32))
+    ResponsiveUI.place(display_mode_picker, Rect2(80, 70, 234, 28))
     display_mode_picker.item_selected.connect(_select_display_mode)
     resolution_picker = OptionButton.new()
     resolution_picker.name = "ResolutionPicker"
     group.add_child(resolution_picker)
-    ResponsiveUI.place(resolution_picker, Rect2(326, 99, 234, 32))
+    ResponsiveUI.place(resolution_picker, Rect2(326, 70, 234, 28))
     resolution_picker.item_selected.connect(_select_resolution)
     ui_scale_picker = OptionButton.new()
     ui_scale_picker.name = "UIScalePicker"
     group.add_child(ui_scale_picker)
-    ResponsiveUI.place(ui_scale_picker, Rect2(80, 151, 234, 32))
+    ResponsiveUI.place(ui_scale_picker, Rect2(80, 103, 234, 28))
     ui_scale_picker.item_selected.connect(_select_ui_scale)
     for picker: OptionButton in [display_mode_picker, resolution_picker, ui_scale_picker]:
         PlayfulUITheme.apply_forest_picker(picker)
         picker.add_theme_font_size_override("font_size", 13)
         picker.hide()
+    theme_picker = OptionButton.new()
+    theme_picker.name = "ThemePicker"
+    group.add_child(theme_picker)
+    ResponsiveUI.place(theme_picker, Rect2(80, 158, 234, 32))
+    theme_picker.item_selected.connect(_choose_theme)
+    glass_picker = OptionButton.new()
+    glass_picker.name = "GlassPicker"
+    group.add_child(glass_picker)
+    ResponsiveUI.place(glass_picker, Rect2(326, 158, 234, 32))
+    glass_picker.item_selected.connect(_choose_glass)
+    for picker: OptionButton in [theme_picker, glass_picker]:
+        PlayfulUITheme.apply_forest_picker(picker)
+        picker.add_theme_font_size_override("font_size", 13)
+        picker.hide()
+    motion_button = Button.new()
+    motion_button.name = "MotionButton"
+    group.add_child(motion_button)
+    ResponsiveUI.place(motion_button, Rect2(326, 197, 234, 32))
+    PlayfulUITheme.apply_forest_button(motion_button)
+    motion_button.add_theme_font_size_override("font_size", 12)
+    motion_button.toggle_mode = true
+    PlayfulUITheme.apply_forest_button(motion_button)
+    motion_button.pressed.connect(_toggle_motion)
+    motion_button.hide()
     fullscreen_button.hide()
     audio_save = Timer.new()
     audio_save.one_shot = true
     audio_save.wait_time = 0.3
     add_child(audio_save)
     audio_save.timeout.connect(settings.save_settings)
-    music_slider = _volume_slider(group, Rect2(88, 251, 218, 22), settings.music_volume_db, true)
-    sfx_slider = _volume_slider(group, Rect2(334, 251, 218, 22), settings.sfx_volume_db, false)
+    music_slider = _volume_slider(group, Rect2(88, 291, 218, 20), settings.music_volume_db, true)
+    sfx_slider = _volume_slider(group, Rect2(334, 291, 218, 20), settings.sfx_volume_db, false)
     _refresh_settings_buttons()
 
 func _volume_slider(group: Control, rect: Rect2, value: float, music: bool) -> HSlider:
@@ -738,7 +801,7 @@ func _refresh_volume_labels() -> void:
     sfx_button.text = _t("Sound: %s · %d dB", "音效：%s · %d dB") % [_on_off(settings.sfx_enabled), settings.sfx_volume_db]
 
 func _display_settings_changed() -> void:
-    if settings_panel.visible and not resolution_picker.get_popup().visible and not ui_scale_picker.get_popup().visible and not display_mode_picker.get_popup().visible:
+    if settings_panel.visible and not resolution_picker.get_popup().visible and not ui_scale_picker.get_popup().visible and not display_mode_picker.get_popup().visible and not theme_picker.get_popup().visible and not glass_picker.get_popup().visible:
         _refresh_settings_buttons()
 
 func _hide_settings() -> void:
@@ -759,8 +822,23 @@ func _refresh_settings_buttons() -> void:
     _refresh_volume_labels()
     var modes: Array[String] = [_t("Windowed", "窗口化"), _t("Borderless fullscreen", "无边框全屏"), _t("Exclusive fullscreen", "独占全屏")]
     fullscreen_button.hide()
-    settings_sections[0].text = _t("Display and language", "显示与语言")
-    settings_sections[1].text = _t("Audio", "音频")
+    settings_sections[0].text = _t("Display & language", "显示与语言")
+    settings_sections[1].text = _t("Appearance and effects", "外观与效果")
+    settings_sections[2].text = _t("Audio", "音频")
+    theme_picker.clear()
+    theme_picker.add_item(_t("Theme: Dark", "主题：深色"), 0)
+    theme_picker.add_item(_t("Theme: Light", "主题：浅色"), 1)
+    theme_picker.select(int(settings.light_ui))
+    glass_picker.clear()
+    for text_value: String in [_t("Glass: Off", "毛玻璃：关闭"), _t("Glass: Low", "毛玻璃：低"), _t("Glass: Medium", "毛玻璃：中"), _t("Glass: High", "毛玻璃：高")]:
+        glass_picker.add_item(text_value)
+    glass_picker.select(settings.glass_strength)
+    motion_button.set_pressed_no_signal(settings.reduced_motion)
+    flash_button.set_pressed_no_signal(settings.screen_flash_enabled)
+    music_button.set_pressed_no_signal(settings.music_enabled)
+    sfx_button.set_pressed_no_signal(settings.sfx_enabled)
+    motion_button.text = _t("Reduced motion: ", "减少动效：") + _on_off(settings.reduced_motion)
+    motion_button.tooltip_text = _t("Disable interface transitions", "关闭界面过渡动画")
     display_mode_picker.clear()
     for i: int in range(modes.size()):
         display_mode_picker.add_item(modes[i], i)
@@ -783,17 +861,25 @@ func _refresh_settings_buttons() -> void:
         if is_equal_approx(settings.ui_scale, percent / 100.0):
             ui_scale_picker.select(ui_scale_picker.item_count - 1)
     ui_scale_picker.tooltip_text = _t("Automatically limited to fit the window", "自动限制缩放，防止界面超出窗口")
+    if is_instance_valid(responsive):
+        _fit_chrome_buttons()
 
 func _set_settings_controls_visible(value: bool) -> void:
     super._set_settings_controls_visible(value)
     fullscreen_button.hide()
     for label: Label in settings_sections:
         label.visible = value
+    for separator: ColorRect in settings_dividers:
+        separator.visible = value
     if is_instance_valid(display_mode_picker):
         display_mode_picker.visible = value and SettingsService.native_display()
     if is_instance_valid(resolution_picker):
         resolution_picker.visible = value and not OS.has_feature("web")
         ui_scale_picker.visible = value
+    if is_instance_valid(theme_picker):
+        theme_picker.visible = value
+        glass_picker.visible = value
+        motion_button.visible = value
     if is_instance_valid(music_slider):
         music_slider.visible = value
         sfx_slider.visible = value
@@ -818,7 +904,7 @@ func _layout_menu(view: Vector2) -> void:
     var frame: Panel = get_node("World/MenuFrame") as Panel
     var factor: float = (get_node("UI") as CanvasLayer).scale.x * (get_node("UI/Main") as Control).scale.x
     frame.scale = Vector2.ONE * factor
-    frame.position = (physical_view - ResponsiveUI.BASE * factor) * 0.5 + Vector2(338, 48) * factor
+    frame.position = (physical_view - ResponsiveUI.BASE * factor) * 0.5 + Vector2(314, 46) * factor
     for child: Node in get_node("World").get_children():
         if child is Sprite2D and String(child.name).ends_with("PreviewHD"):
             if not child.has_meta("base_position"):
@@ -836,6 +922,7 @@ func _refresh_hero_detail() -> void:
     hero_detail_description.text = _t(SurvivorCharacters.DESCRIPTIONS_EN[id], SurvivorCharacters.DESCRIPTIONS_ZH[id])
     hero_map_preview.texture = HDArt.terrain(SurvivorMaps.selected)
     hero_map_label.text = _t("MAP", "地图")
+    PlayfulUITheme.fit_label(hero_map_label, Rect2(12, 226, 77, 19), 10)
     hero_map_picker.select(SurvivorMaps.selected)
     hero_difficulty_picker.select(SurvivorBalance.selected_difficulty)
 
@@ -843,34 +930,37 @@ func _refresh_hero_detail() -> void:
 func _layout_fluent_home() -> void:
     var main: Control = get_node("UI/Main") as Control
     var frame: Panel = get_node("World/MenuFrame") as Panel
-    frame.size = Vector2(282, 288)
-    ResponsiveUI.place(title_label, Rect2(26, 28, 306, 47))
-    title_label.add_theme_font_size_override("font_size", 25)
-    ResponsiveUI.place(subtitle_label, Rect2(28, 84, 280, 48))
-    ResponsiveUI.place(progress_label, Rect2(28, 317, 302, 25))
+    frame.size = Vector2(306, 293)
+    ResponsiveUI.place(title_label, Rect2(24, 28, 282, 47))
+    PlayfulUITheme.heading(title_label, 23)
+    ResponsiveUI.place(subtitle_label, Rect2(24, 83, 278, 44))
+    ResponsiveUI.place(progress_label, Rect2(24, 314, 282, 28))
     PlayfulUITheme.apply_label(progress_label, PlayfulUITheme.FLUENT_MUTED)
     ResponsiveUI.place(language_button, Rect2(552, 9, 68, 30))
-    for rect: Rect2 in [Rect2(354, 58, 250, 24), Rect2(354, 90, 76, 18), Rect2(437, 90, 76, 18), Rect2(520, 90, 84, 18)]:
+    for rect: Rect2 in [Rect2(330, 56, 274, 24), Rect2(330, 84, 132, 18), Rect2(330, 137, 274, 18), Rect2(472, 84, 132, 18)]:
         var label: Label = _make_label(main, rect.position, rect.size, 16 if quick_labels.is_empty() else 11)
         PlayfulUITheme.apply_label(label, PlayfulUITheme.FLUENT_TEXT if quick_labels.is_empty() else PlayfulUITheme.FLUENT_MUTED)
         quick_labels.append(label)
-    ResponsiveUI.place(difficulty_picker, Rect2(354, 111, 76, 29))
-    ResponsiveUI.place(character_picker, Rect2(437, 111, 76, 29))
-    ResponsiveUI.place(map_picker, Rect2(520, 111, 84, 29))
+    PlayfulUITheme.heading(quick_labels[0], 16)
+    ResponsiveUI.place(difficulty_picker, Rect2(330, 104, 132, 28))
+    ResponsiveUI.place(character_picker, Rect2(330, 157, 274, 28))
+    ResponsiveUI.place(map_picker, Rect2(472, 104, 132, 28))
     for picker: OptionButton in [difficulty_picker, character_picker, map_picker]:
-        picker.add_theme_font_size_override("font_size", 11)
-    ResponsiveUI.place(play_button, Rect2(354, 151, 250, 38))
-    ResponsiveUI.place(select_hero_button, Rect2(354, 198, 250, 35))
-    ResponsiveUI.place(settings_button, Rect2(354, 243, 121, 34))
-    ResponsiveUI.place(collection_button, Rect2(483, 243, 121, 34))
-    ResponsiveUI.place(quit_button, Rect2(354, 287, 250, 32))
+        picker.add_theme_font_size_override("font_size", 12)
+    ResponsiveUI.place(play_button, Rect2(330, 194, 274, 34))
+    ResponsiveUI.place(select_hero_button, Rect2(330, 235, 274, 29))
+    ResponsiveUI.place(settings_button, Rect2(330, 271, 132, 28))
+    ResponsiveUI.place(collection_button, Rect2(472, 271, 132, 28))
+    ResponsiveUI.place(quit_button, Rect2(330, 306, 274, 25))
     ResponsiveUI.place(archive_panel, Rect2(40, 20, 560, 320))
     ResponsiveUI.place(archive_title, Rect2(60, 29, 520, 29))
     archive_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-    archive_title.add_theme_font_size_override("font_size", 20)
+    PlayfulUITheme.heading(archive_title, 20)
     ResponsiveUI.place(archive_back_button, Rect2(420, 301, 160, 28))
     archive_backdrop.color = Color(0.035, 0.055, 0.085, 0.46)
     _refresh_quick_labels()
+    for button: Button in [play_button, select_hero_button, settings_button, collection_button, quit_button]:
+        button.add_theme_font_size_override("font_size", 14 if button == play_button else 12)
 
 func _refresh_quick_labels() -> void:
     if quick_labels.size() != 4:
@@ -885,3 +975,50 @@ func _select_display_mode(index: int) -> void:
     audio_manager.play_event(&"ui_click")
     settings.set_display_mode(display_mode_picker.get_item_id(index))
     _refresh_settings_buttons()
+
+func _show_settings() -> void:
+    super._show_settings()
+    PlayfulUITheme.reveal(settings_panel)
+
+func _refresh_appearance() -> void:
+    PlayfulUITheme.configure_appearance(settings.light_ui, settings.glass_strength, settings.reduced_motion)
+    PlayfulUITheme.refresh_tree(self)
+    for separator: ColorRect in settings_dividers:
+        separator.color = PlayfulUITheme.outline_color()
+    for label: Label in [title_label, subtitle_label, progress_label]:
+        PlayfulUITheme.apply_label(label, Color("#f6f8fc"))
+        label.add_theme_color_override("font_outline_color", Color("#152536"))
+        label.add_theme_constant_override("outline_size", 4)
+    _refresh_settings_buttons()
+
+func _choose_theme(index: int) -> void:
+    settings.light_ui = index == 1
+    settings.save_settings()
+    _refresh_appearance()
+
+func _choose_glass(index: int) -> void:
+    settings.glass_strength = clampi(index, 0, 3)
+    settings.save_settings()
+    _refresh_appearance()
+
+func _toggle_motion() -> void:
+    settings.reduced_motion = not settings.reduced_motion
+    settings.save_settings()
+    _refresh_appearance()
+
+func _apply_chrome_icons() -> void:
+    var controls: Dictionary = {
+        play_button: "play", settings_button: "settings", collection_button: "book-open",
+        quit_button: "log-out", select_hero_button: "users", language_button: "globe",
+        settings_language_button: "globe", settings_back_button: "arrow-left",
+        archive_back_button: "arrow-left", music_button: "music", sfx_button: "volume-2",
+        flash_button: "sparkles", motion_button: "sparkles"
+    }
+    for button: Button in controls:
+        PlayfulUITheme.button_icon(button, controls[button], PlayfulUITheme.ICON_STANDARD if button == play_button else PlayfulUITheme.ICON_SMALL)
+    _fit_chrome_buttons()
+
+func _fit_chrome_buttons() -> void:
+    for button: Button in [play_button, settings_button, collection_button, quit_button, select_hero_button, language_button, settings_language_button, settings_back_button, archive_back_button, music_button, sfx_button, flash_button, motion_button]:
+        if is_instance_valid(button):
+            PlayfulUITheme.fit_button(button, 14 if button == play_button else PlayfulUITheme.TYPE_CONTROL)

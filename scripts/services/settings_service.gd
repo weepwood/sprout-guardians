@@ -3,7 +3,7 @@ class_name SettingsService
 
 signal settings_changed
 
-const CURRENT_VERSION: int = 2
+const CURRENT_VERSION: int = 3
 const DEFAULT_PATH: String = "user://settings.cfg"
 
 var settings_path: String = DEFAULT_PATH
@@ -17,6 +17,9 @@ var fullscreen: bool = false
 var display_mode: int = 0
 var window_size: Vector2i = Vector2i(1280, 720)
 var ui_scale: float = 1.0
+var light_ui: bool = false
+var glass_strength: int = 2
+var reduced_motion: bool = false
 static var _display_initialized: bool = false
 var screen_flash_enabled: bool = true
 var performance_overlay_enabled: bool = false
@@ -45,6 +48,9 @@ func load_settings() -> void:
     fullscreen = display_mode != 0
     window_size = Vector2i(clampi(int(config.get_value("display", "width", 1280)), 640, 7680), clampi(int(config.get_value("display", "height", 720)), 360, 4320))
     ui_scale = clampf(float(config.get_value("display", "ui_scale", 1.0)), 0.8, 1.25)
+    light_ui = bool(config.get_value("appearance", "light", false))
+    glass_strength = clampi(int(config.get_value("appearance", "glass", 2)), 0, 3)
+    reduced_motion = bool(config.get_value("appearance", "reduced_motion", false))
     screen_flash_enabled = bool(config.get_value("effects", "screen_flash_enabled", screen_flash_enabled))
     performance_overlay_enabled = bool(config.get_value("effects", "performance_overlay_enabled", performance_overlay_enabled))
 
@@ -68,6 +74,9 @@ func save_settings() -> bool:
     config.set_value("display", "width", window_size.x)
     config.set_value("display", "height", window_size.y)
     config.set_value("display", "ui_scale", ui_scale)
+    config.set_value("appearance", "light", light_ui)
+    config.set_value("appearance", "glass", glass_strength)
+    config.set_value("appearance", "reduced_motion", reduced_motion)
     config.set_value("effects", "screen_flash_enabled", screen_flash_enabled)
     config.set_value("effects", "performance_overlay_enabled", performance_overlay_enabled)
     config.set_value("gameplay", "survivor_difficulty", survivor_difficulty)
@@ -82,6 +91,7 @@ func save_settings() -> bool:
 
 
 func apply_runtime(audio_manager: ProceduralAudioManager = null) -> void:
+    PlayfulUITheme.configure_appearance(light_ui, glass_strength, reduced_motion)
     if audio_manager != null:
         audio_manager.music_volume_db = music_volume_db
         audio_manager.sfx_volume_db = sfx_volume_db
@@ -184,6 +194,9 @@ func _apply_defaults() -> void:
     display_mode = 0
     window_size = Vector2i(1280, 720)
     ui_scale = 1.0
+    light_ui = false
+    glass_strength = 2
+    reduced_motion = false
     screen_flash_enabled = true
     performance_overlay_enabled = false
     survivor_difficulty = 1
