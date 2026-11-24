@@ -1,0 +1,12 @@
+# V0.7 Fluent / Acrylic UI
+## 设计与交互
+Windows 11 Fluent 风格的冷灰蓝 Acrylic 面板、浅蓝主操作、细描边、小圆角、明确键盘焦点。游戏环境插画与高清角色保持不变。透明背景由 Godot 屏幕纹理 mipmap shader 实现，而不是系统原生 DWM。面板使用色调和细颗粒；战斗 HUD 使用不采样屏幕的轻量表面，奖励为高对比浅色。Headless 使用颜色回退。
+- 主菜单：冒险设置集中，难度、角色、地图清晰分组，减少重复文案。
+- 设置：显示/语言与音频分组，直接选择三种显示模式；保持窗口尺寸、UI缩放、滑块、保存与返回。
+- 图鉴：更宽的滚动区域、统一标签与行间隔。
+- 选角：保留角色立绘、统计、地图、难度、锁定与三个开局方式。
+- HUD：分区状态，武器等级/进化标识，事件提示与底部经验条分离。
+- 奖励/暂停/结算：保持原实际业务逻辑，统一面板、文字与焦点。奖励保持7:1实际样式对比度断言。
+## 验收
+Godot 4.7.1 Mac M4 GL compatibility：导入、UI smoke、核心Survivor及会话集成通过，81项高清PNG一致。实际固定1280×720九图成功，已审查。Mac 多次调整窗口比例时渲染帧超时（旧版本也出现），该轮完整响应式验收未通过，新增根场景暂停计时修正尚待完整CI；不放宽20图验收。Windows/Linux/Web实际材质及性能待新CI和玩家实测。既有ObjectDB警告仍需后续治理。
+本机运行：godot --path <隔离测试项目> --rendering-method gl_compatibility --audio-driver Dummy --resolution 1280x720 --script res://tests/run_fluent_capture.gd

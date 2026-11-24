@@ -194,3 +194,11 @@
 ### V0.7 CI 下载可靠性收口（57c8851）
 - 最新四套工作流 45469483968、45469484066、45469484214、45469483963 均在 Godot 官方下载入口连续 HTTP 403 时失败，游戏测试未执行；三平台存档恢复任务通过（使用官方 GitHub release）。不把网络安装失败误判为业务回归。
 - 统一 Linux editor/templates 下载至 tools/download_godot_linux.sh，优先官方 godotengine/godot-builds 4.7.1-stable release，失败再使用官方分发入口；以该 release API 返回的资产 SHA256 固定校验，校验失败不安装，版本不匹配直接失败。Mac 本机实际下载 Linux editor、SHA256及ZIP完整性检查通过，错误版本拒绝测试通过；templates 与四套工作流待CI复验。不改游戏逻辑、不降低门禁、不擅自批准未公证发布。
+
+
+## V0.7 Fluent / Acrylic 界面专项
+- 基于最新main 1251e63（已合并响应式重构），独立worktree /Volumes/data/Project/sprout-guardians-fluent，分支feat/v0.7-fluent-ui；不动旧V0.6/V0.7工作区、真实玩家存档、战斗数值及81项PNG。
+- 用户要求Windows毛玻璃质感、功能和排版重构：原生Godot Controls复用，统一冷灰蓝、细描边、7px按钮圆角、键盘焦点和高对比浅色奖励。现有glass_frosted.gdshader改为单次屏幕mipmap采样、像素圆角、轻微噪声与色调；主菜单/设置/图鉴/角色详情/暂停/奖励与结算实际接入，HUD使用轻量暗色表面；headless走无Shader回退，不宣称Windows系统DWM原生材质。
+- 主菜单右侧冒险配置集中，标题/文案精简；设置分组、显示模式直接OptionButton而非循环按钮；图鉴增宽且统一控件；选角保留原解锁与功能；武器栏显示等级及进化星号，事件警示移至HUD下，避免底部经验/武器栏冲突。保留原档位、武器属性、键鼠及存档机制。
+- 本地Godot 4.7.1实际导入、UI smoke、Survivor和Session通过；81 PNG哈希通过。Mac M4 OpenGL compatibility固定1280×720实际9张截图，FLUENT_SUMMARY captured=9 failed=false；已打开拼图审查。原生多次resize测试此前仅取得2图，后续frame_post_draw超时且自然战斗继续推进导致暂停断言未通过；修正测试中根游戏计时暂停，保留原20图门禁，仍需新Linux CI复验。不宣称完整多分辨率验收完成。旧ObjectDB退出警告仍存在。
+- 新增tests/run_fluent_capture.gd实际屏幕采集及质量CI 9图门禁（原7图/20图保持）。本机截图目录 /tmp/sprout-fluent-test.t6X7HA/build/fluent；只在隔离user:// SproutGuardians-Fluent-Capture-20261125及测试命名空间执行。正式Release仍v0.6.0；本轮仅UI PR，不直接发布。

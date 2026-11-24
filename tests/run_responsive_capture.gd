@@ -57,6 +57,10 @@ func _run() -> void:
     for value: Vector2i in SIZES:
         await _resize(value)
         _inside(menu.get("play_button") as Control, "Play button")
+        var acrylic: ColorRect = menu.get_node("World/MenuFrame/AcrylicBackdrop") as ColorRect
+        _expect(acrylic != null and acrylic.visible and acrylic.material is ShaderMaterial, "Home uses actual acrylic screen shader")
+        for picker_name: String in ["difficulty_picker", "character_picker", "map_picker"]:
+            _inside(menu.get(picker_name) as Control, "Adventure setup " + picker_name)
         var bg: TextureRect = menu.get_node("World/Grass") as TextureRect
         _expect(bg.size.is_equal_approx(root.get_visible_rect().size), "Menu background fills viewport")
         await _capture("menu-%dx%d" % [value.x,value.y])
@@ -70,6 +74,9 @@ func _run() -> void:
     menu.call("_show_settings")
     await process_frame
     _inside(menu.get("settings_panel") as Control, "Display settings panel")
+    var mode_picker: OptionButton = menu.get("display_mode_picker") as OptionButton
+    _expect(mode_picker.item_count == 3, "Direct display mode selection")
+    _inside(mode_picker, "Display mode picker")
     var prefs: SettingsService = menu.get("settings") as SettingsService
     _expect(prefs.window_size == root.size, "Debounced native resize persisted")
     var reloaded: SettingsService = SettingsService.new()
@@ -113,6 +120,7 @@ func _run() -> void:
         # Opt into the runtime camera branch without saving run data.
         game.set("simulation_mode", false)
         game.set("run_save", null)
+        game.set_process(false)
         for value: Vector2i in SIZES:
             await _resize(value)
             _inside(game.get("menu_button") as Control, "Pause control")
@@ -135,6 +143,8 @@ func _run() -> void:
         game.call("_toggle_pause")
         await process_frame
         _inside(game.get("pause_panel") as Control, "Pause panel")
+        var pause_glass: ColorRect = (game.get("pause_panel") as Panel).get_node_or_null("AcrylicBackdrop") as ColorRect
+        _expect(pause_glass != null and pause_glass.is_visible_in_tree() and pause_glass.material is ShaderMaterial, "Pause uses actual acrylic material")
         game_prefs.set_ui_scale(1.0)
         (game.get("responsive") as ResponsiveUI).refresh()
         await _capture("pause-%d" % map_id)

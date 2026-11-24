@@ -107,6 +107,8 @@ static func apply_progress(bar: ProgressBar) -> void:
 static func _animate_button(button: Button, active: bool) -> void:
     if not is_instance_valid(button) or not button.is_inside_tree():
         return
+    if button.has_meta("fluent_no_scale"):
+        return
     var should_raise: bool = active or button.has_focus()
     var tween: Tween = button.create_tween()
     tween.set_trans(Tween.TRANS_BACK)
@@ -139,46 +141,107 @@ static func readable_on_light(foreground: Color, background: Color) -> Color:
         candidate = candidate.darkened(0.12)
     return INK
 
-# V0.6 forest chrome. Keep light reward cards and their contrast contract.
-static func apply_forest_panel(panel: Panel) -> void:
-    var style: StyleBoxFlat = surface(Color(0.09, 0.16, 0.12, 0.94), 12, Color("#6f8768"), 4)
-    style.set_border_width_all(1)
-    panel.add_theme_stylebox_override("panel", style)
+# Windows Fluent-inspired game chrome. The forest artwork remains the backdrop.
+# Keep the existing public helper names for older scenes.
+const FLUENT_TEXT: Color = Color("#f4f7fb")
+const FLUENT_MUTED: Color = Color("#c5d1df")
+const FLUENT_ACCENT: Color = Color("#8ecbff")
+const FLUENT_SHADER: Shader = preload("res://assets/ui/glass_frosted.gdshader")
 
+static func fluent_surface(fill: Color, radius_value: int = 8, outline: Color = Color("#526171"), shadow: int = 0) -> StyleBoxFlat:
+    var style: StyleBoxFlat = surface(fill, radius_value, outline, shadow)
+    style.set_border_width_all(1)
+    style.shadow_color = Color(0.0, 0.0, 0.0, 0.30)
+    return style
+
+static func apply_forest_panel(panel: Panel, blur: bool = false) -> void:
+    apply_acrylic_panel(panel, false, blur)
+
+static func apply_acrylic_panel(panel: Panel, light: bool = false, blur: bool = true) -> void:
+    var glass: ColorRect = panel.get_node_or_null("AcrylicBackdrop") as ColorRect
+    var use_blur: bool = blur and DisplayServer.get_name() != "headless"
+    if use_blur and glass == null:
+        glass = ColorRect.new()
+        glass.name = "AcrylicBackdrop"
+        glass.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        glass.show_behind_parent = true
+        panel.add_child(glass)
+        glass.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+        var shader_material: ShaderMaterial = ShaderMaterial.new()
+        shader_material.shader = FLUENT_SHADER
+        glass.material = shader_material
+        panel.resized.connect(_resize_acrylic.bind(panel, glass))
+    if glass != null:
+        glass.visible = use_blur
+        var shader_material: ShaderMaterial = glass.material as ShaderMaterial
+        shader_material.set_shader_parameter("radius", 14.0 if light else 10.0)
+        shader_material.set_shader_parameter("tint", Color(0.93, 0.95, 0.98, 0.86) if light else Color(0.095, 0.12, 0.16, 0.62))
+        _resize_acrylic(panel, glass)
+    # Solid fallback in headless / shader-disabled environments. Light text stays
+    # readable even when the backdrop is bright; light reward cards remain opaque.
+    var base: Color = Color("#f2f5fa") if light else Color("#202a36")
+    base.a = (0.92 if light else 0.27) if use_blur else 0.96
+    panel.add_theme_stylebox_override("panel", fluent_surface(base, 14 if light else 10, Color("#aebdce") if light else Color(0.70, 0.80, 0.92, 0.34), 3 if blur else 0))
+
+static func _resize_acrylic(panel: Panel, glass: ColorRect) -> void:
+    if is_instance_valid(glass) and glass.material is ShaderMaterial:
+        (glass.material as ShaderMaterial).set_shader_parameter("panel_size", panel.size.max(Vector2.ONE))
 
 static func apply_forest_button(button: Button, primary: bool = false) -> void:
-    apply_button(button, "primary" if primary else "soft", false)
-    var focus: StyleBoxFlat = surface(Color(0, 0, 0, 0), 9, Color("#f6e4a5"), 0)
+    button.set_meta("fluent_no_scale", true)
+    button.scale = Vector2.ONE
+    var normal: Color = FLUENT_ACCENT if primary else Color("#303d4b")
+    var hover: Color = Color("#b2dcff") if primary else Color("#405365")
+    var down: Color = Color("#6eafdf") if primary else Color("#263442")
+    var ink: Color = Color("#152333") if primary else FLUENT_TEXT
+    var border: Color = Color("#5c798f") if not primary else Color("#aedcff")
+    button.add_theme_stylebox_override("normal", fluent_surface(normal, 7, border))
+    button.add_theme_stylebox_override("hover", fluent_surface(hover, 7, Color("#a5c8e7")))
+    button.add_theme_stylebox_override("pressed", fluent_surface(down, 7, FLUENT_ACCENT))
+    button.add_theme_stylebox_override("hover_pressed", button.get_theme_stylebox("pressed"))
+    button.add_theme_stylebox_override("disabled", fluent_surface(Color("#27313c"), 7, Color("#414e5c")))
+    var focus: StyleBoxFlat = fluent_surface(Color.TRANSPARENT, 7, FLUENT_ACCENT)
     focus.set_border_width_all(2)
     button.add_theme_stylebox_override("focus", focus)
-    if primary:
-        return
-    var normal: StyleBoxFlat = surface(Color("#294337"), 8, Color("#55725a"), 1)
-    var hover: StyleBoxFlat = surface(Color("#365643"), 8, Color("#9bb884"), 2)
-    var pressed: StyleBoxFlat = surface(Color("#314b38"), 8, Color("#f0cf80"), 1)
-    pressed.set_border_width_all(2)
-    button.add_theme_stylebox_override("normal", normal)
-    button.add_theme_stylebox_override("hover", hover)
-    button.add_theme_stylebox_override("pressed", pressed)
-    button.add_theme_stylebox_override("hover_pressed", pressed)
-    button.add_theme_stylebox_override("disabled", surface(Color("#25352d"), 8, Color("#475449"), 0))
-    for name_value: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-        button.add_theme_color_override(name_value, Color("#f8f3de"))
-    button.add_theme_color_override("font_disabled_color", Color("#a6b6a4"))
+    for state: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+        button.add_theme_color_override(state, ink)
+    button.add_theme_color_override("font_disabled_color", Color("#a6b5c5"))
+    button.focus_mode = Control.FOCUS_ALL
 
-# Native option popup, styled to match the game menu rather than the default cream theme.
 static func apply_forest_picker(picker: OptionButton) -> void:
     apply_forest_button(picker)
-    picker.add_theme_color_override("font_color", Color("#f8f3de"))
-    picker.add_theme_color_override("font_disabled_color", Color("#a6b6a4"))
+    picker.fit_to_longest_item = false
+    picker.clip_text = true
     var popup: PopupMenu = picker.get_popup()
-    popup.add_theme_stylebox_override("panel", surface(Color("#20382b"), 8, Color("#6f8768"), 4))
-    popup.add_theme_stylebox_override("hover", surface(Color("#365643"), 5, Color("#9bb884"), 0))
-    popup.add_theme_color_override("font_color", Color("#f8f3de"))
-    popup.add_theme_color_override("font_hover_color", Color("#fff4d7"))
-    popup.add_theme_color_override("font_disabled_color", Color("#a6b6a4"))
+    popup.add_theme_stylebox_override("panel", fluent_surface(Color("#283542"), 8, Color("#65798c"), 3))
+    popup.add_theme_stylebox_override("hover", fluent_surface(Color("#40576c"), 5, Color("#7ba7c8")))
+    popup.add_theme_color_override("font_color", FLUENT_TEXT)
+    popup.add_theme_color_override("font_hover_color", FLUENT_TEXT)
+    popup.add_theme_color_override("font_disabled_color", Color("#a6b5c5"))
     popup.add_theme_constant_override("v_separation", 7)
 
+static func apply_fluent_tabs(tabs: TabContainer) -> void:
+    tabs.add_theme_stylebox_override("tab_selected", fluent_surface(Color("#3e566d"), 6, FLUENT_ACCENT))
+    tabs.add_theme_stylebox_override("tab_unselected", fluent_surface(Color("#263542"), 6))
+    tabs.add_theme_stylebox_override("tab_hovered", fluent_surface(Color("#394c60"), 6))
+    tabs.add_theme_stylebox_override("panel", fluent_surface(Color("#26323f"), 7))
+    tabs.add_theme_color_override("font_selected_color", FLUENT_TEXT)
+    tabs.add_theme_color_override("font_unselected_color", FLUENT_MUTED)
+    tabs.add_theme_color_override("font_hovered_color", FLUENT_TEXT)
+
+static func apply_light_reward(button: Button, border: Color = Color("#bdcad7")) -> void:
+    button.set_meta("fluent_no_scale", true)
+    button.add_theme_stylebox_override("normal", fluent_surface(Color("#f8fafd"), 8, border))
+    button.add_theme_stylebox_override("hover", fluent_surface(Color("#e8f2ff"), 8, Color("#6d9eca")))
+    button.add_theme_stylebox_override("pressed", fluent_surface(Color("#dbe8f7"), 8, Color("#386c9f")))
+    button.add_theme_stylebox_override("hover_pressed", button.get_theme_stylebox("pressed"))
+    var focus: StyleBoxFlat = fluent_surface(Color.TRANSPARENT, 8, Color("#235f9d"))
+    focus.set_border_width_all(2)
+    button.add_theme_stylebox_override("focus", focus)
+    button.add_theme_stylebox_override("disabled", fluent_surface(Color("#e0e5ec"), 8))
+    for state: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+        button.add_theme_color_override(state, Color("#1c2b3b"))
+    button.add_theme_color_override("font_disabled_color", Color("#586572"))
 
 # Dark semantic inks on light reward surfaces, including pressed state.
 static func reward_rarity_ink(rarity: int) -> Color:
@@ -194,7 +257,7 @@ static func reward_rarity_ink(rarity: int) -> Color:
 
 # Compact in-game progress surfaces use forest backing and a single semantic fill.
 static func apply_forest_progress(bar: ProgressBar, color_value: Color) -> void:
-    var backing: StyleBoxFlat = surface(Color("#233a2e"), 3, Color("#4e6853"), 0)
+    var backing: StyleBoxFlat = surface(Color("#263542"), 3, Color("#536579"), 0)
     var filling: StyleBoxFlat = surface(color_value, 3, color_value, 0)
     for style: StyleBoxFlat in [backing, filling]:
         style.set_border_width_all(0)
@@ -206,8 +269,8 @@ static func apply_forest_progress(bar: ProgressBar, color_value: Color) -> void:
     bar.add_theme_stylebox_override("fill", filling)
 
 static func apply_forest_slider(slider: HSlider) -> void:
-    var backing: StyleBoxFlat = surface(Color("#10281e"), 4, Color("#647e60"), 0)
-    var fill: StyleBoxFlat = surface(Color("#a7ca80"), 4, Color("#a7ca80"), 0)
+    var backing: StyleBoxFlat = surface(Color("#182431"), 4, Color("#65788b"), 0)
+    var fill: StyleBoxFlat = surface(FLUENT_ACCENT, 4, FLUENT_ACCENT, 0)
     for style: StyleBoxFlat in [backing, fill]:
         style.set_border_width_all(1)
         style.content_margin_top = 2
