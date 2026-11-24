@@ -126,6 +126,8 @@ func _audit_weapon_effects(packed: PackedScene) -> void:
         if projectile == null:
             continue
         projectile.set_process(false)
+        # Park the real launched projectile between actors for unobstructed visual evidence.
+        projectile.global_position = hero.global_position.lerp(target.global_position, 0.5)
         await process_frame
         await process_frame
         await RenderingServer.frame_post_draw
@@ -133,6 +135,7 @@ func _audit_weapon_effects(packed: PackedScene) -> void:
             var sprite: Sprite2D = projectile.get_node_or_null("PixelSprite") as Sprite2D
             _expect(sprite != null and sprite.is_visible_in_tree() and _path(sprite.texture) == HDArt.ROOT + projectile_path + ".png", "Weapon %d actual projectile texture" % index)
             verified += 1
+            await _capture_vfx("weapon-%d-projectile" % index)
         for evolved: bool in [false, true]:
             if (evolved and not has_evolution) or (not evolved and not has_impact):
                 continue
@@ -147,7 +150,7 @@ func _audit_weapon_effects(packed: PackedScene) -> void:
             var expected_path: String = HDArt.ROOT + ("vfx/evolution_" if evolved else "vfx/impact_") + str(index) + ".png"
             _expect(is_instance_valid(effect) and effect.is_visible_in_tree() and _path(effect.texture) == expected_path, "Weapon %d actual %s texture" % [index, "evolution" if evolved else "impact"])
             verified += 1
-            await RenderingServer.frame_post_draw
+            await _capture_vfx("weapon-%d-%s" % [index, "evolution" if evolved else "impact"])
             if is_instance_valid(effect):
                 effect.queue_free()
             await process_frame
@@ -158,3 +161,12 @@ func _audit_weapon_effects(packed: PackedScene) -> void:
         _expect(verified == 24, "All 24 weapon visual routes exercised")
     game.queue_free()
     await process_frame
+
+# Separate JPEG evidence leaves the existing 22 PNG scene-capture gate intact.
+# These are isolated visual fixtures, not screenshots of an organic battle.
+func _capture_vfx(name_value: String) -> void:
+    await RenderingServer.frame_post_draw
+    var image: Image = root.get_texture().get_image()
+    _expect(image != null and not image.is_empty(), "Actual VFX renderer frame " + name_value)
+    if image != null and not image.is_empty():
+        _expect(image.save_jpg(ProjectSettings.globalize_path(OUT + "/" + name_value + ".jpg"), 0.95) == OK, "Saved VFX evidence " + name_value)
