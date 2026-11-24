@@ -379,16 +379,19 @@ func _render_reward_cards() -> void:
         title.text = data.localized_name(i18n.locale_code)
         PlayfulUITheme.apply_label(title, Color("#2c251f"))
         title.add_theme_font_size_override("font_size", 14)
-        title.position.y = 78.0
-        title.size.y = 29.0
-        icon_view.position.y = 8.0
-        icon_view.size.y = 43.0
-        rarity.position.y = 54.0
+        title.position.y = 65.0
+        title.size.y = 25.0
+        icon_view.position.y = 5.0
+        icon_view.size.y = 35.0
+        rarity.position.y = 43.0
         var detail: Label = button.get_node("GiftDetail") as Label
         PlayfulUITheme.apply_label(detail, Color("#392e27"))
         detail.add_theme_font_size_override("font_size", 12)
-        detail.position.y = 109.0
-        detail.size.y = 66.0
+        detail.add_theme_constant_override("line_spacing", 0)
+        detail.position.x = 5.0
+        detail.size.x = button.size.x - 10.0
+        detail.position.y = 94.0
+        detail.size.y = 79.0
         var stack: int = blessing_system.get_blessing_stack(data.id) + 1
         var weapon_index: int = SurvivorArsenal.IDS.find(data.id)
         var current: int = blessing_system.get_blessing_stack(data.id)
@@ -405,7 +408,7 @@ func _render_reward_cards() -> void:
             var next_damage: float = SurvivorArsenal.shot_damage(next_rank, evolved_next, evolved_next and partner_rank >= 3, difficulty)
             var interval: float = SurvivorArsenal.shot_interval(weapon_index, next_rank, evolved_next, evolved_next and partner_rank >= 3, difficulty)
             detail.text = rank_line + "\n" + _t("Hit %.0f → %.0f · %.2fs", "单发 %.0f → %.0f · %.2f秒") % [old_damage, next_damage, interval]
-            detail.text += "\n" + (_t("Evolution ready!", "本次可进化！") if evolved_next else _t("Evolve: Lv.3 + ", "进化：3级 + ") + partner_name + "  %d/1" % mini(partner_rank, 1))
+            detail.text += "\n" + (_t("Evolution ready!", "本次可进化！") if evolved_next else _t("Evolve at Lv.3", "进化要求：3级") + "\n" + partner_name + " %d/1" % mini(partner_rank, 1))
             full_detail += "\n" + _t("Base damage per projectile; interval after upgrade.", "基础单发伤害；显示升级后的攻击间隔。")
         else:
             detail.text = rank_line + "\n" + _buff_stat_preview(data, current, next_rank)

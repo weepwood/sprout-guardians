@@ -50,6 +50,7 @@ func _run() -> void:
                 var locale: LocalizationService = game.get("i18n") as LocalizationService
                 locale.set_locale("en", false)
                 game.call("_apply_locale")
+                await process_frame
                 _audit_reward_contrast(game)
                 await _capture("05-reward")
                 locale.set_locale("zh_CN", false)
@@ -58,6 +59,7 @@ func _run() -> void:
                 if not reward_title.text.contains("等级提升"):
                     push_error("Chinese reward screenshot must actually contain Chinese text")
                     failed = true
+                await process_frame
                 _audit_reward_contrast(game)
                 await _capture("05-reward-zh")
                 locale.set_locale("en", false)
@@ -85,6 +87,11 @@ func _audit_reward_contrast(game: Node) -> void:
         var card: Button = game.get_node("UI/ChoiceLayer/ChoiceButton%d" % index) as Button
         if not card.visible:
             continue
+        for child_name: String in ["GiftName", "GiftDetail", "GiftRarity"]:
+            var label: Label = card.get_node(child_name) as Label
+            if label.position.y + label.size.y > card.size.y or label.get_line_count() > label.get_visible_line_count():
+                push_error("Reward label overflows card: " + child_name)
+                failed = true
         for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
             var surface: StyleBoxFlat = card.get_theme_stylebox(state) as StyleBoxFlat
             if surface == null:
