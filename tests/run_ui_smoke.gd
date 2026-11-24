@@ -230,7 +230,9 @@ func _test_survivor_scene() -> void:
     var wave_label: Label = game.get("wave_label") as Label
     var greed_label: Label = game.get("greed_label") as Label
     _assert_true(wave_label.text.contains("TIME") or wave_label.text.contains("时间"), "HUD displays survival time")
-    _assert_true(greed_label.text.contains("XP") or greed_label.text.contains("经验"), "HUD displays level and experience")
+    _assert_true(greed_label.text.contains("Lv.") or greed_label.text.contains("等级"), "HUD displays level")
+    var xp_label: Label = game.get("hud_xp_label") as Label
+    _assert_true(xp_label.text.contains("XP") or xp_label.text.contains("经验"), "HUD displays experience in dedicated bottom slot")
 
     var effects: PixelImpactSystem = game.get("impact_system") as PixelImpactSystem
     effects.spawn_hit(Vector2(320.0, 180.0), Color("ffffff"), 25.0, true)

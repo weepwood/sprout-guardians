@@ -107,6 +107,22 @@ func _run() -> void:
     if (game.get("control_label") as Label).visible or not (game.get("hud_boss_panel") as Panel).visible or not is_equal_approx(boss_bar.value / boss_bar.max_value, 0.65) or not cooldowns.has(0) or (cooldowns[0] as ProgressBar).value <= 0.0 or (cooldowns[0] as ProgressBar).value >= 1.0:
         failed = true
     await _capture("13-boss-cooldown")
+    var previous_stacks: Dictionary = blessings.stacks.duplicate()
+    for id: StringName in SurvivorArsenal.IDS:
+        blessings.stacks[String(id)] = 3
+    game.call("_refresh_hud")
+    game.call("_toggle_pause")
+    for language: String in ["en", "zh_CN"]:
+        locale.set_locale(language, false)
+        game.call("_apply_locale")
+        await process_frame
+        var grid: GridContainer = game.get("pause_weapon_grid") as GridContainer
+        if grid.get_child_count() != 8 or grid.position.y + grid.size.y > (game.get("language_button") as Button).position.y + 0.5:
+            failed = true
+        await _capture("15-full-build-en" if language == "en" else "16-full-build-zh")
+    game.call("_toggle_pause")
+    blessings.stacks = previous_stacks
+    game.call("_refresh_hud")
     game.call("_finish_run", false)
     await _capture("09-result")
     game.queue_free()
@@ -127,7 +143,7 @@ func _run() -> void:
     prefs.light_ui = false
     prefs.save_settings()
     print("FLUENT_SUMMARY captured=", captured, " failed=", failed)
-    quit(0 if captured == 14 and not failed else 1)
+    quit(0 if captured == 16 and not failed else 1)
 
 func _check_reward(game: Node) -> void:
     var choices: Array = game.get("_current_choices")

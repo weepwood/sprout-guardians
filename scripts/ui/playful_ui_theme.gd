@@ -370,3 +370,33 @@ static func apply_forest_slider(slider: HSlider) -> void:
     slider.add_theme_stylebox_override("slider", backing)
     slider.add_theme_stylebox_override("grabber_area", fill)
     slider.add_theme_stylebox_override("grabber_area_highlight", fill)
+
+# Fit an explicitly budgeted label by measuring the actual bundled font.
+# Keep text intact; no ellipsis or invisible truncation for gameplay data.
+static func fit_label(label: Label, rect: Rect2, preferred: int, minimum: int = 10) -> void:
+    label.autowrap_mode = TextServer.AUTOWRAP_OFF
+    label.clip_text = true
+    var font: Font = label.get_theme_font("font")
+    var lines: PackedStringArray = label.text.split("\n")
+    var chosen: int = preferred
+    for size_value: int in range(preferred, minimum - 1, -1):
+        chosen = size_value
+        var widest: float = 0.0
+        for line: String in lines:
+            widest = maxf(widest, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, size_value).x)
+        if widest <= rect.size.x - 2.0 and font.get_height(size_value) * lines.size() <= rect.size.y:
+            break
+    label.add_theme_font_size_override("font_size", chosen)
+    label.add_theme_constant_override("line_spacing", 0)
+    label.position = rect.position
+    label.size = rect.size
+
+static var _heading_font: FontVariation
+
+static func heading(label: Label, size_value: int) -> void:
+    if _heading_font == null:
+        _heading_font = FontVariation.new()
+        _heading_font.base_font = load("res://assets/ui/fonts/SproutUISans-Regular.otf") as Font
+        _heading_font.variation_embolden = 0.35
+    label.add_theme_font_override("font", _heading_font)
+    label.add_theme_font_size_override("font_size", size_value)

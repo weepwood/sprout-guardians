@@ -21,6 +21,10 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/stretch/scale_mode="fractional"
 
+[gui]
+
+theme/custom_font="res://assets/ui/fonts/SproutUISans-Regular.otf"
+
 [rendering]
 
 textures/vram_compression/import_etc2_astc=true

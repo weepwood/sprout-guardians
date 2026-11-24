@@ -12,6 +12,9 @@ on:
       - 'tests/run_render_capture.gd'
       - 'tests/run_responsive_capture.gd'
       - 'tests/run_fluent_capture.gd'
+      - 'tests/run_ui_typography.gd'
+      - 'project.godot'
+      - 'assets/ui/fonts/**'
       - 'assets/ui/**'
       - 'project.godot'
       - 'tests/run_render_benchmark.gd'
@@ -66,12 +69,18 @@ jobs:
           test "$(find build/visual -name '*.png' | wc -l)" -eq 7
           test -s build/visual/05-reward-zh.png
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Invalid access|Invalid call|on a null instance' build/quality/render.log; then exit 1; fi
+      - name: Bundled font and exhaustive reward typography
+        run: |
+          set -euo pipefail
+          timeout 90s godot --headless --audio-driver Dummy --path . --script res://tests/run_ui_typography.gd 2>&1 | tee build/quality/typography.log
+          grep -E '^TYPOGRAPHY_SUMMARY cases=[0-9]+ failures=0$' build/quality/typography.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Invalid access|Invalid call' build/quality/typography.log; then exit 1; fi
       - name: Fluent material and fixed-size screen capture
         run: |
           set -euo pipefail
           timeout 90s xvfb-run -a -s '-screen 0 1280x720x24' godot --rendering-method gl_compatibility --audio-driver Dummy --resolution 1280x720 --path . --script res://tests/run_fluent_capture.gd 2>&1 | tee build/quality/fluent.log
-          grep '^FLUENT_SUMMARY captured=14 failed=false$' build/quality/fluent.log
-          test "$(find build/fluent -name '*.png' | wc -l)" -eq 14
+          grep '^FLUENT_SUMMARY captured=16 failed=false$' build/quality/fluent.log
+          test "$(find build/fluent -name '*.png' | wc -l)" -eq 16
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Shader compilation failed|Invalid access|Invalid call|on a null instance' build/quality/fluent.log; then exit 1; fi
       - name: Responsive native-window capture and preferences
         run: |
