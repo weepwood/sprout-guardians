@@ -297,10 +297,14 @@ func _refresh_archive_tabs() -> void:
     var enemy_names: Array[String] = [_t("Chaser", "追击怪"), _t("Charger", "冲锋怪"), _t("Armored", "重甲怪"), _t("Ranged warning", "远程预警"), _t("Splitter", "分裂怪"), _t("Bloom Boss", "黑花首领")]
     for i: int in range(enemy_names.size()):
         _archive_entry(enemies, PixelArtAssets.generated_actor(5 if i == 5 else (4 if i == 2 or i == 4 else 3)), enemy_names[i])
+    for map_index: int in range(1, 4):
+        _archive_entry(enemies, PixelArtAssets.biome_actor(map_index - 1), _t(SurvivorBiomeBoss.EN[map_index], SurvivorBiomeBoss.ZH[map_index]))
+        _archive_entry(enemies, PixelArtAssets.biome_actor(map_index + 2), _t(SurvivorMaps.NAMES_EN[map_index], SurvivorMaps.NAMES_ZH[map_index]) + _t(" special enemy", "专属敌人"))
     var progress_page: VBoxContainer = _archive_page(_t("Growth", "成长"))
     var progress: Dictionary = save_game.get_survivor_progress()
     var stats: Dictionary = save_game.get_survivor_statistics()
     _archive_entry(progress_page, null, _t("Seeds %d · Wins %d · Events %d · Evolutions %d", "种子 %d · 胜利 %d · 事件 %d · 进化 %d") % [progress["seeds"], stats["total_victories"], progress["events"], progress["evolutions"]])
+    _archive_entry(progress_page, null, _t("Endless best: %ds / %d bosses · Daily: %s", "无尽纪录：%d秒 / %d首领 · 每日：%s") % [progress["endless_best_seconds"], progress["endless_best_bosses"], progress["last_daily_win"]])
     for key: String in ["health_rank", "damage_rank", "speed_rank"]:
         var rank: int = int(progress[key])
         var upgrade: Button = Button.new()
@@ -390,8 +394,11 @@ func _show_character_screen() -> void:
     scroll.size = Vector2(600, 235)
     scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
     character_screen.add_child(scroll)
-    var column: VBoxContainer = VBoxContainer.new()
+    var column: GridContainer = GridContainer.new()
+    column.columns = 2
     column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    column.add_theme_constant_override("h_separation", 8)
+    column.add_theme_constant_override("v_separation", 8)
     scroll.add_child(column)
     var group: ButtonGroup = ButtonGroup.new()
     for i: int in range(SurvivorCharacters.EN.size()):
@@ -399,8 +406,9 @@ func _show_character_screen() -> void:
         var button: Button = Button.new()
         button.icon = PixelArtAssets.generated_actor(SurvivorCharacters.art_index(i))
         button.expand_icon = true
-        button.custom_minimum_size = Vector2(580, 54)
-        button.text = _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]) + " · " + _t("DMG %.0f · SPD %.0f · HP %+d", "伤害 %.0f · 移速 %.0f · 生命 %+d") % [cfg["damage"], cfg["move_speed"], cfg["health_bonus"]]
+        button.custom_minimum_size = Vector2(280, 66)
+        button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        button.text = _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]) + "\n" + _t("DMG %.0f · SPD %.0f · HP %+d", "伤害 %.0f · 移速 %.0f · 生命 %+d") % [cfg["damage"], cfg["move_speed"], cfg["health_bonus"]]
         button.tooltip_text = _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i])
         button.disabled = not save_game.is_survivor_character_unlocked(i)
         button.toggle_mode = true

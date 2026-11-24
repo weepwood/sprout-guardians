@@ -102,7 +102,9 @@ func _process(delta: float) -> void:
     _hud_refresh_remaining = 0.10
     var remaining_seconds: int = maxi(0, int(ceil(SURVIVAL_DURATION - survival_elapsed)))
     var enemy_count: int = get_tree().get_nodes_in_group("greed_enemies").size()
-    if survival_elapsed < SURVIVAL_DURATION:
+    if endless_mode:
+        status_label.text = _t("ENDLESS · BOSS %d", "无尽 · 首领 %d") % [bosses_defeated]
+    elif survival_elapsed < SURVIVAL_DURATION:
         status_label.text = _t("SURVIVE %02ds · %d ENEMIES", "生存 %02d秒 · %d 个敌人") % [remaining_seconds, enemy_count]
     _refresh_hud()
     _update_control_status()

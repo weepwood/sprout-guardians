@@ -263,7 +263,7 @@ func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
     var config: Dictionary = spawn_director.next_enemy(survival_elapsed, force_elite, force_boss)
     if force_boss:
         config = SurvivorBiomeBoss.apply(config, map_id)
-    if map_id != SurvivorMaps.CLASSIC and not force_elite and not force_boss and survival_elapsed >= 25.0 and event_rng.randf() < 0.18:
+    if map_id != SurvivorMaps.CLASSIC and not force_elite and not force_boss and survival_elapsed >= 25.0 and event_rng.randf() < SurvivorSpawnDirector.biome_variant_chance(map_id, survival_elapsed):
         config = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, SurvivorMaps.exclusive_variant(map_id))
         config["biome_enemy"] = map_id
         config["health"] = float(config["health"]) * 1.12
@@ -379,8 +379,10 @@ func _refresh_hud() -> void:
     super._refresh_hud()
     if wave_label == null or hero_plant == null:
         return
-    var shown_time: int = mini(int(floor(survival_elapsed)), int(SURVIVAL_DURATION))
+    var shown_time: int = int(floor(survival_elapsed)) if endless_mode else mini(int(floor(survival_elapsed)), int(SURVIVAL_DURATION))
     wave_label.text = _t("TIME %02d:%02d", "时间 %02d:%02d") % [int(shown_time / 60), shown_time % 60]
+    if endless_mode:
+        wave_label.text = _t("∞ %02d:%02d", "∞ %02d:%02d") % [int(shown_time / 60), shown_time % 60]
     health_label.text = "%d/%d" % [hero_plant.health, hero_plant.max_health]
     coins_label.text = "%d" % enemies_defeated
     greed_label.text = _t("LV.%d XP", "等级%d 经验") % hero_plant.level
@@ -858,6 +860,23 @@ func _show_result_workspace(victory: bool) -> void:
     metrics_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     metrics_label.add_theme_font_size_override("font_size", 13)
     column.add_child(metrics_label)
+    var graph: HBoxContainer = HBoxContainer.new()
+    graph.custom_minimum_size.y = 18.0
+    column.add_child(graph)
+    var sum_damage: float = maxf(1.0, float(damage_by_source["hero"]) + float(damage_by_source["familiar"]) + float(damage_by_source["arsenal"]))
+    var keys: Array[String] = ["hero", "familiar", "arsenal"]
+    var labels: Array[String] = [_t("Hero", "主角"), _t("Familiars", "随从"), _t("Weapons", "武器")]
+    var colors: Array[Color] = [Color("99c57c"), Color("e4bb70"), Color("b69bd1")]
+    for i: int in range(keys.size()):
+        var amount: float = float(damage_by_source[keys[i]])
+        if amount <= 0.0:
+            continue
+        var bar: ColorRect = ColorRect.new()
+        bar.color = colors[i]
+        bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        bar.size_flags_stretch_ratio = maxf(0.01, amount / sum_damage)
+        bar.tooltip_text = labels[i] + " %.1f%%" % (amount / sum_damage * 100.0)
+        graph.add_child(bar)
     var icons: HBoxContainer = HBoxContainer.new()
     icons.alignment = BoxContainer.ALIGNMENT_CENTER
     column.add_child(icons)

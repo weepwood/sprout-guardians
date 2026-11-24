@@ -130,7 +130,7 @@ func record_survivor_result(victory: bool, elapsed_seconds: float, reached_level
     if victory and bool(details.get("challenge", false)):
         progress["challenge_wins"] = int(progress["challenge_wins"]) + 1
         var day: String = String(details.get("challenge_date", ""))
-        if not day.is_empty() and day != String(progress["last_daily_win"]):
+        if not day.is_empty() and day > String(progress["last_daily_win"]):
             progress["last_daily_win"] = day
             progress["seeds"] = mini(999999, int(progress["seeds"]) + 15)
     if bool(details.get("endless", false)):

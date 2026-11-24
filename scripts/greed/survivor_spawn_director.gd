@@ -21,3 +21,11 @@ func next_enemy(elapsed: float, elite: bool, boss: bool) -> Dictionary:
         elif elapsed >= 35.0 and roll > 0.78:
             variant = 2
     return SurvivorBalance.enemy_config(elapsed, difficulty, elite, boss, variant)
+
+
+static func biome_variant_chance(map_id: int, elapsed: float) -> float:
+    # Keep the dangerous swamp ranged density below the other biomes;
+    # forest/night get short themed pressure windows after the first elite.
+    if map_id == SurvivorMaps.SWAMP:
+        return 0.12
+    return 0.30 if elapsed >= 40.0 and elapsed < 47.0 else 0.18
