@@ -153,6 +153,15 @@ static func readable_on_light(foreground: Color, background: Color) -> Color:
 const FLUENT_TEXT: Color = Color("#f4f7fb")
 const FLUENT_MUTED: Color = Color("#c5d1df")
 const FLUENT_ACCENT: Color = Color("#8ecbff")
+# Shared logical type ramp: 640×360 design space; scaled by ResponsiveUI.
+const TYPE_CAPTION: int = 11
+const TYPE_BODY: int = 12
+const TYPE_CONTROL: int = 13
+const TYPE_VALUE: int = 16
+const TYPE_SECTION: int = 18
+const TYPE_DIALOG: int = 22
+const ICON_SMALL: int = 14
+const ICON_STANDARD: int = 16
 const FLUENT_SHADER: Shader = preload("res://assets/ui/glass_frosted.gdshader")
 
 static var light_mode: bool = false
@@ -197,6 +206,10 @@ static func refresh_tree(node: Node) -> void:
     if node is ScrollContainer:
         for scroll: ScrollBar in [(node as ScrollContainer).get_v_scroll_bar(), (node as ScrollContainer).get_h_scroll_bar()]:
             style_scrollbar(scroll)
+    if node is Button and node.has_meta("chrome_icon"):
+        _tint_button_icon(node as Button)
+    elif node is TextureRect and node.has_meta("chrome_tint"):
+        (node as TextureRect).self_modulate = accent_color() if bool(node.get_meta("chrome_tint")) else text_color()
     for child: Node in node.get_children():
         refresh_tree(child)
 
@@ -230,7 +243,10 @@ static func reveal(control: Control) -> void:
 static func fluent_surface(fill: Color, radius_value: int = 8, outline: Color = Color("#526171"), shadow: int = 0) -> StyleBoxFlat:
     var style: StyleBoxFlat = surface(fill, radius_value, outline, shadow)
     style.set_border_width_all(1)
-    style.shadow_color = Color(0.0, 0.0, 0.0, 0.30)
+    style.shadow_color = Color(0.025, 0.04, 0.065, 0.28)
+    style.shadow_offset = Vector2(0, 2 if shadow > 0 else 0)
+    style.anti_aliasing = true
+    style.anti_aliasing_size = 0.9
     return style
 
 static func apply_forest_panel(panel: Panel, blur: bool = false) -> void:
@@ -238,6 +254,7 @@ static func apply_forest_panel(panel: Panel, blur: bool = false) -> void:
 
 static func apply_acrylic_panel(panel: Panel, light: bool = false, blur: bool = true) -> void:
     panel.set_meta("fluent_panel", [light, blur])
+    var radius_value: int = 14 if light else 10
     light = light or light_mode
     var glass: ColorRect = panel.get_node_or_null("AcrylicBackdrop") as ColorRect
     var use_blur: bool = blur and glass_level > 0 and DisplayServer.get_name() != "headless"
@@ -255,7 +272,7 @@ static func apply_acrylic_panel(panel: Panel, light: bool = false, blur: bool = 
     if glass != null:
         glass.visible = use_blur
         var shader_material: ShaderMaterial = glass.material as ShaderMaterial
-        shader_material.set_shader_parameter("radius", 14.0 if light else 10.0)
+        shader_material.set_shader_parameter("radius", float(radius_value))
         shader_material.set_shader_parameter("blur_lod", [0.0, 2.5, 3.8, 4.8][glass_level])
         shader_material.set_shader_parameter("tint", Color(0.93, 0.95, 0.98, 0.83) if light else Color(0.095, 0.12, 0.16, 0.53))
         shader_material.set_shader_parameter("highlight", 0.045 if light else 0.11)
@@ -263,8 +280,8 @@ static func apply_acrylic_panel(panel: Panel, light: bool = false, blur: bool = 
     # Solid fallback in headless / shader-disabled environments. Light text stays
     # readable even when the backdrop is bright; light reward cards remain opaque.
     var base: Color = Color("#f2f5fa") if light else Color("#202a36")
-    base.a = (0.42 if light else 0.24) if use_blur else 0.98
-    panel.add_theme_stylebox_override("panel", fluent_surface(base, 14 if light else 10, Color("#aebdce") if light else Color(0.70, 0.80, 0.92, 0.34), 3 if blur else 0))
+    base.a = (0.28 if light else 0.19) if use_blur else 0.98
+    panel.add_theme_stylebox_override("panel", fluent_surface(base, radius_value, Color(0.48, 0.57, 0.68, 0.48) if light else Color(0.78, 0.86, 0.96, 0.36), 5 if blur else 0))
 
 static func _resize_acrylic(panel: Panel, glass: ColorRect) -> void:
     if is_instance_valid(glass) and glass.material is ShaderMaterial:
@@ -293,6 +310,8 @@ static func apply_forest_button(button: Button, primary: bool = false) -> void:
         button.add_theme_color_override(state, ink)
     button.add_theme_color_override("font_disabled_color", muted_color())
     button.focus_mode = Control.FOCUS_ALL
+    if button.has_meta("chrome_icon"):
+        _tint_button_icon(button)
 
 static func apply_forest_picker(picker: OptionButton) -> void:
     picker.set_meta("fluent_picker", true)
@@ -333,6 +352,8 @@ static func apply_light_reward(button: Button, border: Color = Color("#bdcad7"))
     for state: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
         button.add_theme_color_override(state, Color("#1c2b3b"))
     button.add_theme_color_override("font_disabled_color", Color("#586572"))
+    if button.has_meta("chrome_icon"):
+        _tint_button_icon(button)
 
 # Dark semantic inks on light reward surfaces, including pressed state.
 static func reward_rarity_ink(rarity: int) -> Color:
@@ -400,3 +421,49 @@ static func heading(label: Label, size_value: int) -> void:
         _heading_font.variation_embolden = 0.35
     label.add_theme_font_override("font", _heading_font)
     label.add_theme_font_size_override("font_size", size_value)
+
+# Monochrome Lucide chrome, distinct from generated gameplay artwork.
+static func chrome_texture(key: String) -> Texture2D:
+    return load("res://assets/ui/chrome/%s.svg" % key) as Texture2D
+
+static func button_icon(button: Button, key: String, pixels: int = ICON_SMALL) -> void:
+    button.set_meta("chrome_icon", key)
+    button.icon = chrome_texture(key)
+    button.expand_icon = true
+    button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+    button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+    button.add_theme_constant_override("icon_max_width", pixels)
+    button.add_theme_constant_override("h_separation", 5)
+    _tint_button_icon(button)
+
+static func _tint_button_icon(button: Button) -> void:
+    for state: String in ["normal", "hover", "pressed", "focus", "hover_pressed", "disabled"]:
+        var font_key: String = "font_color" if state == "normal" else "font_%s_color" % state
+        if state == "hover_pressed":
+            font_key = "font_pressed_color"
+        button.add_theme_color_override("icon_%s_color" % state, button.get_theme_color(font_key))
+
+static func status_icon(view: TextureRect, key: String, accent: bool = false) -> void:
+    view.texture = chrome_texture(key)
+    view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+    view.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+    view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    view.set_meta("chrome_tint", accent)
+    view.self_modulate = accent_color() if accent else text_color()
+
+# Native controls keep full keyboard/accessibility labels. Reserve the icon and
+# style margins before measuring; don't increase control minimum dimensions.
+static func fit_button(button: Button, preferred: int = TYPE_CONTROL, minimum: int = TYPE_CAPTION) -> void:
+    var style: StyleBox = button.get_theme_stylebox("normal")
+    var available: float = button.size.x - style.get_minimum_size().x - 2.0
+    if button.icon != null:
+        available -= float(button.get_theme_constant("icon_max_width") + button.get_theme_constant("h_separation"))
+    var font: Font = button.get_theme_font("font")
+    var chosen: int = preferred
+    for candidate: int in range(preferred, minimum - 1, -1):
+        chosen = candidate
+        if font.get_string_size(button.text, HORIZONTAL_ALIGNMENT_LEFT, -1, candidate).x <= available and font.get_height(candidate) <= button.size.y - style.get_minimum_size().y:
+            break
+    button.add_theme_font_size_override("font_size", chosen)
+    button.clip_text = true

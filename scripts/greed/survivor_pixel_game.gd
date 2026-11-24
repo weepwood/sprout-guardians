@@ -472,8 +472,10 @@ func _render_reward_cards() -> void:
             label.modulate = Color.WHITE
             label.self_modulate = Color.WHITE
     _refresh_bottom_hud_visibility()
-    PlayfulUITheme.heading(choice_title, 21)
-    PlayfulUITheme.fit_label(choice_title, Rect2(100, 55, 440, 44), 21, 17)
+    PlayfulUITheme.fit_button(reroll_button, PlayfulUITheme.TYPE_CONTROL)
+    PlayfulUITheme.fit_button(skip_button, PlayfulUITheme.TYPE_CONTROL)
+    PlayfulUITheme.heading(choice_title, PlayfulUITheme.TYPE_DIALOG)
+    PlayfulUITheme.fit_label(choice_title, Rect2(100, 55, 440, 44), PlayfulUITheme.TYPE_DIALOG, 17)
     PlayfulUITheme.fit_label(choice_hint, Rect2(230, 295, 180, 27), 11, 10)
     if choice_open and not choice_buttons.is_empty():
         reward_focus_index = recommended if difficulty < 2 and recommended >= 0 else 0
@@ -658,6 +660,20 @@ func _refresh_pause_build() -> void:
     if equipped.is_empty():
         pause_build_label.text = _t("No weapons acquired yet", "尚未获得额外武器")
     pause_build_label.tooltip_text = power_label.text + "\n" + " · ".join(equipped)
+    # Fit the pause chrome to actual content, reserving rows only for weapons
+    # that are equipped. Keep the entire group centered in the design viewport.
+    var rows: int = ceili(equipped.size() / 2.0)
+    var shrink: float = float(4 - rows) * 17.0
+    var top_shift: float = shrink * 0.5
+    ResponsiveUI.place(pause_panel, Rect2(133, 43 + top_shift, 374, 278 - shrink))
+    ResponsiveUI.place(pause_title, Rect2(155, 48 + top_shift, 330, 34))
+    ResponsiveUI.place(pause_subtitle, Rect2(155, 83 + top_shift, 330, 18))
+    ResponsiveUI.place(pause_build_label, Rect2(155, 103 + top_shift, 330, 19))
+    ResponsiveUI.place(pause_weapon_grid, Rect2(158, 123 + top_shift, 324, rows * 17))
+    ResponsiveUI.place(language_button, Rect2(179, 195 - top_shift, 134, 25))
+    ResponsiveUI.place(speed_button, Rect2(327, 195 - top_shift, 134, 25))
+    ResponsiveUI.place(pause_resume_button, Rect2(179, 225 - top_shift, 282, 36))
+    ResponsiveUI.place(pause_leave_button, Rect2(179, 271 - top_shift, 282, 37))
 
 func _apply_locale() -> void:
     super._apply_locale()
@@ -721,6 +737,13 @@ func _apply_playful_hud() -> void:
     PlayfulUITheme.apply_light_reward(skip_button)
     PlayfulUITheme.apply_forest_button(pause_resume_button, true)
     PlayfulUITheme.apply_forest_button(pause_leave_button)
+    for button: Button in [menu_button, pause_resume_button, pause_leave_button, language_button, speed_button, reroll_button, skip_button, result_button]:
+        var key: String = {menu_button: "pause", pause_resume_button: "play", pause_leave_button: "house", language_button: "globe", speed_button: "clock", reroll_button: "rotate-ccw", skip_button: "skip-forward", result_button: "rotate-ccw"}[button]
+        PlayfulUITheme.button_icon(button, key)
+    var hud: Control = get_node("UI/TopHUD") as Control
+    PlayfulUITheme.status_icon(hud.get_node("HeartIcon") as TextureRect, "heart", true)
+    PlayfulUITheme.status_icon(hud.get_node("LeafIcon") as TextureRect, "leaf")
+    PlayfulUITheme.status_icon(hud.get_node("SkullIcon") as TextureRect, "skull")
 
 
 func _select_choice(index: int) -> void:
@@ -1073,16 +1096,24 @@ func _show_result_workspace(victory: bool) -> void:
         var labels_box: VBoxContainer = VBoxContainer.new()
         labels_box.add_theme_constant_override("separation", 0)
         tile.add_child(labels_box)
+        var caption_row: HBoxContainer = HBoxContainer.new()
+        caption_row.alignment = BoxContainer.ALIGNMENT_CENTER
+        caption_row.add_theme_constant_override("separation", 4)
+        labels_box.add_child(caption_row)
+        var metric_icon: TextureRect = TextureRect.new()
+        metric_icon.custom_minimum_size = Vector2(12, 12)
+        PlayfulUITheme.status_icon(metric_icon, ["clock", "skull", "leaf", "sparkles", "leaf", "heart"][i])
+        caption_row.add_child(metric_icon)
         var key: Label = Label.new()
         key.text = captions[i]
         key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
         key.add_theme_font_size_override("font_size", 10)
         PlayfulUITheme.apply_label(key, PlayfulUITheme.FLUENT_MUTED)
-        labels_box.add_child(key)
+        caption_row.add_child(key)
         var amount: Label = Label.new()
         amount.text = values[i]
         amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-        amount.add_theme_font_size_override("font_size", 15)
+        PlayfulUITheme.heading(amount, PlayfulUITheme.TYPE_VALUE)
         PlayfulUITheme.apply_label(amount, PlayfulUITheme.FLUENT_ACCENT)
         labels_box.add_child(amount)
     var summary: Label = Label.new()
@@ -1144,6 +1175,9 @@ func _show_result_workspace(victory: bool) -> void:
     get_node("UI/ChoiceLayer").add_child(home)
     home.pressed.connect(_leave_result)
     PlayfulUITheme.apply_forest_button(home)
+    PlayfulUITheme.button_icon(home, "house")
+    PlayfulUITheme.fit_button(home)
+    PlayfulUITheme.fit_button(result_button)
     result_button.grab_focus()
 
 func _leave_result() -> void:
@@ -1226,7 +1260,7 @@ func _create_responsive_hud() -> void:
     speed_button.reparent(pause_layer, false)
     language_button.hide()
     speed_button.hide()
-    PlayfulUITheme.heading(pause_title, 23)
+    PlayfulUITheme.heading(pause_title, PlayfulUITheme.TYPE_DIALOG)
     ResponsiveUI.place(pause_title, Rect2(155, 48, 330, 34))
     ResponsiveUI.place(pause_subtitle, Rect2(155, 83, 330, 18))
     ResponsiveUI.place(pause_build_label, Rect2(155, 103, 330, 19))
@@ -1244,6 +1278,8 @@ func _create_responsive_hud() -> void:
     speed_button.add_theme_font_size_override("font_size", 12)
     ResponsiveUI.place(language_button, Rect2(179, 195, 134, 25))
     ResponsiveUI.place(speed_button, Rect2(327, 195, 134, 25))
+    for button: Button in [pause_resume_button, pause_leave_button, language_button, speed_button]:
+        PlayfulUITheme.fit_button(button)
     hud_weapons = HBoxContainer.new()
     hud_weapons.name = "WeaponStrip"
     hud_weapons.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1323,7 +1359,7 @@ func _refresh_weapon_strip() -> void:
         stack.add_child(icon)
         var rank_label: Label = Label.new()
         rank_label.text = ("★" if evolved else "Lv.") + str(rank)
-        rank_label.add_theme_font_size_override("font_size", 9)
+        rank_label.add_theme_font_size_override("font_size", PlayfulUITheme.TYPE_CAPTION)
         rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
         PlayfulUITheme.apply_label(rank_label, PlayfulUITheme.FLUENT_ACCENT if evolved else PlayfulUITheme.FLUENT_TEXT)
         rank_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1364,18 +1400,22 @@ func _refresh_cooldowns_and_boss() -> void:
 func _layout_game(view: Vector2) -> void:
     var top: Control = get_node("UI/TopHUD") as Control
     top.size = view
-    ResponsiveUI.place(top.get_node("Frame") as Control, Rect2(8, 6, 180, 34))
+    var compact: bool = view.x < 560.0
+    var left_width: float = 166.0 if compact else 180.0
+    var timer_width: float = 108.0 if compact else 122.0
+    ResponsiveUI.place(top.get_node("Frame") as Control, Rect2(8, 6, left_width, 34))
     ResponsiveUI.place(top.get_node("HeartIcon") as Control, Rect2(15, 10, 15, 15))
-    ResponsiveUI.place(health_label, Rect2(34, 8, 66, 19))
-    ResponsiveUI.place(top.get_node("LeafIcon") as Control, Rect2(101, 10, 15, 15))
-    ResponsiveUI.place(greed_label, Rect2(119, 8, 67, 19))
-    ResponsiveUI.place(hud_health_bar, Rect2(16, 29, 164, 5))
-    ResponsiveUI.place(hud_timer_panel, Rect2(view.x * 0.5 - 61, 6, 122, 34))
-    ResponsiveUI.place(wave_label, Rect2(view.x * 0.5 - 60, 8, 120, 29))
+    ResponsiveUI.place(health_label, Rect2(34, 8, 55 if compact else 66, 19))
+    ResponsiveUI.place(top.get_node("LeafIcon") as Control, Rect2(91 if compact else 101, 10, 15, 15))
+    ResponsiveUI.place(greed_label, Rect2(108 if compact else 119, 8, 64 if compact else 67, 19))
+    ResponsiveUI.place(hud_health_bar, Rect2(16, 29, left_width - 16, 5))
+    ResponsiveUI.place(hud_timer_panel, Rect2((view.x - timer_width) * 0.5, 6, timer_width, 34))
+    ResponsiveUI.place(wave_label, Rect2((view.x - timer_width) * 0.5 + 1, 8, timer_width - 2, 29))
     ResponsiveUI.place(hud_right_panel, Rect2(view.x - 165, 6, 157, 34))
     ResponsiveUI.place(top.get_node("SkullIcon") as Control, Rect2(view.x - 155, 14, 16, 16))
-    ResponsiveUI.place(coins_label, Rect2(view.x - 135, 9, 49, 28))
-    ResponsiveUI.place(menu_button, Rect2(view.x - 81, 9, 69, 28))
+    ResponsiveUI.place(coins_label, Rect2(view.x - 135, 9, 41, 28))
+    ResponsiveUI.place(menu_button, Rect2(view.x - 91, 9, 79, 28))
+    PlayfulUITheme.fit_button(menu_button, PlayfulUITheme.TYPE_BODY)
     ResponsiveUI.place(control_label, Rect2(view.x * 0.5 - 195, 44, 390, 22))
     ResponsiveUI.place(combo_label, Rect2(view.x - 150, 112, 134, 22))
     ResponsiveUI.place(warning_frame, Rect2(view.x * 0.5 - 162, 78, 324, 32))

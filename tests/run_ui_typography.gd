@@ -81,7 +81,73 @@ func _run() -> void:
         for item: Label in grid.get_children():
             _label(item, Rect2(Vector2.ZERO, grid.size))
         _check(grid.position.y + grid.size.y <= (game.get("language_button") as Button).position.y + 0.5, "Pause build overlaps controls")
+    # Full build, both compact and spacious logical HUDs. Native rendering
+    # remains covered separately by run_responsive_capture.
+    game.call("_toggle_pause")
+    game.call("_refresh_weapon_strip")
+    await process_frame
+    for physical: Vector2 in [Vector2(640,480), Vector2(640,360), Vector2(640,400), Vector2(840,360)]:
+        for factor: float in [0.8, 1.0, 1.25]:
+            var view: Vector2 = physical / factor
+            game.call("_layout_game", view)
+            await process_frame
+            var left: Control = game.get_node("UI/TopHUD/Frame") as Control
+            var timer: Control = game.get("hud_timer_panel") as Control
+            var right: Control = game.get("hud_right_panel") as Control
+            _check(not Rect2(left.position,left.size).intersects(Rect2(timer.position,timer.size)), "HUD left/timer overlap")
+            _check(not Rect2(timer.position,timer.size).intersects(Rect2(right.position,right.size)), "HUD timer/right overlap")
+            var strip: Control = game.get("hud_weapons") as Control
+            var xp: Control = game.get("hud_xp_label") as Control
+            _check(Rect2(Vector2.ZERO,view).grow(0.5).encloses(Rect2(strip.position,strip.size)), "Full weapon strip outside viewport")
+            _check(not Rect2(strip.position,strip.size).intersects(Rect2(xp.position,xp.size)), "Weapon strip overlaps XP label")
+            cases += 1
+    game.call("_toggle_pause")
+    system.stacks.clear()
+    game.call("_refresh_pause_build")
+    await process_frame
+    var pause_panel: Panel = game.get("pause_panel") as Panel
+    _check(pause_panel.size.y < 250, "Empty build uses compact pause panel")
+    var resume: Button = game.get("pause_resume_button") as Button
+    _check(Rect2(pause_panel.position,pause_panel.size).encloses(Rect2(resume.position,resume.size)), "Compact resume stays in panel")
     game.queue_free()
     await process_frame
+    await _menu_chrome()
     print("TYPOGRAPHY_SUMMARY cases=", cases, " failures=", failures)
     quit(0 if failures == 0 and cases > 100 else 1)
+
+func _menu_chrome() -> void:
+    var menu: Node = (load("res://scenes/main_menu.tscn") as PackedScene).instantiate()
+    root.add_child(menu)
+    await process_frame
+    var locale: LocalizationService = menu.get("localization") as LocalizationService
+    var prefs: SettingsService = menu.get("settings") as SettingsService
+    var group: Control = menu.get_node("UI/Settings") as Control
+    var main: Control = menu.get_node("UI/Main") as Control
+    for language: String in ["en", "zh_CN"]:
+        locale.set_locale(language, false)
+        menu.call("_apply_locale")
+        for light: bool in [false, true]:
+            prefs.light_ui = light
+            menu.call("_refresh_appearance")
+            for key: String in ["play_button", "settings_button", "collection_button", "quit_button", "select_hero_button", "language_button", "settings_language_button", "settings_back_button", "music_button", "sfx_button", "flash_button", "motion_button"]:
+                var button: Button = menu.get(key) as Button
+                _check(button.icon != null and button.has_meta("chrome_icon"), "Missing chrome icon: " + key)
+                _check(button.get_theme_color("icon_normal_color") == button.get_theme_color("font_color"), "Icon tint mismatch: " + key)
+                var size_value: int = button.get_theme_font_size("font_size")
+                var required: float = button.get_theme_font("font").get_string_size(button.text,HORIZONTAL_ALIGNMENT_LEFT,-1,size_value).x
+                required += button.get_theme_stylebox("normal").get_minimum_size().x + button.get_theme_constant("icon_max_width") + button.get_theme_constant("h_separation")
+                _check(required <= button.size.x + 0.5, "Button text/icon exceeds budget: " + button.text)
+                cases += 1
+            for physical: Vector2 in [Vector2(640,480), Vector2(640,360), Vector2(640,400), Vector2(840,360)]:
+                for factor: float in [0.8,1.0,1.25]:
+                    var view: Vector2 = physical / factor
+                    ResponsiveUI.center_group(group,view)
+                    ResponsiveUI.center_group(main,view)
+                    var bounds: Rect2 = Rect2(Vector2.ZERO,view).grow(0.5)
+                    for key: String in ["play_button","settings_button","collection_button","quit_button","settings_panel","settings_back_button","theme_picker","glass_picker","motion_button"]:
+                        var control: Control = menu.get(key) as Control
+                        var parent: Control = control.get_parent() as Control
+                        _check(bounds.encloses(parent.get_transform() * Rect2(control.position,control.size)), "Scaled control outside viewport: " + key)
+                    cases += 1
+    menu.queue_free()
+    await process_frame

@@ -95,6 +95,7 @@ func _ready() -> void:
     _layout_fluent_home()
     _create_display_controls()
     _refresh_appearance()
+    _apply_chrome_icons()
     responsive = ResponsiveUI.new()
     add_child(responsive)
     responsive.bind(get_node("UI") as CanvasLayer, settings, _layout_menu)
@@ -247,6 +248,8 @@ func _apply_locale() -> void:
         "Runs %d  ·  Victories %d  ·  Best %ds",
         "累计 %d 局  ·  胜利 %d 局  ·  最长 %d 秒"
     ) % [stats["total_runs"], stats["total_victories"], stats["best_survival_seconds"]]
+    if is_instance_valid(responsive):
+        _fit_chrome_buttons()
 
 
 func _show_collection_summary() -> void:
@@ -582,6 +585,8 @@ func _show_character_screen() -> void:
     back.pressed.connect(_hide_character_screen)
     PlayfulUITheme.apply_forest_button(back)
     character_screen.add_child(back)
+    PlayfulUITheme.button_icon(back, "arrow-left")
+    PlayfulUITheme.fit_button(back)
     var start: Button = Button.new()
     start.position = Vector2(126, 306)
     start.size = Vector2(154, 36)
@@ -589,6 +594,8 @@ func _show_character_screen() -> void:
     start.pressed.connect(_start_screen_run.bind(false))
     PlayfulUITheme.apply_forest_button(start, true)
     character_screen.add_child(start)
+    PlayfulUITheme.button_icon(start, "play")
+    PlayfulUITheme.fit_button(start)
     var challenge: Button = Button.new()
     challenge.position = Vector2(286, 306)
     challenge.size = Vector2(170, 36)
@@ -597,6 +604,8 @@ func _show_character_screen() -> void:
     challenge.pressed.connect(_start_screen_run.bind(true))
     PlayfulUITheme.apply_forest_button(challenge)
     character_screen.add_child(challenge)
+    PlayfulUITheme.button_icon(challenge, "calendar-days")
+    PlayfulUITheme.fit_button(challenge)
     var endless: Button = Button.new()
     endless.position = Vector2(462, 306)
     endless.size = Vector2(158, 36)
@@ -604,6 +613,8 @@ func _show_character_screen() -> void:
     endless.pressed.connect(_start_endless)
     PlayfulUITheme.apply_forest_button(endless)
     character_screen.add_child(endless)
+    PlayfulUITheme.button_icon(endless, "infinity")
+    PlayfulUITheme.fit_button(endless)
     PlayfulUITheme.refresh_tree(character_screen)
     PlayfulUITheme.reveal(character_screen)
     if is_instance_valid(responsive):
@@ -686,10 +697,10 @@ func _create_display_controls() -> void:
     PlayfulUITheme.heading(settings_title_label, 19)
     settings_backdrop.color = Color(0.035, 0.055, 0.085, 0.46)
     ResponsiveUI.place(settings_language_button, Rect2(326, 103, 234, 28))
-    ResponsiveUI.place(flash_button, Rect2(80, 209, 234, 27))
-    ResponsiveUI.place(music_button, Rect2(80, 262, 234, 26))
-    ResponsiveUI.place(sfx_button, Rect2(326, 262, 234, 26))
-    ResponsiveUI.place(settings_back_button, Rect2(80, 315, 480, 25))
+    ResponsiveUI.place(flash_button, Rect2(80, 197, 234, 32))
+    ResponsiveUI.place(music_button, Rect2(80, 261, 234, 27))
+    ResponsiveUI.place(sfx_button, Rect2(326, 261, 234, 27))
+    ResponsiveUI.place(settings_back_button, Rect2(80, 313, 480, 28))
     PlayfulUITheme.apply_forest_panel(settings_panel, true)
     PlayfulUITheme.apply_label(settings_title_label, PlayfulUITheme.FLUENT_TEXT)
     for button: Button in [settings_language_button, flash_button, music_button, sfx_button, settings_back_button]:
@@ -697,7 +708,7 @@ func _create_display_controls() -> void:
         PlayfulUITheme.apply_forest_button(button, button == settings_back_button)
         button.add_theme_font_size_override("font_size", 12)
     for rect: Rect2 in [Rect2(80, 49, 480, 18), Rect2(80, 136, 480, 18), Rect2(80, 239, 480, 18)]:
-        var section: Label = _make_label(group, rect.position, rect.size, 12)
+        var section: Label = _make_label(group, rect.position, rect.size, PlayfulUITheme.TYPE_BODY)
         PlayfulUITheme.apply_label(section, PlayfulUITheme.FLUENT_MUTED)
         settings_sections.append(section)
         section.hide()
@@ -731,12 +742,12 @@ func _create_display_controls() -> void:
     theme_picker = OptionButton.new()
     theme_picker.name = "ThemePicker"
     group.add_child(theme_picker)
-    ResponsiveUI.place(theme_picker, Rect2(80, 158, 234, 28))
+    ResponsiveUI.place(theme_picker, Rect2(80, 158, 234, 32))
     theme_picker.item_selected.connect(_choose_theme)
     glass_picker = OptionButton.new()
     glass_picker.name = "GlassPicker"
     group.add_child(glass_picker)
-    ResponsiveUI.place(glass_picker, Rect2(326, 158, 234, 28))
+    ResponsiveUI.place(glass_picker, Rect2(326, 158, 234, 32))
     glass_picker.item_selected.connect(_choose_glass)
     for picker: OptionButton in [theme_picker, glass_picker]:
         PlayfulUITheme.apply_forest_picker(picker)
@@ -745,10 +756,11 @@ func _create_display_controls() -> void:
     motion_button = Button.new()
     motion_button.name = "MotionButton"
     group.add_child(motion_button)
-    ResponsiveUI.place(motion_button, Rect2(326, 209, 234, 27))
+    ResponsiveUI.place(motion_button, Rect2(326, 197, 234, 32))
     PlayfulUITheme.apply_forest_button(motion_button)
     motion_button.add_theme_font_size_override("font_size", 12)
     motion_button.toggle_mode = true
+    PlayfulUITheme.apply_forest_button(motion_button)
     motion_button.pressed.connect(_toggle_motion)
     motion_button.hide()
     fullscreen_button.hide()
@@ -849,6 +861,8 @@ func _refresh_settings_buttons() -> void:
         if is_equal_approx(settings.ui_scale, percent / 100.0):
             ui_scale_picker.select(ui_scale_picker.item_count - 1)
     ui_scale_picker.tooltip_text = _t("Automatically limited to fit the window", "自动限制缩放，防止界面超出窗口")
+    if is_instance_valid(responsive):
+        _fit_chrome_buttons()
 
 func _set_settings_controls_visible(value: bool) -> void:
     super._set_settings_controls_visible(value)
@@ -991,3 +1005,20 @@ func _toggle_motion() -> void:
     settings.reduced_motion = not settings.reduced_motion
     settings.save_settings()
     _refresh_appearance()
+
+func _apply_chrome_icons() -> void:
+    var controls: Dictionary = {
+        play_button: "play", settings_button: "settings", collection_button: "book-open",
+        quit_button: "log-out", select_hero_button: "users", language_button: "globe",
+        settings_language_button: "globe", settings_back_button: "arrow-left",
+        archive_back_button: "arrow-left", music_button: "music", sfx_button: "volume-2",
+        flash_button: "sparkles", motion_button: "sparkles"
+    }
+    for button: Button in controls:
+        PlayfulUITheme.button_icon(button, controls[button], PlayfulUITheme.ICON_STANDARD if button == play_button else PlayfulUITheme.ICON_SMALL)
+    _fit_chrome_buttons()
+
+func _fit_chrome_buttons() -> void:
+    for button: Button in [play_button, settings_button, collection_button, quit_button, select_hero_button, language_button, settings_language_button, settings_back_button, archive_back_button, music_button, sfx_button, flash_button, motion_button]:
+        if is_instance_valid(button):
+            PlayfulUITheme.fit_button(button, 14 if button == play_button else PlayfulUITheme.TYPE_CONTROL)
