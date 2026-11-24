@@ -17,6 +17,7 @@ var source_position: Vector2 = Vector2.ZERO
 var body_color: Color = Color("8fe45f")
 var lifetime: float = 2.0
 
+var recycle: Callable
 var _finished: bool = false
 var _travel_direction: Vector2 = Vector2.RIGHT
 
@@ -44,6 +45,9 @@ func configure(
     body_color = color_value
     lifetime = 2.4
     _finished = false
+    _travel_direction = Vector2.RIGHT
+    if target_enemy != null and is_instance_valid(target_enemy):
+        _travel_direction = origin.direction_to(target_enemy.global_position)
     add_to_group("greed_projectiles")
     queue_redraw()
 
@@ -78,7 +82,7 @@ func _impact() -> void:
 
     if splash_radius > 0.0:
         var impact_position: Vector2 = target.global_position
-        for node: Node in get_tree().get_nodes_in_group("greed_enemies"):
+        for node: Node in GreedEnemySpatialIndex.combat_candidates(get_tree(), impact_position, splash_radius):
             var enemy: GreedEnemy = node as GreedEnemy
             if enemy == null or not is_instance_valid(enemy):
                 continue
@@ -106,7 +110,12 @@ func _finish() -> void:
         return
     _finished = true
     expired.emit(self)
-    queue_free()
+    if recycle.is_valid():
+        remove_from_group("greed_projectiles")
+        target = null
+        recycle.call(self)
+    else:
+        queue_free()
 
 
 func _draw() -> void:

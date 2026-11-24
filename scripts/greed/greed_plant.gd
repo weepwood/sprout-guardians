@@ -105,7 +105,7 @@ func _find_target() -> GreedEnemy:
         if priority != null and global_position.distance_to(priority.global_position) <= effective_range:
             return priority
 
-    for node: Node in get_tree().get_nodes_in_group("greed_enemies"):
+    for node: Node in GreedEnemySpatialIndex.combat_candidates(get_tree(), global_position, effective_range):
         var enemy: GreedEnemy = node as GreedEnemy
         if enemy == null or not is_instance_valid(enemy):
             continue

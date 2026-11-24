@@ -33,6 +33,10 @@ const COMBO_TIMEOUT: float = 3.2
 
 var actors_container: Node2D
 var enemies_container: Node2D
+var projectile_pool: SurvivorNodePool = SurvivorNodePool.new()
+var pickup_pool: SurvivorNodePool = SurvivorNodePool.new()
+var _next_pickup_sound: int = 0
+var _next_hit_sound: int = 0
 var projectiles_container: Node2D
 var pickups_container: Node2D
 var effects_container: Node2D
@@ -182,9 +186,8 @@ func _on_projectile_requested(
 ) -> void:
     if target == null or not is_instance_valid(target):
         return
-    var projectile: GreedProjectile = PROJECTILE_SCENE.instantiate() as GreedProjectile
-    projectile.name = "GreedProjectile"
-    projectiles_container.add_child(projectile)
+    var projectile: GreedProjectile = projectile_pool.acquire(PROJECTILE_SCENE, projectiles_container) as GreedProjectile
+    projectile.recycle = projectile_pool.release
     projectile.configure(
         origin,
         target,
@@ -241,12 +244,12 @@ func _survivor_spawn_edge() -> Vector2:
 
 
 func _spawn_experience_gem(position_value: Vector2, amount: int) -> SurvivorExperienceGem:
-    var gem: SurvivorExperienceGem = EXPERIENCE_GEM_SCENE.instantiate() as SurvivorExperienceGem
-    gem.name = "ExperienceGem"
-    pickups_container.add_child(gem)
+    var gem: SurvivorExperienceGem = pickup_pool.acquire(EXPERIENCE_GEM_SCENE, pickups_container) as SurvivorExperienceGem
+    gem.recycle = pickup_pool.release
     gem.global_position = position_value
     gem.configure(hero_plant, amount)
-    gem.collected.connect(_on_experience_collected)
+    if not gem.collected.is_connected(_on_experience_collected):
+        gem.collected.connect(_on_experience_collected)
     return gem
 
 
@@ -497,3 +500,25 @@ func _on_run_phase_changed(previous: int, current: int) -> void:
 func _notification(what: int) -> void:
     if what == NOTIFICATION_APPLICATION_FOCUS_OUT and hero_plant != null:
         _cancel_keyboard_motion()
+
+
+# Audio follows confirmed hits, not shots that may miss.
+func _on_hero_fired(_hero: GreedHeroPlant, _target: GreedEnemy, _critical: bool, _damage: float) -> void:
+    pass
+
+func _on_plant_fired(_plant: GreedPlant, _target: GreedEnemy, _critical: bool, _damage: float) -> void:
+    pass
+
+func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void:
+    super._on_enemy_damaged(enemy, damage, critical)
+    var now: int = Time.get_ticks_msec()
+    if now >= _next_hit_sound:
+        _next_hit_sound = now + (90 if critical else 65)
+        audio_manager.play_event(&"critical" if critical else &"survivor_hit")
+
+func _on_experience_collected(amount: int) -> void:
+    var now: int = Time.get_ticks_msec()
+    if now >= _next_pickup_sound:
+        _next_pickup_sound = now + 90
+        audio_manager.play_event(&"survivor_pickup")
+    super._on_experience_collected(amount)

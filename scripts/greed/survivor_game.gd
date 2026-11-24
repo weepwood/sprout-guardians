@@ -18,6 +18,7 @@ var final_boss_defeated: bool = false
 var input_controller: SurvivorInputController
 var spawn_director: SurvivorSpawnDirector = SurvivorSpawnDirector.new()
 var difficulty: int = 1
+var _hud_refresh_remaining: float = 0.0
 
 
 func _ready() -> void:
@@ -74,6 +75,10 @@ func _process(delta: float) -> void:
         _finish_run(true)
         return
 
+    _hud_refresh_remaining -= delta
+    if _hud_refresh_remaining > 0.0:
+        return
+    _hud_refresh_remaining = 0.10
     var remaining_seconds: int = maxi(0, int(ceil(SURVIVAL_DURATION - survival_elapsed)))
     var enemy_count: int = get_tree().get_nodes_in_group("greed_enemies").size()
     if survival_elapsed < SURVIVAL_DURATION:

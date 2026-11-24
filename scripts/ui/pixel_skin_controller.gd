@@ -28,6 +28,8 @@ func _process(delta: float) -> void:
         if sprite == null:
             stale_ids.append(int(instance_id_value))
             continue
+        if node is Node2D and not (node as Node2D).visible:
+            continue
         _update_sprite(node, sprite)
     for stale_id: int in stale_ids:
         _sprites.erase(stale_id)
@@ -165,6 +167,7 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedProjectile:
         var projectile: GreedProjectile = node as GreedProjectile
         var direction_value: Vector2 = projectile.get("_travel_direction")
+        sprite.texture = PixelArtAssets.projectile_texture(projectile.splash_radius, projectile.slow_ratio)
         sprite.rotation = direction_value.angle()
         sprite.scale = Vector2.ONE * (0.30 if projectile.critical else 0.24)
         sprite.modulate = projectile.body_color.lerp(Color.WHITE, 0.28)

@@ -60,3 +60,23 @@ func _rebuild_cells() -> void:
 
 func _cell_for(position_value: Vector2) -> Vector2i:
     return Vector2i(floori(position_value.x / CELL_SIZE), floori(position_value.y / CELL_SIZE))
+
+
+# Combat queries use a fresh snapshot once per process frame. Separation
+# keeps the existing periodic snapshot; combat must not miss new spawns.
+var _combat_frame: int = -1
+
+static func combat_candidates(tree: SceneTree, center: Vector2, radius: float) -> Array:
+    var index: GreedEnemySpatialIndex = tree.get_first_node_in_group("greed_enemy_spatial_index") as GreedEnemySpatialIndex
+    if index == null:
+        return tree.get_nodes_in_group("greed_enemies")
+    var frame: int = Engine.get_process_frames()
+    if index._combat_frame != frame:
+        index._rebuild_cells()
+        index._combat_frame = frame
+    # Expand one cell to tolerate movement within this frame, then callers
+    # apply their exact radius predicate.
+    return index.query_radius(center, radius + CELL_SIZE)
+
+func invalidate_combat() -> void:
+    _combat_frame = -1

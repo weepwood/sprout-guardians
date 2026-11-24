@@ -45,6 +45,8 @@ func configure(core: GreedCore, config: Dictionary, health_scale: float = 1.0) -
     _slow_time = 0.0
     _slow_multiplier = 1.0
     add_to_group("greed_enemies")
+    if _spatial_index != null:
+        _spatial_index.invalidate_combat()
     queue_redraw()
 
 

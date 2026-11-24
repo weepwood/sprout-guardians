@@ -250,7 +250,7 @@ func _find_target() -> GreedEnemy:
 
     var best: GreedEnemy = null
     var best_distance: float = INF
-    for node: Node in get_tree().get_nodes_in_group("greed_enemies"):
+    for node: Node in GreedEnemySpatialIndex.combat_candidates(get_tree(), global_position, effective_range):
         var enemy: GreedEnemy = node as GreedEnemy
         if enemy == null or not is_instance_valid(enemy):
             continue
