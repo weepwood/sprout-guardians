@@ -18,6 +18,8 @@ var boss: bool = false
 var priority_targeted: bool = false
 var body_color: Color = Color("dd6d63")
 var body_size: float = 12.0
+var survivor_variant: int = 0
+var _behavior_clock: float = 0.0
 
 var _contact_cooldown: float = 0.0
 var _flash_time: float = 0.0
@@ -40,6 +42,12 @@ func configure(core: GreedCore, config: Dictionary, health_scale: float = 1.0) -
     coin_reward = 4 if boss else (2 if elite else 1)
     body_size = 28.0 if boss else (18.0 if elite else 12.0)
     body_color = Color("a557d4") if boss else (Color("e39b4b") if elite else Color("dd6d63"))
+    survivor_variant = int(config.get("variant", 0))
+    if survivor_variant == 1:
+        body_color = Color("b98ce0")
+    elif survivor_variant == 2:
+        body_color = Color("8da761")
+    _behavior_clock = 0.0
     priority_targeted = false
     _spatial_index = get_tree().get_first_node_in_group("greed_enemy_spatial_index") as GreedEnemySpatialIndex
     _slow_time = 0.0
@@ -75,7 +83,17 @@ func _process(delta: float) -> void:
     if distance_value > 1.0:
         var separation: Vector2 = _separation_force()
         var direction: Vector2 = (to_core.normalized() + separation * 0.55).normalized()
-        global_position += direction * move_speed * _slow_multiplier * delta
+        _behavior_clock += delta
+        var movement_factor: float = 1.0
+        if survivor_variant == 1:
+            # Alternating visible anticipation and a short acceleration burst.
+            var cycle: float = fmod(_behavior_clock, 3.4)
+            movement_factor = 0.30 if cycle < 0.55 else (1.65 if cycle < 1.05 else 1.0)
+        elif survivor_variant == 2:
+            movement_factor = 0.85
+        if boss and get_health_ratio() < 0.5:
+            movement_factor *= 1.25
+        global_position += direction * move_speed * _slow_multiplier * movement_factor * delta
 
     if distance_value <= body_size * 0.55 + 13.0 and _contact_cooldown <= 0.0:
         _contact_cooldown = 0.85

@@ -106,7 +106,11 @@ func _texture_for_node(node: Node) -> Texture2D:
             return PixelArtAssets.texture(&"enemy_boss")
         if enemy.elite:
             return PixelArtAssets.texture(&"enemy_elite")
-        return PixelArtAssets.regular_enemy_texture(int(enemy.get_instance_id()))
+        if enemy.survivor_variant == 1:
+            return PixelArtAssets.texture(&"enemy_purple")
+        if enemy.survivor_variant == 2:
+            return PixelArtAssets.texture(&"enemy_maw")
+        return PixelArtAssets.texture(&"enemy_green")
     if node is GreedProjectile:
         var projectile: GreedProjectile = node as GreedProjectile
         return PixelArtAssets.projectile_texture(projectile.splash_radius, projectile.slow_ratio)
@@ -141,7 +145,10 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedHeroPlant:
         var hero: GreedHeroPlant = node as GreedHeroPlant
         sprite.position.y = -5.0 + sin(_elapsed * 6.0) * 1.0
-        sprite.scale = Vector2.ONE * (0.60 if hero.is_dashing() else 0.56)
+        var stride: float = sin(_elapsed * 13.0) * 0.045 if hero.arcade_direction.length_squared() > 0.0 else 0.0
+        sprite.scale = Vector2(0.56 + stride, 0.56 - stride)
+        if hero.is_dashing():
+            sprite.scale = Vector2.ONE * 0.60
         sprite.modulate = Color(1.0, 0.72, 0.72) if float(hero.get("_hit_flash")) > 0.0 else Color.WHITE
         return
 
@@ -156,6 +163,10 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
         var squash_active: bool = float(enemy.get("_squash_time")) > 0.0
         var base_scale: float = 0.92 if enemy.boss else (0.53 if enemy.elite else 0.40)
         sprite.scale = Vector2(1.14, 0.84) * base_scale if squash_active else Vector2.ONE * base_scale
+        if enemy.survivor_variant == 1 and fmod(float(enemy.get("_behavior_clock")), 3.4) < 0.55:
+            sprite.scale *= Vector2(1.12, 0.76)
+        if enemy.boss and enemy.get_health_ratio() < 0.5:
+            sprite.scale *= 1.08
         if float(enemy.get("_flash_time")) > 0.0:
             sprite.modulate = Color(1.0, 0.72, 0.72)
         elif float(enemy.get("_slow_time")) > 0.0:

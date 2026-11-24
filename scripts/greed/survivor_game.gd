@@ -18,14 +18,21 @@ var final_boss_defeated: bool = false
 var input_controller: SurvivorInputController
 var spawn_director: SurvivorSpawnDirector = SurvivorSpawnDirector.new()
 var difficulty: int = 1
+var run_seed: int = 0
+var arsenal: SurvivorArsenal = SurvivorArsenal.new()
+var simulation_direction: Vector2 = Vector2.ZERO
+var simulation_mode: bool = false
 var _hud_refresh_remaining: float = 0.0
 
 
 func _ready() -> void:
     difficulty = SurvivorBalance.selected_difficulty
-    spawn_director.configure(difficulty, randi())
+    if run_seed == 0:
+        run_seed = randi_range(1, 2147483647)
+    spawn_director.configure(difficulty, run_seed)
     experience_to_next = SurvivorBalance.experience_requirement(1, difficulty)
     super._ready()
+    _rng.seed = run_seed
     input_controller = get_node_or_null("RunInput") as SurvivorInputController
     if hero_plant != null and is_instance_valid(hero_plant):
         hero_plant.enable_arcade_movement()
@@ -58,6 +65,7 @@ func _process(delta: float) -> void:
         familiar.fury_multiplier = GreedBalance.fury_multiplier(seconds_since_last_kill)
         familiar.rescue_active = GreedBalance.rescue_active(seconds_since_last_kill)
 
+    arsenal.tick(delta, hero_plant, blessing_system, _on_projectile_requested)
     _spawn_time_milestones()
     if survival_elapsed < SURVIVAL_DURATION:
         survival_spawn_timer -= delta
@@ -95,6 +103,9 @@ func _unhandled_input(_event: InputEvent) -> void:
 
 func _apply_continuous_movement() -> void:
     if hero_plant == null or not is_instance_valid(hero_plant):
+        return
+    if simulation_mode:
+        hero_plant.set_arcade_direction(simulation_direction)
         return
     if input_controller == null:
         hero_plant.set_arcade_direction(Vector2.ZERO)
@@ -247,3 +258,10 @@ func _finish_run(victory: bool) -> void:
         result_label.text = _t("THE GARDEN WITHERED\nGROW A NEW BUILD", "花园枯萎\n重新培育一种构筑")
         audio_manager.play_event(&"defeat")
     result_button.text = _t("START NEW RUN", "开始新一局")
+
+
+func _create_services() -> void:
+    super._create_services()
+    var rewards: Array[BlessingData] = blessing_system.pool.duplicate()
+    rewards.append_array(SurvivorArsenal.reward_pool())
+    blessing_system.setup(rewards, run_seed)

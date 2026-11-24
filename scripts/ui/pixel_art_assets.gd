@@ -95,6 +95,8 @@ static func projectile_texture(splash_radius: float, slow_ratio: float) -> Textu
 
 static func blessing_icon(blessing_id: StringName) -> Texture2D:
     var id_text: String = String(blessing_id).to_lower()
+    if id_text.begins_with("mutation_"):
+        return preload("res://assets/ui/mutation_badges.svg") if id_text == "mutation_symbiosis" else texture(&"projectile_frost") if id_text == "mutation_frost" else texture(&"projectile_petal") if id_text == "mutation_spore" else texture(&"icon_leaf")
     if id_text.contains("frozen") or id_text.contains("slow"):
         return texture(&"projectile_frost")
     if id_text.contains("spore") or id_text.contains("bloom"):

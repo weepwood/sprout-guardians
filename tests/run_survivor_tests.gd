@@ -11,6 +11,7 @@ func _run() -> void:
     print("Running plant survivors tests...")
     _test_balance()
     _test_pool()
+    _test_arsenal()
 
     _assert_true(PixelArtAssets.texture(&"hero") != null, "Main-plant pixel texture loads from the actor atlas")
     _assert_true(PixelArtAssets.texture(&"enemy_boss") != null, "Boss pixel texture loads from the actor atlas")
@@ -231,3 +232,16 @@ func _test_pool() -> void:
     _assert_true(first == second and second.age == 0.0 and second.visible, "Pooled pickup resets age and visibility")
     _assert_equal_int(pool.created, 1, "Pool creates only one node")
     holder.queue_free()
+
+
+func _test_arsenal() -> void:
+    var system: BlessingSystem = BlessingSystem.new()
+    var rewards: Array[BlessingData] = SurvivorArsenal.reward_pool()
+    system.setup(rewards, 123)
+    _assert_equal_int(rewards.size(), 6, "Six distinct mutation families")
+    for i: int in range(3):
+        system.apply_blessing(rewards[0])
+    _assert_true(not SurvivorArsenal.evolved(system, 0), "Evolution requires partner")
+    system.apply_blessing(rewards[2])
+    _assert_true(SurvivorArsenal.evolved(system, 0), "Seed and frost unlock evolution")
+    system.free()
