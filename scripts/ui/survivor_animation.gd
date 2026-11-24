@@ -23,7 +23,7 @@ static func state(hero: GreedHeroPlant) -> int:
 static func frame(character_id: int, animation_state: int, elapsed: float) -> Texture2D:
     if not _sheets.has(character_id):
         var path: String = "res://assets/generated/animations/hero_%d.png" % character_id
-        var sheet: Texture2D = SPROUT_SHEET if character_id == 0 or character_id == 3 else (load(path) as Texture2D if ResourceLoader.exists(path) else null)
+        var sheet: Texture2D = SPROUT_SHEET if character_id == 0 or character_id >= 3 else (load(path) as Texture2D if ResourceLoader.exists(path) else null)
         if sheet != null and sheet.get_size() != Vector2(CELL * FRAMES, CELL * 5):
             sheet = null
         _sheets[character_id] = sheet

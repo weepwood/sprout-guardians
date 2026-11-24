@@ -169,6 +169,8 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
         sprite.modulate = Color(1.0, 0.72, 0.72) if float(hero.get("_hit_flash")) > 0.0 else Color.WHITE
         if int(hero.config.get("character_index", 0)) == 3:
             sprite.modulate *= Color(0.88, 0.72, 1.0)
+        elif int(hero.config.get("character_index", 0)) == 4:
+            sprite.modulate *= Color(0.78, 0.91, 0.52)
         if hero.config.has("character_index"):
             var state: int = SurvivorAnimation.state(hero)
             if _hero_animation_state >= SurvivorAnimation.State.ATTACK and _hero_animation_state < SurvivorAnimation.State.DEATH and state < SurvivorAnimation.State.ATTACK and _hero_animation_clock < 0.24:

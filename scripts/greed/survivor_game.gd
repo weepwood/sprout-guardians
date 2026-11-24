@@ -30,7 +30,7 @@ var _hud_refresh_remaining: float = 0.0
 
 
 func _ready() -> void:
-    difficulty = SurvivorBalance.selected_difficulty
+    difficulty = 2 if SurvivorChallenge.selected and not simulation_mode else SurvivorBalance.selected_difficulty
     if run_seed == 0:
         run_seed = randi_range(1, 2147483647)
     spawn_director.configure(difficulty, run_seed)

@@ -40,7 +40,7 @@ func load_settings() -> void:
     performance_overlay_enabled = bool(config.get_value("effects", "performance_overlay_enabled", performance_overlay_enabled))
 
     survivor_difficulty = clampi(int(config.get_value("gameplay", "survivor_difficulty", 1)), 0, 2)
-    survivor_character = clampi(int(config.get_value("gameplay", "survivor_character", 0)), 0, 3)
+    survivor_character = clampi(int(config.get_value("gameplay", "survivor_character", 0)), 0, 4)
     survivor_map = clampi(int(config.get_value("gameplay", "survivor_map", 0)), 0, 3)
     if version < CURRENT_VERSION:
         save_settings()
