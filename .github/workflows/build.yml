@@ -253,6 +253,7 @@ jobs:
           set -euo pipefail
           (cd build/windows && zip -q -r ../SproutGuardians-Windows-x86_64.zip .)
           (cd build/web && zip -q -r ../SproutGuardians-Web.zip .)
+          (cd build/linux-smoke && zip -q -r ../SproutGuardians-Linux-x86_64.zip .)
 
       - name: Upload diagnostics
         if: always()
@@ -270,6 +271,7 @@ jobs:
           path: |
             build/SproutGuardians-Windows-x86_64.zip
             build/SproutGuardians-Web.zip
+            build/SproutGuardians-Linux-x86_64.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -418,6 +420,11 @@ jobs:
           if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Invalid release version: $VERSION"
             exit 1
+          fi
+          if [ "$VERSION" = "v0.5.0" ]; then
+            echo "v0.5.0 must use the separate three-workflow release gate."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           echo "publish=true" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"

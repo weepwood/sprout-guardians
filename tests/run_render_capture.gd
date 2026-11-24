@@ -47,6 +47,11 @@ func _run() -> void:
             break
         if bool(game.get("choice_open")):
             if not reward_captured:
+                var title: Label = game.get_node("UI/ChoiceLayer/ChoiceButton0/GiftName") as Label
+                var detail: Label = game.get_node("UI/ChoiceLayer/ChoiceButton0/GiftDetail") as Label
+                if title.get_theme_color("font_color").get_luminance() > 0.25 or detail.get_theme_color("font_color").get_luminance() > 0.35:
+                    push_error("Reward card text must contrast with its light surface")
+                    failed = true
                 await _capture("05-reward")
                 reward_captured = true
             var choices: Array = game.get("_current_choices")

@@ -1,6 +1,8 @@
 name: Survivor endurance and visual quality
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
   pull_request:
     paths:
       - 'scripts/**'
@@ -8,6 +10,7 @@ on:
       - 'assets/generated/**'
       - 'tests/run_endurance_benchmark.gd'
       - 'tests/run_render_capture.gd'
+      - 'tests/run_render_benchmark.gd'
       - 'tests/run_save_recovery.gd'
       - '.github/workflows/survivor-quality.yml'
 permissions:
@@ -30,7 +33,7 @@ jobs:
           ln -s /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 /tmp/godot/godot
           echo /tmp/godot >> "$GITHUB_PATH"
           sudo apt-get update -qq
-          sudo apt-get install -y xvfb xauth libgl1-mesa-dri
+          sudo apt-get install -y xvfb xauth libgl1-mesa-dri fonts-noto-cjk
       - name: Import project
         run: |
           set -euo pipefail
@@ -42,6 +45,7 @@ jobs:
           set -euo pipefail
           timeout 600s godot --headless --audio-driver Dummy --fixed-fps 60 --disable-render-loop --path . --script res://tests/run_endurance_benchmark.gd 2>&1 | tee build/quality/endurance.log
           grep '^ENDURANCE_SUMMARY ' build/quality/endurance.log
+          grep '^ENDURANCE_TEARDOWN ' build/quality/endurance.log
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Invalid access|Invalid call|on a null instance' build/quality/endurance.log; then exit 1; fi
       - name: Capture actual rendered screens
         run: |
@@ -49,6 +53,14 @@ jobs:
           timeout 600s xvfb-run -a -s '-screen 0 1280x720x24' godot --rendering-method gl_compatibility --audio-driver Dummy --fixed-fps 60 --path . --script res://tests/run_render_capture.gd 2>&1 | tee build/quality/render.log
           test "$(find build/visual -name '*.png' | wc -l)" -eq 6
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Invalid access|Invalid call|on a null instance' build/quality/render.log; then exit 1; fi
+      - name: Rendered low-resolution performance benchmark
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          set -euo pipefail
+          timeout 600s xvfb-run -a -s '-screen 0 1280x720x24' godot --rendering-method gl_compatibility --audio-driver Dummy --fixed-fps 60 --resolution 640x360 --path . --script res://tests/run_render_benchmark.gd 2>&1 | tee build/quality/render-benchmark.log
+          grep '^RENDER_BENCHMARK ' build/quality/render-benchmark.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Invalid access|Invalid call|on a null instance' build/quality/render-benchmark.log; then exit 1; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

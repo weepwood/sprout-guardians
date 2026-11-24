@@ -15,6 +15,9 @@ func _run() -> void:
     valid = service.is_survivor_map_unlocked(2) and valid
     valid = service.record_survivor_result(true, 100, 8, 100, {"map": 2}) and valid
     valid = service.is_survivor_map_unlocked(3) and valid
+    valid = int(service.get_survivor_progress()["map_wins"][1]) == 1 and valid
+    valid = int(service.get_survivor_progress()["map_wins"][2]) == 1 and valid
+    valid = not service.achievement_available("all_map_wins") and valid
     valid = service.record_survivor_result(true, 100, 8, 100, {"challenge": true, "challenge_date": "2026-11-24"}) and valid
     var seeds: int = int(service.get_survivor_progress()["seeds"])
     valid = service.record_survivor_result(true, 100, 8, 100, {"challenge": true, "challenge_date": "2026-11-24"}) and valid
