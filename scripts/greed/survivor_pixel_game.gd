@@ -231,7 +231,11 @@ func _survivor_spawn_edge() -> Vector2:
                 options.append(Vector2(area.position.x, _rng.randf_range(area.position.y, area.end.y)))
             3:
                 options.append(Vector2(area.end.x, _rng.randf_range(area.position.y, area.end.y)))
-    options.shuffle()
+    for i: int in range(options.size() - 1, 0, -1):
+        var j: int = _rng.randi_range(0, i)
+        var temp: Vector2 = options[i]
+        options[i] = options[j]
+        options[j] = temp
     var hero_at: Vector2 = hero_plant.global_position if hero_plant != null else area.get_center()
     for point: Vector2 in options:
         if point.distance_to(hero_at) >= 112.0:
@@ -277,6 +281,11 @@ func _open_surprise_choice() -> void:
         var detail: Label = button.get_node("GiftDetail") as Label
         var stack: int = blessing_system.get_blessing_stack(data.id) + 1
         detail.text = "%s\nLv.%d" % [data.localized_description(i18n.locale_code, stack), stack]
+        var weapon_index: int = SurvivorArsenal.IDS.find(data.id)
+        if weapon_index >= 0:
+            var partner: int = SurvivorArsenal.EVOLUTION_PARTNERS[weapon_index]
+            var partner_name: String = _t(SurvivorArsenal.NAMES_EN[partner], SurvivorArsenal.NAMES_ZH[partner])
+            detail.text += "\n" + _t("Evolve: Lv.3 + ", "进化：3级 + ") + partner_name
         var card_outline: Color = data.rarity_color().lerp(Color("#c5a88a"), 0.45)
         button.add_theme_stylebox_override("normal", PlayfulUITheme.surface(Color("#fffaf1"), 14, card_outline, 3))
         button.add_theme_stylebox_override("hover", PlayfulUITheme.surface(Color("#fff0d8"), 14, card_outline, 5))

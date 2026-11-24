@@ -32,7 +32,7 @@ static func enemy_config(elapsed: float, difficulty: int, elite: bool, boss: boo
         hp = 850.0
         speed = 40.0
         damage = 3
-    return {"health": hp * p.x, "speed": speed, "damage": maxi(1, roundi(damage * p.z)), "elite": elite or boss, "boss": boss}
+    return {"health": hp * p.x, "speed": speed, "damage": maxi(1, roundi(damage * p.z)), "elite": elite or boss, "boss": boss, "variant": variant if not elite and not boss else 0}
 
 static func spawn_interval(elapsed: float, difficulty: int) -> float:
     var t: float = clampf(elapsed, 0.0, 90.0)
