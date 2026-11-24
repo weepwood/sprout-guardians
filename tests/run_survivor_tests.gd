@@ -17,6 +17,7 @@ func _run() -> void:
     _test_map_events_and_progress()
     _test_animation_and_boss_profiles()
     _test_pool_pressure()
+    _test_endurance_rules()
     for mutation_id: StringName in SurvivorArsenal.IDS:
         var icon: AtlasTexture = PixelArtAssets.blessing_icon(mutation_id) as AtlasTexture
         _assert_true(icon != null and icon.atlas == PixelArtAssets.MUTATION_ATLAS and icon.region.size == Vector2(56, 56), "Generated mutation PNG region: %s" % mutation_id)
@@ -392,3 +393,16 @@ func _test_pool_pressure() -> void:
     _assert_equal_int(int(metrics["idle"]), 32, "Idle capacity is bounded")
     _assert_equal_int(int(metrics["discarded"]), 32, "Over-capacity nodes are discarded once")
     holder.queue_free()
+
+
+func _test_endurance_rules() -> void:
+    _assert_equal_int(SurvivorEndurance.stage(179.0), 1, "Endurance stage before second boss")
+    _assert_true(SurvivorEndurance.boss_due(180.0, 1), "Second boss due after 180 seconds")
+    _assert_true(not SurvivorEndurance.boss_due(179.9, 1), "Second boss does not spawn early")
+    _assert_true(SurvivorEndurance.enemy_multiplier(360.0) > 1.0, "Endurance scales enemies")
+    _assert_equal_int(SurvivorArsenal.reward_pool().size(), 6, "Classic reward pool stays unchanged")
+    _assert_equal_int(SurvivorArsenal.reward_pool(true).size(), 8, "Endless gets two additional weapons")
+    _assert_equal_int(SurvivorChallenge.seed_for("2026-11-24"), 20261124, "Daily seed uses UTC date")
+    for i: int in range(9):
+        var tile: AtlasTexture = PixelArtAssets.biome_actor(i) as AtlasTexture
+        _assert_true(tile != null and tile.region.size == Vector2(48, 48), "Generated biome art region resolves")

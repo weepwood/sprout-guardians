@@ -16,6 +16,7 @@ var archive_back_button: Button
 
 func _ready() -> void:
     SurvivorChallenge.selected = false
+    SurvivorEndurance.selected = false
     settings = SettingsService.new()
     settings.load_settings()
     SurvivorBalance.selected_difficulty = settings.survivor_difficulty
@@ -27,6 +28,8 @@ func _ready() -> void:
     save_game.load_game()
     if not save_game.is_survivor_character_unlocked(SurvivorCharacters.selected):
         SurvivorCharacters.selected = 0
+    if not save_game.is_survivor_map_unlocked(SurvivorMaps.selected):
+        SurvivorMaps.selected = 0
 
     audio_manager = ProceduralAudioManager.new()
     audio_manager.name = "MenuAudio"
@@ -165,6 +168,9 @@ func _apply_locale() -> void:
         map_picker.clear()
         for i: int in range(SurvivorMaps.NAMES_EN.size()):
             map_picker.add_item(_t(SurvivorMaps.NAMES_EN[i], SurvivorMaps.NAMES_ZH[i]))
+            map_picker.set_item_disabled(i, not save_game.is_survivor_map_unlocked(i))
+            if not save_game.is_survivor_map_unlocked(i):
+                map_picker.set_item_tooltip(i, _t("Clear the previous map", "通关前一张地图解锁"))
         map_picker.select(SurvivorMaps.selected)
     if archive_title == null:
         return
@@ -250,6 +256,8 @@ func _select_character(index: int) -> void:
 
 
 func _select_map(index: int) -> void:
+    if not save_game.is_survivor_map_unlocked(index):
+        return
     SurvivorMaps.selected = clampi(index, 0, 3)
     settings.survivor_map = SurvivorMaps.selected
     settings.save_settings()
@@ -296,10 +304,14 @@ func _refresh_archive_tabs() -> void:
     var enemy_names: Array[String] = [_t("Chaser", "追击怪"), _t("Charger", "冲锋怪"), _t("Armored", "重甲怪"), _t("Ranged warning", "远程预警"), _t("Splitter", "分裂怪"), _t("Bloom Boss", "黑花首领")]
     for i: int in range(enemy_names.size()):
         _archive_entry(enemies, PixelArtAssets.generated_actor(5 if i == 5 else (4 if i == 2 or i == 4 else 3)), enemy_names[i])
+    for map_index: int in range(1, 4):
+        _archive_entry(enemies, PixelArtAssets.biome_actor(map_index - 1), _t(SurvivorBiomeBoss.EN[map_index], SurvivorBiomeBoss.ZH[map_index]))
+        _archive_entry(enemies, PixelArtAssets.biome_actor(map_index + 2), _t(SurvivorMaps.NAMES_EN[map_index], SurvivorMaps.NAMES_ZH[map_index]) + _t(" special enemy", "专属敌人"))
     var progress_page: VBoxContainer = _archive_page(_t("Growth", "成长"))
     var progress: Dictionary = save_game.get_survivor_progress()
     var stats: Dictionary = save_game.get_survivor_statistics()
     _archive_entry(progress_page, null, _t("Seeds %d · Wins %d · Events %d · Evolutions %d", "种子 %d · 胜利 %d · 事件 %d · 进化 %d") % [progress["seeds"], stats["total_victories"], progress["events"], progress["evolutions"]])
+    _archive_entry(progress_page, null, _t("Endless best: %ds / %d bosses · Daily: %s", "无尽纪录：%d秒 / %d首领 · 每日：%s") % [progress["endless_best_seconds"], progress["endless_best_bosses"], progress["last_daily_win"]])
     for key: String in ["health_rank", "damage_rank", "speed_rank"]:
         var rank: int = int(progress[key])
         var upgrade: Button = Button.new()
@@ -308,8 +320,8 @@ func _refresh_archive_tabs() -> void:
         upgrade.pressed.connect(_buy_archive_upgrade.bind(key))
         progress_page.add_child(upgrade)
     _archive_entry(progress_page, null, _t("Achievements", "成就") + "\n" + _t("First victory: ", "初次胜利：") + str(mini(1, int(stats["total_victories"]))) + "/1 · " + _t("Events: ", "事件达人：") + str(mini(5, int(progress["events"]))) + "/5 · " + _t("Evolutions: ", "进化大师：") + str(mini(3, int(progress["evolutions"]))) + "/3")
-    var achievement_keys: Array[String] = ["first_win", "events", "evolutions", "challenge"]
-    var achievement_names: Array[String] = [_t("First victory", "首次胜利"), _t("Five events", "完成五个事件"), _t("Three evolutions", "三次进化"), _t("Challenge victory", "挑战胜利")]
+    var achievement_keys: Array[String] = ["first_win", "events", "evolutions", "challenge", "endurance", "map_mastery"]
+    var achievement_names: Array[String] = [_t("First victory", "首次胜利"), _t("Five events", "完成五个事件"), _t("Three evolutions", "三次进化"), _t("Challenge victory", "挑战胜利"), _t("Two endless bosses", "无尽击败两位首领"), _t("All maps unlocked", "全部地图解锁")]
     for i: int in range(achievement_keys.size()):
         var claim: Button = Button.new()
         claim.text = achievement_names[i] + " · +15"
@@ -389,8 +401,11 @@ func _show_character_screen() -> void:
     scroll.size = Vector2(600, 235)
     scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
     character_screen.add_child(scroll)
-    var column: VBoxContainer = VBoxContainer.new()
+    var column: GridContainer = GridContainer.new()
+    column.columns = 2
     column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    column.add_theme_constant_override("h_separation", 8)
+    column.add_theme_constant_override("v_separation", 8)
     scroll.add_child(column)
     var group: ButtonGroup = ButtonGroup.new()
     for i: int in range(SurvivorCharacters.EN.size()):
@@ -398,8 +413,9 @@ func _show_character_screen() -> void:
         var button: Button = Button.new()
         button.icon = PixelArtAssets.generated_actor(SurvivorCharacters.art_index(i))
         button.expand_icon = true
-        button.custom_minimum_size = Vector2(580, 54)
-        button.text = _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]) + " · " + _t("DMG %.0f · SPD %.0f · HP %+d", "伤害 %.0f · 移速 %.0f · 生命 %+d") % [cfg["damage"], cfg["move_speed"], cfg["health_bonus"]]
+        button.custom_minimum_size = Vector2(280, 66)
+        button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        button.text = _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]) + "\n" + _t("DMG %.0f · SPD %.0f · HP %+d", "伤害 %.0f · 移速 %.0f · 生命 %+d") % [cfg["damage"], cfg["move_speed"], cfg["health_bonus"]]
         button.tooltip_text = _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i])
         button.disabled = not save_game.is_survivor_character_unlocked(i)
         button.toggle_mode = true
@@ -410,23 +426,29 @@ func _show_character_screen() -> void:
         column.add_child(button)
     var back: Button = Button.new()
     back.position = Vector2(20, 306)
-    back.size = Vector2(165, 36)
+    back.size = Vector2(100, 36)
     back.text = _t("BACK", "返回")
     back.pressed.connect(_hide_character_screen)
     character_screen.add_child(back)
     var start: Button = Button.new()
-    start.position = Vector2(195, 306)
-    start.size = Vector2(205, 36)
+    start.position = Vector2(126, 306)
+    start.size = Vector2(154, 36)
     start.text = _t("START RUN", "开始冒险")
     start.pressed.connect(_start_screen_run.bind(false))
     character_screen.add_child(start)
     var challenge: Button = Button.new()
-    challenge.position = Vector2(410, 306)
-    challenge.size = Vector2(210, 36)
-    challenge.text = _t("EXPERT CHALLENGE", "专家挑战")
-    challenge.tooltip_text = _t("Fixed seed · Night garden · no permanent bonuses", "固定种子 · 夜间花园 · 禁用永久加成")
+    challenge.position = Vector2(286, 306)
+    challenge.size = Vector2(170, 36)
+    challenge.text = _t("DAILY CHALLENGE", "每日挑战")
+    challenge.tooltip_text = SurvivorChallenge.date_key() + " · " + _t("UTC seed · Night garden · no permanent bonuses", "UTC每日种子 · 夜间花园 · 禁用永久加成")
     challenge.pressed.connect(_start_screen_run.bind(true))
     character_screen.add_child(challenge)
+    var endless: Button = Button.new()
+    endless.position = Vector2(462, 306)
+    endless.size = Vector2(158, 36)
+    endless.text = _t("ENDLESS", "无尽模式")
+    endless.pressed.connect(_start_endless)
+    character_screen.add_child(endless)
     back.grab_focus()
 
 func _choose_screen_hero(index: int) -> void:
@@ -444,4 +466,11 @@ func _hide_character_screen() -> void:
 
 func _start_screen_run(challenge: bool) -> void:
     SurvivorChallenge.selected = challenge
+    SurvivorEndurance.selected = false
+    _open_level_select()
+
+
+func _start_endless() -> void:
+    SurvivorChallenge.selected = false
+    SurvivorEndurance.selected = true
     _open_level_select()

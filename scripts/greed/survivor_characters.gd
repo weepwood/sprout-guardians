@@ -18,9 +18,9 @@ static func configuration(index: int) -> Dictionary:
     if safe_index == 1:
         config.merge({"damage": 23.0, "interval": 0.55, "splash_radius": 34.0, "color_hex": "ffce63", "move_speed": 140.0, "health_bonus": 2}, true)
     elif safe_index == 2:
-        config.merge({"damage": 13.0, "interval": 0.36, "slow_ratio": 0.4, "color_hex": "80dfff", "move_speed": 170.0, "health_bonus": -1}, true)
+        config.merge({"damage": 15.0, "interval": 0.36, "slow_ratio": 0.46, "color_hex": "80dfff", "move_speed": 170.0, "health_bonus": 0}, true)
     elif safe_index == 3:
-        config.merge({"damage": 16.0, "interval": 0.48, "splash_radius": 20.0, "slow_ratio": 0.22, "color_hex": "c9a7ed", "move_speed": 155.0, "health_bonus": 1}, true)
+        config.merge({"damage": 17.0, "interval": 0.46, "splash_radius": 24.0, "slow_ratio": 0.26, "color_hex": "c9a7ed", "move_speed": 155.0, "health_bonus": 2}, true)
     elif safe_index == 4:
         config.merge({"damage": 27.0, "interval": 0.70, "splash_radius": 42.0, "color_hex": "9dbd6a", "move_speed": 135.0, "health_bonus": 3}, true)
     return config

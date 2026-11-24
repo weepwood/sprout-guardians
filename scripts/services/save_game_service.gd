@@ -129,6 +129,17 @@ func record_survivor_result(victory: bool, elapsed_seconds: float, reached_level
     progress["events"] = int(progress["events"]) + maxi(0, int(details.get("events", 0)))
     if victory and bool(details.get("challenge", false)):
         progress["challenge_wins"] = int(progress["challenge_wins"]) + 1
+        var day: String = String(details.get("challenge_date", ""))
+        if not day.is_empty() and day > String(progress["last_daily_win"]):
+            progress["last_daily_win"] = day
+            progress["seeds"] = mini(999999, int(progress["seeds"]) + 15)
+    if victory and not bool(details.get("challenge", false)) and not bool(details.get("endless", false)):
+        var map_id: int = clampi(int(details.get("map", 0)), 0, 3)
+        if map_id <= int(progress["unlocked_map"]):
+            progress["unlocked_map"] = mini(3, maxi(int(progress["unlocked_map"]), map_id + 1))
+    if bool(details.get("endless", false)):
+        progress["endless_best_seconds"] = maxi(int(progress["endless_best_seconds"]), safe_duration)
+        progress["endless_best_bosses"] = maxi(int(progress["endless_best_bosses"]), int(details.get("bosses", 0)))
     data["survivor_progress"] = progress
     if save_game():
         return true
@@ -165,6 +176,7 @@ func _ensure_loaded() -> void:
 
 func _default_data() -> Dictionary:
     return {
+        "survivor_progress": {"unlocked_map": 1},
         "schema_version": CURRENT_VERSION,
         "completed_levels": {},
         "unlocked_levels": ["morning_forest"],
@@ -265,6 +277,10 @@ func get_survivor_progress() -> Dictionary:
         "damage_rank": clampi(int(raw.get("damage_rank", 0)), 0, 3),
         "speed_rank": clampi(int(raw.get("speed_rank", 0)), 0, 3),
         "challenge_wins": maxi(0, int(raw.get("challenge_wins", 0))),
+        "last_daily_win": String(raw.get("last_daily_win", "")),
+        "unlocked_map": clampi(int(raw.get("unlocked_map", 3)), 1, 3),
+        "endless_best_seconds": maxi(0, int(raw.get("endless_best_seconds", 0))),
+        "endless_best_bosses": maxi(0, int(raw.get("endless_best_bosses", 0))),
         "claimed": _sanitize_claims(raw.get("claimed", [])),
         "evolutions": maxi(0, int(raw.get("evolutions", 0))),
         "events": maxi(0, int(raw.get("events", 0))),
@@ -297,7 +313,7 @@ func _sanitize_claims(value: Variant) -> Array:
     var valid: Array = []
     if value is Array:
         for key: Variant in value:
-            if key in ["first_win", "events", "evolutions", "challenge"] and not valid.has(key):
+            if key in ["first_win", "events", "evolutions", "challenge", "endurance", "map_mastery"] and not valid.has(key):
                 valid.append(key)
     return valid
 
@@ -314,6 +330,10 @@ func achievement_available(key: String) -> bool:
             return int(progress["evolutions"]) >= 3
         "challenge":
             return int(progress["challenge_wins"]) >= 1
+        "endurance":
+            return int(progress["endless_best_bosses"]) >= 2
+        "map_mastery":
+            return int(progress["unlocked_map"]) >= 3
     return false
 
 func claim_achievement(key: String) -> bool:
@@ -328,3 +348,7 @@ func claim_achievement(key: String) -> bool:
         return true
     data["survivor_progress"] = before
     return false
+
+
+func is_survivor_map_unlocked(index: int) -> bool:
+    return index >= 0 and index <= int(get_survivor_progress()["unlocked_map"])

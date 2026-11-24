@@ -9,6 +9,7 @@ const TOY_ATLAS: Texture2D = preload("res://assets/toy/sprout_toy_atlas.png")
 const MUTATION_ATLAS: Texture2D = preload("res://assets/generated/mutation_icons.png")
 const GENERATED_ACTORS: Texture2D = preload("res://assets/generated/actor_atlas.png")
 const BIOME_ATLAS: Texture2D = preload("res://assets/generated/biomes_events.png")
+const BIOME_ACTORS: Texture2D = preload("res://assets/generated/biome_actors.png")
 const MUTATION_IDS: Array[String] = ["mutation_seed", "mutation_spore", "mutation_frost", "mutation_sun", "mutation_thorn", "mutation_symbiosis"]
 
 # 3x3 source art atlas. Each 56px cell is an authored image, never generated
@@ -99,6 +100,10 @@ static func projectile_texture(splash_radius: float, slow_ratio: float) -> Textu
 
 static func blessing_icon(blessing_id: StringName) -> Texture2D:
     var id_text: String = String(blessing_id).to_lower()
+    if id_text == "mutation_barrage":
+        return blessing_icon(&"mutation_thorn")
+    if id_text == "mutation_mist":
+        return blessing_icon(&"mutation_frost")
     var index: int = MUTATION_IDS.find(id_text)
     if index >= 0:
         if not _texture_cache.has(blessing_id):
@@ -139,12 +144,16 @@ static func biome_texture(map_id: int) -> Texture2D:
 
 
 static func event_icon(kind: int) -> Texture2D:
-    var i: int = clampi(kind, 0, 2)
-    var key: StringName = StringName("event_%d" % i)
+    return biome_actor(6 + clampi(kind, 0, 2))
+
+
+static func biome_actor(index: int) -> Texture2D:
+    var i: int = clampi(index, 0, 8)
+    var key: StringName = StringName("biome_actor_%d" % i)
     if not _texture_cache.has(key):
         var icon: AtlasTexture = AtlasTexture.new()
-        icon.atlas = BIOME_ATLAS
-        icon.region = Rect2(i * 32, 32, 32, 32)
+        icon.atlas = BIOME_ACTORS
+        icon.region = Rect2((i % 3) * 48, floori(float(i) / 3.0) * 48, 48, 48)
         icon.filter_clip = true
         _texture_cache[key] = icon
     return _texture_cache[key] as Texture2D

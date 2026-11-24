@@ -7,6 +7,8 @@ const BASE_EXPERIENCE_REQUIREMENT: int = 8
 const MAX_ACTIVE_ENEMIES: int = 64
 
 var survival_elapsed: float = 0.0
+var endless_mode: bool = false
+var bosses_defeated: int = 0
 var survival_spawn_timer: float = 0.15
 var experience: int = 0
 var experience_to_next: int = BASE_EXPERIENCE_REQUIREMENT
@@ -71,22 +73,28 @@ func _process(delta: float) -> void:
 
     arsenal.tick(delta, hero_plant, blessing_system, _on_projectile_requested)
     _spawn_time_milestones()
-    if survival_elapsed < SURVIVAL_DURATION:
+    if survival_elapsed < SURVIVAL_DURATION or endless_mode:
         survival_spawn_timer -= delta
         var active_enemies: int = get_tree().get_nodes_in_group("greed_enemies").size()
         peak_enemies = maxi(peak_enemies, active_enemies)
         if survival_spawn_timer <= 0.0 and active_enemies < _active_enemy_cap():
             _spawn_survivor_enemy(false, false)
             survival_spawn_timer = _current_spawn_interval()
-    elif not final_boss_spawned:
+    if not final_boss_spawned and ((endless_mode and SurvivorEndurance.boss_due(survival_elapsed, bosses_defeated)) or (not endless_mode and survival_elapsed >= SURVIVAL_DURATION)):
         final_boss_spawned = true
         _spawn_survivor_enemy(true, true)
         status_label.text = _t("FINAL BLOOM BEAST", "最终花兽出现")
 
     # The boss is the final objective; surviving minions must not stall victory.
     if final_boss_spawned and final_boss_defeated:
-        _finish_run(true)
-        return
+        if endless_mode:
+            bosses_defeated += 1
+            final_boss_spawned = false
+            final_boss_defeated = false
+        else:
+            bosses_defeated = 1
+            _finish_run(true)
+            return
 
     _hud_refresh_remaining -= delta
     if _hud_refresh_remaining > 0.0:
@@ -94,7 +102,9 @@ func _process(delta: float) -> void:
     _hud_refresh_remaining = 0.10
     var remaining_seconds: int = maxi(0, int(ceil(SURVIVAL_DURATION - survival_elapsed)))
     var enemy_count: int = get_tree().get_nodes_in_group("greed_enemies").size()
-    if survival_elapsed < SURVIVAL_DURATION:
+    if endless_mode:
+        status_label.text = _t("ENDLESS · BOSS %d", "无尽 · 首领 %d") % [bosses_defeated]
+    elif survival_elapsed < SURVIVAL_DURATION:
         status_label.text = _t("SURVIVE %02ds · %d ENEMIES", "生存 %02d秒 · %d 个敌人") % [remaining_seconds, enemy_count]
     _refresh_hud()
     _update_control_status()
@@ -150,7 +160,8 @@ func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
 
 
 func _current_spawn_interval() -> float:
-    return SurvivorBalance.spawn_interval(survival_elapsed, difficulty)
+    var base: float = SurvivorBalance.spawn_interval(survival_elapsed, difficulty)
+    return SurvivorEndurance.spawn_interval(survival_elapsed, base) if endless_mode else base
 
 
 func _active_enemy_cap() -> int:
@@ -229,7 +240,7 @@ func _refresh_hud() -> void:
     super._refresh_hud()
     if wave_label == null or hero_plant == null:
         return
-    var shown_time: int = mini(int(floor(survival_elapsed)), int(SURVIVAL_DURATION))
+    var shown_time: int = int(floor(survival_elapsed)) if endless_mode else mini(int(floor(survival_elapsed)), int(SURVIVAL_DURATION))
     wave_label.text = _t("TIME %02d:%02d", "时间 %02d:%02d") % [int(shown_time / 60), shown_time % 60]
     health_label.text = _t("HP %d/%d", "生命 %d/%d") % [hero_plant.health, hero_plant.max_health]
     coins_label.text = _t("KILLS %d", "击杀 %d") % enemies_defeated
@@ -271,7 +282,7 @@ func _finish_run(victory: bool) -> void:
 func _create_services() -> void:
     super._create_services()
     var rewards: Array[BlessingData] = blessing_system.pool.duplicate()
-    rewards.append_array(SurvivorArsenal.reward_pool())
+    rewards.append_array(SurvivorArsenal.reward_pool(endless_mode))
     blessing_system.setup(rewards, run_seed)
 
 

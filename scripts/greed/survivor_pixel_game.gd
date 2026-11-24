@@ -13,6 +13,9 @@ var map_id: int = SurvivorMaps.CLASSIC
 var world_camera: Camera2D
 var simulation_character: int = 0
 var challenge_active: bool = false
+var challenge_date: String = ""
+var damage_by_enemy: Dictionary = {"contact": 0, "ranged": 0, "boss": 0}
+var _current_threat: String = "contact"
 var damage_by_source: Dictionary = {"hero": 0.0, "familiar": 0.0, "arsenal": 0.0}
 var damage_received: int = 0
 var _previous_health: int = -1
@@ -66,8 +69,11 @@ var familiar_spawn_sprout: Marker2D
 
 func _ready() -> void:
     challenge_active = SurvivorChallenge.selected and not simulation_mode
+    if not simulation_mode:
+        endless_mode = SurvivorEndurance.selected and not challenge_active
     if challenge_active:
-        run_seed = SurvivorChallenge.SEED
+        challenge_date = SurvivorChallenge.date_key()
+        run_seed = SurvivorChallenge.seed_for(challenge_date)
     if not simulation_mode:
         run_save = SaveGameService.new()
         run_save.load_game()
@@ -257,10 +263,12 @@ func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
     var config: Dictionary = spawn_director.next_enemy(survival_elapsed, force_elite, force_boss)
     if force_boss:
         config = SurvivorBiomeBoss.apply(config, map_id)
-    if map_id != SurvivorMaps.CLASSIC and not force_elite and not force_boss and survival_elapsed >= 25.0 and event_rng.randf() < 0.18:
+    if map_id != SurvivorMaps.CLASSIC and not force_elite and not force_boss and survival_elapsed >= 25.0 and event_rng.randf() < SurvivorSpawnDirector.biome_variant_chance(map_id, survival_elapsed):
         config = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, SurvivorMaps.exclusive_variant(map_id))
         config["biome_enemy"] = map_id
         config["health"] = float(config["health"]) * 1.12
+    if endless_mode:
+        config["health"] = float(config["health"]) * SurvivorEndurance.enemy_multiplier(survival_elapsed)
     return _spawn_configured_enemy(config, _survivor_spawn_edge())
 
 
@@ -272,7 +280,7 @@ func _spawn_configured_enemy(config: Dictionary, position_value: Vector2) -> Gre
     enemy.configure(hero_plant, config, 1.0)
     enemy.damaged.connect(_on_enemy_damaged)
     enemy.defeated.connect(_on_enemy_defeated)
-    enemy.core_contact.connect(_on_enemy_core_contact)
+    enemy.core_contact.connect(_on_attributed_contact)
     enemy.summon_requested.connect(_on_summon_requested)
     enemy.skill_resolved.connect(_on_skill_resolved)
     return enemy
@@ -371,8 +379,10 @@ func _refresh_hud() -> void:
     super._refresh_hud()
     if wave_label == null or hero_plant == null:
         return
-    var shown_time: int = mini(int(floor(survival_elapsed)), int(SURVIVAL_DURATION))
+    var shown_time: int = int(floor(survival_elapsed)) if endless_mode else mini(int(floor(survival_elapsed)), int(SURVIVAL_DURATION))
     wave_label.text = _t("TIME %02d:%02d", "时间 %02d:%02d") % [int(shown_time / 60), shown_time % 60]
+    if endless_mode:
+        wave_label.text = _t("∞ %02d:%02d", "∞ %02d:%02d") % [int(shown_time / 60), shown_time % 60]
     health_label.text = "%d/%d" % [hero_plant.health, hero_plant.max_health]
     coins_label.text = "%d" % enemies_defeated
     greed_label.text = _t("LV.%d XP", "等级%d 经验") % hero_plant.level
@@ -588,7 +598,7 @@ func _finish_run(victory: bool) -> void:
     if run_save != null and not simulation_mode:
         var saved: bool = run_save.record_survivor_result(
             victory, survival_elapsed, hero_plant.level if is_instance_valid(hero_plant) else 1, enemies_defeated,
-            {"damage": total_damage, "xp": total_xp, "map": map_id, "difficulty": difficulty, "evolutions": evolution_announced.size(), "events": map_events.completed, "source_damage": damage_by_source.duplicate(), "damage_received": damage_received, "challenge": challenge_active}
+            {"damage": total_damage, "xp": total_xp, "map": map_id, "difficulty": difficulty, "evolutions": evolution_announced.size(), "events": map_events.completed, "source_damage": damage_by_source.duplicate(), "damage_received": damage_received, "challenge": challenge_active, "challenge_date": challenge_date, "endless": endless_mode, "bosses": bosses_defeated, "damage_by_enemy": damage_by_enemy.duplicate()}
         )
         if run_trace != null:
             run_trace.note("run_recorded", "saved=%s victory=%s kills=%d" % [saved, victory, enemies_defeated])
@@ -696,6 +706,8 @@ func _spawn_minions(position_value: Vector2, count: int) -> void:
 func _setup_map() -> void:
     # Keep the existing benchmark arena independent of menu settings.
     map_id = simulation_map if simulation_mode else (SurvivorMaps.NIGHT if challenge_active else SurvivorMaps.selected)
+    if not simulation_mode and not challenge_active and run_save != null and not run_save.is_survivor_map_unlocked(map_id):
+        map_id = SurvivorMaps.CLASSIC
     var ground: TextureRect = get_node("World/ArenaGround") as TextureRect
     ground.size = SurvivorMaps.world_size(map_id)
     ground.texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR
@@ -830,12 +842,14 @@ func _record_source_damage(source: String, actual_damage: float) -> void:
 
 func _track_health(current: int, _maximum: int) -> void:
     if _previous_health >= 0 and current < _previous_health:
-        damage_received += _previous_health - current
+        var loss: int = _previous_health - current
+        damage_received += loss
+        damage_by_enemy[_current_threat] = int(damage_by_enemy.get(_current_threat, 0)) + loss
     _previous_health = current
 
 
 func _show_result_workspace(victory: bool) -> void:
-    result_label.text = _t("GARDEN BLOOMED", "花园绽放") if victory else _t("GARDEN FELL", "花园倒下")
+    result_label.text = _t("ENDLESS RECORD · %d BOSSES", "无尽纪录 · %d 位首领") % bosses_defeated if endless_mode else (_t("GARDEN BLOOMED", "花园绽放") if victory else _t("GARDEN FELL", "花园倒下"))
     result_label.position = Vector2(110, 32)
     result_label.size = Vector2(420, 36)
     result_label.add_theme_font_size_override("font_size", 24)
@@ -847,7 +861,26 @@ func _show_result_workspace(victory: bool) -> void:
     metrics_label.text = _t("Time %.1fs · Kills %d · Level %d\nDamage %.0f · XP %d · Taken %d\nHero %.0f · Familiars %.0f · Weapons %.0f\nEvolutions %d · Events %d", "时间 %.1f秒 · 击杀 %d · 等级 %d\n伤害 %.0f · 经验 %d · 承伤 %d\n主角 %.0f · 随从 %.0f · 武器 %.0f\n进化 %d · 事件 %d") % [survival_elapsed, enemies_defeated, hero_plant.level, total_damage, total_xp, damage_received, damage_by_source["hero"], damage_by_source["familiar"], damage_by_source["arsenal"], evolution_announced.size(), map_events.completed]
     metrics_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     metrics_label.add_theme_font_size_override("font_size", 13)
+    PlayfulUITheme.apply_label(metrics_label)
     column.add_child(metrics_label)
+    var graph: HBoxContainer = HBoxContainer.new()
+    graph.custom_minimum_size.y = 18.0
+    column.add_child(graph)
+    var sum_damage: float = maxf(1.0, float(damage_by_source["hero"]) + float(damage_by_source["familiar"]) + float(damage_by_source["arsenal"]))
+    var keys: Array[String] = ["hero", "familiar", "arsenal"]
+    var labels: Array[String] = [_t("Hero", "主角"), _t("Familiars", "随从"), _t("Weapons", "武器")]
+    var colors: Array[Color] = [Color("99c57c"), Color("e4bb70"), Color("b69bd1")]
+    for i: int in range(keys.size()):
+        var amount: float = float(damage_by_source[keys[i]])
+        if amount <= 0.0:
+            continue
+        var bar: ColorRect = ColorRect.new()
+        bar.color = colors[i]
+        bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        bar.size_flags_stretch_ratio = maxf(0.01, amount / sum_damage)
+        bar.mouse_filter = Control.MOUSE_FILTER_PASS
+        bar.tooltip_text = labels[i] + " %.1f%%" % (amount / sum_damage * 100.0)
+        graph.add_child(bar)
     var icons: HBoxContainer = HBoxContainer.new()
     icons.alignment = BoxContainer.ALIGNMENT_CENTER
     column.add_child(icons)
@@ -875,4 +908,11 @@ func _show_result_workspace(victory: bool) -> void:
 
 func _leave_result() -> void:
     SurvivorChallenge.selected = false
+    SurvivorEndurance.selected = false
     _return_to_menu()
+
+
+func _on_attributed_contact(enemy: GreedEnemy, damage: int) -> void:
+    _current_threat = "boss" if enemy.boss else ("ranged" if enemy.survivor_variant == 3 else "contact")
+    _on_enemy_core_contact(enemy, damage)
+    _current_threat = "contact"

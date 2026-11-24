@@ -112,6 +112,10 @@ func _texture_for_node(node: Node) -> Texture2D:
     if node is GreedEnemy:
         var enemy: GreedEnemy = node as GreedEnemy
         if enemy.survivor_combat:
+            if enemy.boss and enemy.boss_profile > 0:
+                return PixelArtAssets.biome_actor(enemy.boss_profile - 1)
+            if enemy.biome_enemy > 0 and not enemy.boss:
+                return PixelArtAssets.biome_actor(enemy.biome_enemy + 2)
             if enemy.boss:
                 return PixelArtAssets.generated_actor(5)
             if enemy.elite or enemy.survivor_variant == 2 or enemy.survivor_variant == 4:
@@ -196,6 +200,8 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
         var enemy: GreedEnemy = node as GreedEnemy
         var squash_active: bool = float(enemy.get("_squash_time")) > 0.0
         var base_scale: float = 0.92 if enemy.boss else (0.53 if enemy.elite else 0.40)
+        if enemy.boss_profile > 0 or enemy.biome_enemy > 0:
+            base_scale *= 56.0 / 48.0
         sprite.scale = Vector2(1.14, 0.84) * base_scale if squash_active else Vector2.ONE * base_scale
         if enemy.survivor_variant == 1 and fmod(float(enemy.get("_behavior_clock")), 3.4) < 0.55:
             sprite.scale *= Vector2(1.12, 0.76)

@@ -1,18 +1,18 @@
 extends RefCounted
 class_name SurvivorArsenal
 
-const IDS: Array[StringName] = [&"mutation_seed", &"mutation_spore", &"mutation_frost", &"mutation_sun", &"mutation_thorn", &"mutation_symbiosis"]
-const NAMES_EN: Array[String] = ["Seed Volley", "Spore Burst", "Frost Petals", "Sun Pulse", "Thorn Ring", "Symbiotic Swarm"]
-const NAMES_ZH: Array[String] = ["种子齐射", "孢子爆发", "霜瓣", "日光脉冲", "荆棘环", "共生蜂群"]
-const DESC_EN: Array[String] = ["Extra seed shots", "Area burst", "Slowing petals", "Periodic healing and light", "Close-range area strike", "Multi-target familiar shots"]
-const DESC_ZH: Array[String] = ["额外种子弹", "范围爆发", "减速花瓣", "周期治疗与光弹", "近身范围打击", "多目标协同弹"]
-const COLORS: Array[Color] = [Color("a9e66d"), Color("c98de0"), Color("91dafa"), Color("ffcf69"), Color("83bc75"), Color("f0a5b0")]
-const EVOLUTION_PARTNERS: Array[int] = [2, 4, 0, 5, 1, 3]
-var timers: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+const IDS: Array[StringName] = [&"mutation_seed", &"mutation_spore", &"mutation_frost", &"mutation_sun", &"mutation_thorn", &"mutation_symbiosis", &"mutation_barrage", &"mutation_mist"]
+const NAMES_EN: Array[String] = ["Seed Volley", "Spore Burst", "Frost Petals", "Sun Pulse", "Thorn Ring", "Symbiotic Swarm", "Thorn Barrage", "Glacial Mist"]
+const NAMES_ZH: Array[String] = ["种子齐射", "孢子爆发", "霜瓣", "日光脉冲", "荆棘环", "共生蜂群", "棘刺弹幕", "冰川迷雾"]
+const DESC_EN: Array[String] = ["Extra seed shots", "Area burst", "Slowing petals", "Periodic healing and light", "Close-range area strike", "Multi-target familiar shots", "Endless: rapid multi-target thorns", "Endless: wide slowing mist"]
+const DESC_ZH: Array[String] = ["额外种子弹", "范围爆发", "减速花瓣", "周期治疗与光弹", "近身范围打击", "多目标协同弹", "无尽：快速多目标棘刺", "无尽：大范围减速迷雾"]
+const COLORS: Array[Color] = [Color("a9e66d"), Color("c98de0"), Color("91dafa"), Color("ffcf69"), Color("83bc75"), Color("f0a5b0"), Color("b5d770"), Color("9ed5ec")]
+const EVOLUTION_PARTNERS: Array[int] = [2, 4, 0, 5, 1, 3, 7, 6]
+var timers: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-static func reward_pool() -> Array[BlessingData]:
+static func reward_pool(include_endless: bool = false) -> Array[BlessingData]:
     var result: Array[BlessingData] = []
-    for i: int in range(IDS.size()):
+    for i: int in range(IDS.size() if include_endless else 6):
         var data: BlessingData = BlessingData.new()
         data.id = IDS[i]
         data.name_en = NAMES_EN[i]
@@ -67,6 +67,12 @@ func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: C
             slow = 0.25
         if evolution and i == 3:
             splash = 44.0
+        if i == 6:
+            count = 3 + rank + int(evolution)
+            splash = 14.0 if evolution else 0.0
+        elif i == 7:
+            splash = 46.0 + rank * 6.0
+            slow = 0.50 if evolution else 0.34
         var damage: float = (8.0 + rank * 5.0) * (1.45 if evolution else 1.0)
         if resonance:
             damage *= 1.15
@@ -76,4 +82,5 @@ func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: C
                 slow = minf(0.8, slow + 0.08)
         for shot: int in range(mini(count, targets.size())):
             fire.call(hero.global_position, targets[shot], damage, false, 400.0, splash, slow, 38.0, COLORS[i])
-        timers[i] = (7.0 if i == 3 else 1.8) * (0.8 if evolution else 1.0) * (0.90 if resonance else 1.0)
+        var base_interval: float = 7.0 if i == 3 else (1.1 if i == 6 else (2.6 if i == 7 else 1.8))
+        timers[i] = base_interval * (0.8 if evolution else 1.0) * (0.90 if resonance else 1.0)
