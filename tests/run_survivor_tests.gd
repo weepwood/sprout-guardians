@@ -15,6 +15,8 @@ func _run() -> void:
     _test_character_profiles()
     _test_growth_assist()
     _test_map_events_and_progress()
+    _test_animation_and_boss_profiles()
+    _test_pool_pressure()
     for mutation_id: StringName in SurvivorArsenal.IDS:
         var icon: AtlasTexture = PixelArtAssets.blessing_icon(mutation_id) as AtlasTexture
         _assert_true(icon != null and icon.atlas == PixelArtAssets.MUTATION_ATLAS and icon.region.size == Vector2(56, 56), "Generated mutation PNG region: %s" % mutation_id)
@@ -342,5 +344,51 @@ func _test_map_events_and_progress() -> void:
     service.load_game()
     _assert_equal_int(int(service.get_survivor_progress()["health_rank"]), 1, "Upgrade persists")
     _assert_true(not service.buy_survivor_upgrade("health_rank"), "Insufficient seeds cannot buy upgrade")
+    _assert_true(service.claim_achievement("first_win"), "First victory achievement can be claimed")
+    _assert_true(not service.claim_achievement("first_win"), "Achievement cannot be claimed twice")
+    _assert_true(service.buy_survivor_upgrade("speed_rank"), "Earned seeds buy speed upgrade")
+    service.load_game()
+    _assert_equal_int(int(service.get_survivor_progress()["speed_rank"]), 1, "Speed upgrade persists")
+    _assert_true(not service.achievement_available("first_win"), "Claim state persists")
     DirAccess.remove_absolute(ProjectSettings.globalize_path(service.save_path))
     DirAccess.remove_absolute(ProjectSettings.globalize_path(service.backup_path))
+
+
+func _test_animation_and_boss_profiles() -> void:
+    for state: int in range(5):
+        for frame_index: int in range(4):
+            var icon: AtlasTexture = SurvivorAnimation.frame(0, state, (float(frame_index) + 0.01) / (16.0 if state >= 2 else 9.0)) as AtlasTexture
+            _assert_true(icon != null and icon.region.size == Vector2(36, 36), "Generated animation frame resolves")
+            if icon != null:
+                _assert_true(icon.region.position == Vector2(frame_index * 36, state * 36), "Generated frame index is correct")
+    var death: AtlasTexture = SurvivorAnimation.frame(0, SurvivorAnimation.State.DEATH, 10.0) as AtlasTexture
+    _assert_true(death != null and death.region.position.x == 108.0, "Death animation does not loop")
+    _assert_true(float(SurvivorBiomeBoss.profile(1)["hp"]) > 1.0, "Forest boss emphasizes durability")
+    _assert_true(float(SurvivorBiomeBoss.profile(2)["cooldown"]) < 4.2, "Night boss emphasizes attack tempo")
+    _assert_true(float(SurvivorBiomeBoss.profile(3)["warning"]) > 0.9, "Swamp boss allows longer warning")
+    _assert_true(float(SurvivorCharacters.configuration(2)["move_speed"]) > float(SurvivorCharacters.configuration(1)["move_speed"]), "Character movement profiles differ")
+
+
+func _test_pool_pressure() -> void:
+    var pool: SurvivorNodePool = SurvivorNodePool.new()
+    pool.capacity = 32
+    var scene: PackedScene = load("res://scenes/effects/experience_gem.tscn") as PackedScene
+    var holder: Node2D = Node2D.new()
+    root.add_child(holder)
+    for cycle: int in range(5000):
+        var item: Node2D = pool.acquire(scene, holder)
+        pool.release(item)
+    _assert_equal_int(pool.created, 1, "5000 cycles create one reusable node")
+    _assert_equal_int(pool.reused, 4999, "5000 cycles reuse 4999 times")
+    var batch: Array[Node2D] = []
+    for i: int in range(64):
+        batch.append(pool.acquire(scene, holder))
+    for item: Node2D in batch:
+        pool.release(item)
+        pool.release(item)
+    var metrics: Dictionary = pool.metrics()
+    _assert_equal_int(int(metrics["active"]), 0, "Burst releases all active nodes")
+    _assert_equal_int(int(metrics["peak_active"]), 64, "Tracks burst peak")
+    _assert_equal_int(int(metrics["idle"]), 32, "Idle capacity is bounded")
+    _assert_equal_int(int(metrics["discarded"]), 32, "Over-capacity nodes are discarded once")
+    holder.queue_free()
