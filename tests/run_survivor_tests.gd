@@ -403,6 +403,9 @@ func _test_endurance_rules() -> void:
     _assert_true(SurvivorEndurance.enemy_multiplier(360.0) > 1.0, "Endurance scales enemies")
     _assert_equal_int(SurvivorArsenal.reward_pool().size(), 6, "Classic reward pool stays unchanged")
     _assert_equal_int(SurvivorArsenal.reward_pool(true).size(), 8, "Endless gets two additional weapons")
+    var barrage: AtlasTexture = PixelArtAssets.blessing_icon(&"mutation_barrage") as AtlasTexture
+    var mist: AtlasTexture = PixelArtAssets.blessing_icon(&"mutation_mist") as AtlasTexture
+    _assert_true(barrage != null and mist != null and barrage.region != mist.region and barrage.atlas == mist.atlas, "Endless weapons use two distinct generated PNG regions")
     _assert_equal_int(SurvivorChallenge.seed_for("2026-11-24"), 20261124, "Daily seed uses UTC date")
     for i: int in range(9):
         var tile: AtlasTexture = PixelArtAssets.biome_actor(i) as AtlasTexture
