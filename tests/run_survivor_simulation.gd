@@ -68,6 +68,10 @@ func _run() -> void:
             var source_damage: Dictionary = game.get("damage_by_source")
             result["source_damage"] = source_damage.duplicate()
             result["damage_received"] = game.get("damage_received")
+            result["damage_by_enemy"] = game.get("damage_by_enemy").duplicate()
+            result["boss_spawned"] = game.get("final_boss_spawned")
+            result["hp_remaining"] = hero.health
+            result["hero_damage_per_second"] = float(source_damage.get("hero", 0.0)) / maxf(1.0, float(result["elapsed"]))
             result["projectile_pool"] = game.get("projectile_pool").metrics()
             result["pickup_pool"] = game.get("pickup_pool").metrics()
             result["character"] = character_id

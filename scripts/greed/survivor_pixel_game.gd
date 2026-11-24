@@ -849,7 +849,7 @@ func _track_health(current: int, _maximum: int) -> void:
 
 
 func _show_result_workspace(victory: bool) -> void:
-    result_label.text = _t("GARDEN BLOOMED", "花园绽放") if victory else _t("GARDEN FELL", "花园倒下")
+    result_label.text = _t("ENDLESS RECORD · %d BOSSES", "无尽纪录 · %d 位首领") % bosses_defeated if endless_mode else (_t("GARDEN BLOOMED", "花园绽放") if victory else _t("GARDEN FELL", "花园倒下"))
     result_label.position = Vector2(110, 32)
     result_label.size = Vector2(420, 36)
     result_label.add_theme_font_size_override("font_size", 24)
@@ -861,6 +861,7 @@ func _show_result_workspace(victory: bool) -> void:
     metrics_label.text = _t("Time %.1fs · Kills %d · Level %d\nDamage %.0f · XP %d · Taken %d\nHero %.0f · Familiars %.0f · Weapons %.0f\nEvolutions %d · Events %d", "时间 %.1f秒 · 击杀 %d · 等级 %d\n伤害 %.0f · 经验 %d · 承伤 %d\n主角 %.0f · 随从 %.0f · 武器 %.0f\n进化 %d · 事件 %d") % [survival_elapsed, enemies_defeated, hero_plant.level, total_damage, total_xp, damage_received, damage_by_source["hero"], damage_by_source["familiar"], damage_by_source["arsenal"], evolution_announced.size(), map_events.completed]
     metrics_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     metrics_label.add_theme_font_size_override("font_size", 13)
+    PlayfulUITheme.apply_label(metrics_label)
     column.add_child(metrics_label)
     var graph: HBoxContainer = HBoxContainer.new()
     graph.custom_minimum_size.y = 18.0
@@ -877,6 +878,7 @@ func _show_result_workspace(victory: bool) -> void:
         bar.color = colors[i]
         bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
         bar.size_flags_stretch_ratio = maxf(0.01, amount / sum_damage)
+        bar.mouse_filter = Control.MOUSE_FILTER_PASS
         bar.tooltip_text = labels[i] + " %.1f%%" % (amount / sum_damage * 100.0)
         graph.add_child(bar)
     var icons: HBoxContainer = HBoxContainer.new()
