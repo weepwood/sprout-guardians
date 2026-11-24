@@ -844,7 +844,7 @@ func _announce_evolutions() -> void:
             _show_event_banner(_t("EVOLVED: ", "已进化：") + _t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]))
 
 
-func _spawn_bitmap_effect(position_value: Vector2, texture_value: Texture2D, tint: Color) -> void:
+func _spawn_bitmap_effect(position_value: Vector2, texture_value: Texture2D, tint: Color, display_pixels: float = 56.0, initial_ratio: float = 0.55) -> void:
     if simulation_mode or texture_value == null:
         return
     for i: int in range(effect_sprites.size() - 1, -1, -1):
@@ -856,8 +856,8 @@ func _spawn_bitmap_effect(position_value: Vector2, texture_value: Texture2D, tin
     sprite.texture = texture_value
     sprite.modulate = Color(tint.r, tint.g, tint.b, 0.9)
     sprite.z_index = 10
-    var fit_scale: float = HDArt.fit(texture_value, 56.0)
-    sprite.scale = Vector2.ONE * 0.55 * fit_scale
+    var fit_scale: float = HDArt.fit(texture_value, display_pixels)
+    sprite.scale = Vector2.ONE * initial_ratio * fit_scale
     effects_container.add_child(sprite)
     sprite.global_position = position_value
     effect_sprites.append(sprite)
@@ -985,4 +985,4 @@ func _on_visual_impact(projectile: GreedProjectile, _target: GreedEnemy, _damage
     var prefix: String = "vfx/evolution_" if projectile.visual_evolved else "vfx/impact_"
     var image: Texture2D = HDArt.load_png(prefix + str(projectile.visual_weapon))
     if image != null:
-        _spawn_bitmap_effect(projectile.global_position, image, Color.WHITE)
+        _spawn_bitmap_effect(projectile.global_position, image, Color.WHITE, 64.0 if projectile.visual_evolved else 56.0, 0.85)

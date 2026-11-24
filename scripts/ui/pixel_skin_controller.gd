@@ -254,7 +254,11 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
         var hd: Texture2D = HDArt.load_png("vfx/projectile_%d" % projectile.visual_weapon) if projectile.visual_weapon >= 0 else null
         sprite.texture = hd if hd != null else PixelArtAssets.projectile_texture(projectile.splash_radius, projectile.slow_ratio)
         sprite.rotation = direction_value.angle()
-        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, 21.0 if projectile.critical else 17.0)
+        # Long HD trails need a larger visual footprint than the legacy square icon.
+        # Keep this strictly on the sprite; projectile collision and speed are unchanged.
+        var display_pixels: float = (36.0 if projectile.critical else 30.0) if hd != null else (21.0 if projectile.critical else 17.0)
+        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, display_pixels)
+        sprite.z_index = 7 if hd != null else 4
         sprite.modulate = Color.WHITE if hd != null else projectile.body_color.lerp(Color.WHITE, 0.28)
         return
 

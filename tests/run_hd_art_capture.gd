@@ -104,6 +104,8 @@ func _audit_weapon_effects(packed: PackedScene) -> void:
     hero.set_process(false)
     for familiar: Node in get_nodes_in_group("greed_familiars"):
         familiar.set_process(false)
+        if familiar is Node2D:
+            (familiar as Node2D).hide()
     var target: GreedEnemy = game.call("_spawn_configured_enemy", SurvivorBalance.enemy_config(0.0, 1, false, false, 0), hero.global_position + Vector2(120.0, 0.0)) as GreedEnemy
     target.set_process(false)
     var verified: int = 0
@@ -134,12 +136,17 @@ func _audit_weapon_effects(packed: PackedScene) -> void:
         if has_projectile:
             var sprite: Sprite2D = projectile.get_node_or_null("PixelSprite") as Sprite2D
             _expect(sprite != null and sprite.is_visible_in_tree() and _path(sprite.texture) == HDArt.ROOT + projectile_path + ".png", "Weapon %d actual projectile texture" % index)
+            if sprite != null and sprite.texture != null:
+                var size: Vector2 = sprite.texture.get_size() * sprite.scale.abs()
+                _expect(maxf(size.x, size.y) >= 29.0 and maxf(size.x, size.y) <= 37.0, "HD projectile visible footprint")
             verified += 1
             await _capture_vfx("weapon-%d-projectile" % index)
         for evolved: bool in [false, true]:
             if (evolved and not has_evolution) or (not evolved and not has_impact):
                 continue
             projectile.visual_evolved = evolved
+            # Real _impact places the projectile on its target before emitting.
+            projectile.global_position = target.global_position
             # Visual effects are normally suppressed in headless simulations.
             # Enable only for this synchronous visual signal, not a gameplay tick.
             game.set("simulation_mode", false)
@@ -149,6 +156,10 @@ func _audit_weapon_effects(packed: PackedScene) -> void:
             var effect: Sprite2D = effects.back() as Sprite2D if not effects.is_empty() else null
             var expected_path: String = HDArt.ROOT + ("vfx/evolution_" if evolved else "vfx/impact_") + str(index) + ".png"
             _expect(is_instance_valid(effect) and effect.is_visible_in_tree() and _path(effect.texture) == expected_path, "Weapon %d actual %s texture" % [index, "evolution" if evolved else "impact"])
+            if is_instance_valid(effect):
+                _expect(effect.global_position.is_equal_approx(target.global_position), "Impact fixture uses actual target position")
+                var size: Vector2 = effect.texture.get_size() * effect.scale.abs()
+                _expect(maxf(size.x, size.y) >= 46.0, "HD impact initial visible footprint")
             verified += 1
             await _capture_vfx("weapon-%d-%s" % [index, "evolution" if evolved else "impact"])
             if is_instance_valid(effect):
