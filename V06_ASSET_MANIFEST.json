@@ -124,6 +124,11 @@
     "sha256": "84361397049285bfcea6dc533d021b3764752fcd0c5ee78f3486c46d367ad64f",
     "width": 724
   },
+  "assets/generated/hd/vfx/impact_0.png": {
+    "height": 1251,
+    "sha256": "000f09412eb7c579f17d91123a64240e9baeb60c346a2168ad2112e8ead984fe",
+    "width": 1254
+  },
   "assets/generated/hd/vfx/projectile_0.png": {
     "height": 445,
     "sha256": "9fd1ea0c0755deed8246199c0d733eb273ae35e6037c4604fd250d08c6b615e1",
