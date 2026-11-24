@@ -1,7 +1,14 @@
 extends Node
 class_name PixelSkinController
 
+const HERO_PIXELS: float = 51.0
+const FAMILIAR_PIXELS: float = 27.0
+const ENEMY_PIXELS: float = 29.0
+const ELITE_PIXELS: float = 38.0
+const BOSS_PIXELS: float = 65.0
+
 var _sprites: Dictionary = {}
+var _enemy_poses: Dictionary = {}
 var _elapsed: float = 0.0
 var _frame_delta: float = 0.0
 var _hero_animation_state: int = -1
@@ -37,6 +44,7 @@ func _process(delta: float) -> void:
         _update_sprite(node, sprite)
     for stale_id: int in stale_ids:
         _sprites.erase(stale_id)
+        _enemy_poses.erase(stale_id)
 
 
 func _skin_existing_nodes() -> void:
@@ -100,12 +108,12 @@ func _texture_for_node(node: Node) -> Texture2D:
     if node is GreedHeroPlant:
         var hero: GreedHeroPlant = node as GreedHeroPlant
         if hero.config.has("character_index"):
-            return PixelArtAssets.generated_actor(SurvivorCharacters.art_index(int(hero.config["character_index"])))
+            return HDArt.portrait(int(hero.config["character_index"]))
         return PixelArtAssets.texture(&"hero")
     if node is GreedPlant:
         var familiar: GreedPlant = node as GreedPlant
         if familiar.config.has("survivor_art"):
-            return PixelArtAssets.generated_actor(1 if familiar.orbit_index % 2 == 0 else 2)
+            return HDArt.actor(1 if familiar.orbit_index % 2 == 0 else 2)
         if familiar.orbit_index % 2 == 0:
             return PixelArtAssets.texture(&"familiar_sun")
         return PixelArtAssets.texture(&"familiar_sprout")
@@ -113,14 +121,14 @@ func _texture_for_node(node: Node) -> Texture2D:
         var enemy: GreedEnemy = node as GreedEnemy
         if enemy.survivor_combat:
             if enemy.boss and enemy.boss_profile > 0:
-                return PixelArtAssets.biome_actor(enemy.boss_profile - 1)
+                return HDArt.biome(enemy.boss_profile - 1)
             if enemy.biome_enemy > 0 and not enemy.boss:
-                return PixelArtAssets.biome_actor(enemy.biome_enemy + 2)
+                return HDArt.biome(enemy.biome_enemy + 2)
             if enemy.boss:
-                return PixelArtAssets.generated_actor(5)
+                return HDArt.actor(5)
             if enemy.elite or enemy.survivor_variant == 2 or enemy.survivor_variant == 4:
-                return PixelArtAssets.generated_actor(4)
-            return PixelArtAssets.generated_actor(3)
+                return HDArt.actor(4)
+            return HDArt.actor(3)
         if enemy.boss:
             return PixelArtAssets.texture(&"enemy_boss")
         if enemy.elite:
@@ -141,16 +149,16 @@ func _texture_for_node(node: Node) -> Texture2D:
 func _configure_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedHeroPlant:
         sprite.position = Vector2(0.0, -5.0)
-        sprite.scale = Vector2.ONE * 0.70
+        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, HERO_PIXELS)
         sprite.z_index = 5
     elif node is GreedPlant:
         sprite.position = Vector2(0.0, -2.0)
-        sprite.scale = Vector2.ONE * 0.39
+        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, FAMILIAR_PIXELS)
         sprite.z_index = 5
     elif node is GreedEnemy:
         var enemy: GreedEnemy = node as GreedEnemy
         sprite.position = Vector2(0.0, -3.0)
-        sprite.scale = Vector2.ONE * (0.92 if enemy.boss else (0.53 if enemy.elite else 0.40))
+        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, BOSS_PIXELS if enemy.boss else (ELITE_PIXELS if enemy.elite else ENEMY_PIXELS))
         sprite.z_index = 4
     elif node is GreedProjectile:
         sprite.scale = Vector2.ONE * 0.24
@@ -163,17 +171,18 @@ func _configure_sprite(node: Node, sprite: Sprite2D) -> void:
 func _update_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedHeroPlant:
         var hero: GreedHeroPlant = node as GreedHeroPlant
-        sprite.position.y = -5.0 + sin(_elapsed * 6.0) * 1.0
+        sprite.position.y = -9.0 + sin(_elapsed * 6.0) * 1.0
         var stride: float = sin(_elapsed * 13.0) * 0.045 if hero.arcade_direction.length_squared() > 0.0 else 0.0
-        sprite.scale = Vector2(0.70 + stride, 0.70 - stride)
+        sprite.scale = Vector2(1.0 + stride, 1.0 - stride)
         if absf(hero.arcade_direction.x) > 0.15:
             sprite.flip_h = hero.arcade_direction.x < 0.0
         if hero.is_dashing():
-            sprite.scale = Vector2.ONE * 0.75
+            sprite.scale = Vector2.ONE * 1.07
         sprite.modulate = Color(1.0, 0.72, 0.72) if float(hero.get("_hit_flash")) > 0.0 else Color.WHITE
-        if int(hero.config.get("character_index", 0)) == 3:
+        var character_id: int = int(hero.config.get("character_index", 0))
+        if character_id == 3 and HDArt.load_png("animations/hero_3") == null:
             sprite.modulate *= Color(0.88, 0.72, 1.0)
-        elif int(hero.config.get("character_index", 0)) == 4:
+        elif character_id == 4 and HDArt.load_png("animations/hero_4") == null:
             sprite.modulate *= Color(0.78, 0.91, 0.52)
         if hero.config.has("character_index"):
             var state: int = SurvivorAnimation.state(hero)
@@ -184,24 +193,41 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
                 _hero_animation_clock = 0.0
             else:
                 _hero_animation_clock += _frame_delta
-            var frame: Texture2D = SurvivorAnimation.frame(int(hero.config["character_index"]), state, _hero_animation_clock)
+            var frame: Texture2D = SurvivorAnimation.display_frame(int(hero.config["character_index"]), state, _hero_animation_clock)
             if frame != null:
                 sprite.texture = frame
-                sprite.scale *= 56.0 / float(SurvivorAnimation.CELL)
+        sprite.scale *= HDArt.fit(sprite.texture, HERO_PIXELS)
         return
 
     if node is GreedPlant:
         var familiar: GreedPlant = node as GreedPlant
         sprite.position.y = -2.0 + sin(_elapsed * 7.5 + float(familiar.orbit_index) * PI) * 1.5
-        sprite.scale = Vector2.ONE * (0.39 + minf(0.12, float(familiar.level - 1) * 0.018))
+        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, FAMILIAR_PIXELS + minf(6.0, float(familiar.level - 1) * 0.9))
         return
 
     if node is GreedEnemy:
         var enemy: GreedEnemy = node as GreedEnemy
+        var instance_id_value: int = enemy.get_instance_id()
+        var previous: Dictionary = _enemy_poses.get(instance_id_value, {})
+        var old_position: Vector2 = previous.get("position", enemy.global_position)
+        var movement: Vector2 = enemy.global_position - old_position
+        var state: int = 1 if movement.length_squared() > 0.01 else 0
+        if float(enemy.get("_warning_left")) > 0.0 or float(enemy.get("_contact_cooldown")) > 0.7:
+            state = 2
+        if float(enemy.get("_flash_time")) > 0.0:
+            state = 3
+        var clock: float = float(previous.get("clock", 0.0)) + _frame_delta if int(previous.get("state", -1)) == state else 0.0
+        _enemy_poses[instance_id_value] = {"position": enemy.global_position, "state": state, "clock": clock}
+        var frame: Texture2D = HDArt.enemy_frame(_enemy_art_key(enemy), state, clock) if enemy.survivor_combat else null
+        if frame != null:
+            sprite.texture = frame
+        if absf(movement.x) > 0.15:
+            sprite.flip_h = movement.x < 0.0
+        # Static HD art remains a visibly distinct fallback, not frame animation.
+        var phase: float = _elapsed * (5.0 if enemy.boss else 9.0) + float(instance_id_value % 97) * 0.13
+        sprite.position.y = (-10.0 if enemy.boss else -5.0) + (sin(phase) * 0.8 if frame == null and state == 1 else 0.0)
         var squash_active: bool = float(enemy.get("_squash_time")) > 0.0
-        var base_scale: float = 0.92 if enemy.boss else (0.53 if enemy.elite else 0.40)
-        if enemy.boss_profile > 0 or enemy.biome_enemy > 0:
-            base_scale *= 56.0 / 48.0
+        var base_scale: float = HDArt.fit(sprite.texture, BOSS_PIXELS if enemy.boss else (ELITE_PIXELS if enemy.elite else ENEMY_PIXELS))
         sprite.scale = Vector2(1.14, 0.84) * base_scale if squash_active else Vector2.ONE * base_scale
         if enemy.survivor_variant == 1 and fmod(float(enemy.get("_behavior_clock")), 3.4) < 0.55:
             sprite.scale *= Vector2(1.12, 0.76)
@@ -225,12 +251,26 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedProjectile:
         var projectile: GreedProjectile = node as GreedProjectile
         var direction_value: Vector2 = projectile.get("_travel_direction")
-        sprite.texture = PixelArtAssets.projectile_texture(projectile.splash_radius, projectile.slow_ratio)
+        var hd: Texture2D = HDArt.load_png("vfx/projectile_%d" % projectile.visual_weapon) if projectile.visual_weapon >= 0 else null
+        sprite.texture = hd if hd != null else PixelArtAssets.projectile_texture(projectile.splash_radius, projectile.slow_ratio)
         sprite.rotation = direction_value.angle()
-        sprite.scale = Vector2.ONE * (0.30 if projectile.critical else 0.24)
-        sprite.modulate = projectile.body_color.lerp(Color.WHITE, 0.28)
+        # Long HD trails need a larger visual footprint than the legacy square icon.
+        # Keep this strictly on the sprite; projectile collision and speed are unchanged.
+        var display_pixels: float = (36.0 if projectile.critical else 30.0) if hd != null else (21.0 if projectile.critical else 17.0)
+        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, display_pixels)
+        sprite.z_index = 7 if hd != null else 4
+        sprite.modulate = Color.WHITE if hd != null else projectile.body_color.lerp(Color.WHITE, 0.28)
         return
 
     if node is SurvivorExperienceGem:
         sprite.rotation = _elapsed * 1.4
         sprite.scale = Vector2.ONE * (0.23 + sin(_elapsed * 5.0) * 0.018)
+
+func _enemy_art_key(enemy: GreedEnemy) -> String:
+    if enemy.boss:
+        return "boss_%d" % enemy.boss_profile
+    if enemy.biome_enemy > 0:
+        return "biome_%d" % enemy.biome_enemy
+    if enemy.elite:
+        return "elite"
+    return "enemy_%d" % enemy.survivor_variant

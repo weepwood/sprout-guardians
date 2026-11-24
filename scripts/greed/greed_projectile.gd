@@ -7,6 +7,8 @@ signal impacted(projectile: GreedProjectile, target: GreedEnemy, damage: float, 
 signal expired(projectile: GreedProjectile)
 signal damage_applied(source: String, actual_damage: float)
 var source_kind: String = "arsenal"
+var visual_weapon: int = -1
+var visual_evolved: bool = false
 
 var target: GreedEnemy
 var damage: float = 1.0
@@ -35,6 +37,8 @@ func configure(
         knockback_value: float,
         color_value: Color
 ) -> void:
+    visual_weapon = -1
+    visual_evolved = false
     global_position = origin
     source_position = origin
     target = target_enemy

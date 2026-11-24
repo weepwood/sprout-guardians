@@ -51,7 +51,8 @@ jobs:
         run: |
           set -euo pipefail
           timeout 600s xvfb-run -a -s '-screen 0 1280x720x24' godot --rendering-method gl_compatibility --audio-driver Dummy --fixed-fps 60 --path . --script res://tests/run_render_capture.gd 2>&1 | tee build/quality/render.log
-          test "$(find build/visual -name '*.png' | wc -l)" -eq 6
+          test "$(find build/visual -name '*.png' | wc -l)" -eq 7
+          test -s build/visual/05-reward-zh.png
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Invalid access|Invalid call|on a null instance' build/quality/render.log; then exit 1; fi
       - name: Rendered low-resolution performance benchmark
         env:

@@ -1,0 +1,407 @@
+{
+  "assets/generated/hd/actors/actor_0.png": {
+    "height": 512,
+    "sha256": "3a78ef2ca3b961ac8676af3be5eaee2936e5535066448645cedd1941f435b5c1",
+    "width": 512
+  },
+  "assets/generated/hd/actors/actor_1.png": {
+    "height": 512,
+    "sha256": "9d9b1b7e68c040eb7789fb2618deb34c2d97876340d76671863b1dc6ae8bd77b",
+    "width": 512
+  },
+  "assets/generated/hd/actors/actor_2.png": {
+    "height": 512,
+    "sha256": "bc813926fee8df2d356fab66da03b9a443ffae692eba378d32698717bebf4b5d",
+    "width": 512
+  },
+  "assets/generated/hd/actors/actor_3.png": {
+    "height": 512,
+    "sha256": "85cb34be3ae2ce068129d26d2d77e817d24c2f0483a787455edb8c3df2df8150",
+    "width": 512
+  },
+  "assets/generated/hd/actors/actor_4.png": {
+    "height": 512,
+    "sha256": "ebe494ca7b4512a20b246d84ea4b3509ea0717752c078aa225d28bf44f62d454",
+    "width": 512
+  },
+  "assets/generated/hd/actors/actor_5.png": {
+    "height": 512,
+    "sha256": "c22fef6027eea1d95868c5645d87b3480cb11126a6d68cde2cb9012847a66951",
+    "width": 512
+  },
+  "assets/generated/hd/animations/hero_0.png": {
+    "height": 1400,
+    "sha256": "fbd9dca1772355ca33341e04cb5a079fcf8df711c8ed8532165a697406b41b83",
+    "width": 1120
+  },
+  "assets/generated/hd/animations/hero_1.png": {
+    "height": 1400,
+    "sha256": "3bc0fa433d2de61ca814bbb9e4592e0f3d05f86ba694c021563befe53af4dcd4",
+    "width": 1120
+  },
+  "assets/generated/hd/animations/hero_2.png": {
+    "height": 1400,
+    "sha256": "899e6111b359690554d4baf192d94c2de5f0f4b62e9b841156fe690c46d7d174",
+    "width": 1120
+  },
+  "assets/generated/hd/animations/hero_3.png": {
+    "height": 1400,
+    "sha256": "f299a7ef5d96e5b3a6386e04b62191fff56ddef66d2ce4eb79118ed1967b0e93",
+    "width": 1120
+  },
+  "assets/generated/hd/animations/hero_4.png": {
+    "height": 1400,
+    "sha256": "10cdb1382e73766d502d932afd96d2c60e8e35c418e47d0d209add51be67f85b",
+    "width": 1120
+  },
+  "assets/generated/hd/biome/biome_0.png": {
+    "height": 341,
+    "sha256": "1970e7899384bfa0c6b533208274937b24f8ae2e80294c57eb2d58dbd6ec6cf2",
+    "width": 512
+  },
+  "assets/generated/hd/biome/biome_1.png": {
+    "height": 341,
+    "sha256": "7625a99f4b341166625576c7a8e998b8331a04f8d0db113b45593f0205eb89d5",
+    "width": 512
+  },
+  "assets/generated/hd/biome/biome_2.png": {
+    "height": 341,
+    "sha256": "19adc62219477897e638e29942c5d3031294acaabc56c55bc6ec361fecb9070e",
+    "width": 512
+  },
+  "assets/generated/hd/biome/biome_3.png": {
+    "height": 341,
+    "sha256": "ae933c2d0f97c7402816ca616d8b3bda3f441a25a3946f8f2fa6bfec5f9a4911",
+    "width": 512
+  },
+  "assets/generated/hd/biome/biome_4.png": {
+    "height": 341,
+    "sha256": "f521c44e31b3faa4e5050d9e7ed6a3b1b00622844b9292ac46527129c60dd484",
+    "width": 512
+  },
+  "assets/generated/hd/biome/biome_5.png": {
+    "height": 341,
+    "sha256": "9852a9eb0e6d792bc5a73caaa9b40fe4c1518b988dc956c0357ee3e304839d4f",
+    "width": 512
+  },
+  "assets/generated/hd/biome/biome_6.png": {
+    "height": 341,
+    "sha256": "3e575b68a765efd9fd8ce3a44dfc27a0dd0222c64799fd21c1a331ad2fa60fde",
+    "width": 512
+  },
+  "assets/generated/hd/biome/biome_7.png": {
+    "height": 341,
+    "sha256": "6e71dc646c1c27711fa72aea8cb3a1fa9f217f7a688900b1107e8fa78378a05e",
+    "width": 512
+  },
+  "assets/generated/hd/biome/biome_8.png": {
+    "height": 341,
+    "sha256": "1bef329d3019486ed2a62daae9e3f3f502f1e5913a1971a493d3a7d1585b3165",
+    "width": 512
+  },
+  "assets/generated/hd/menu/background.png": {
+    "height": 941,
+    "sha256": "01f208406fb4de84ad2f107f29cf66c5e5afb3d5774e8a5a1c2950f086d73e3e",
+    "width": 1672
+  },
+  "assets/generated/hd/props/classic/prop_0.png": {
+    "height": 199,
+    "sha256": "58229b09441f87a9cad68217fb4903bc14565ac9e735bbd7c5dfb7a9b3178938",
+    "width": 243
+  },
+  "assets/generated/hd/props/classic/prop_1.png": {
+    "height": 210,
+    "sha256": "c55563439f5ad1a11f419e47b113fb85b962eaf6c00aae240ae6bc64cfc46ec9",
+    "width": 224
+  },
+  "assets/generated/hd/props/classic/prop_2.png": {
+    "height": 193,
+    "sha256": "ba5deb6d574a8405decc685d273977637d42d26aaae080532c75c87968521cb5",
+    "width": 234
+  },
+  "assets/generated/hd/props/classic/prop_3.png": {
+    "height": 198,
+    "sha256": "62c9e580a4e85036676fa9b9a5af8c4342cfe51eb0d527fdd1230163bfc83095",
+    "width": 222
+  },
+  "assets/generated/hd/props/classic/prop_4.png": {
+    "height": 211,
+    "sha256": "54abc7f033153fb0ee395102d58d733397d458e4fb00c18e1595eb6e78af82fc",
+    "width": 252
+  },
+  "assets/generated/hd/props/classic/prop_5.png": {
+    "height": 188,
+    "sha256": "20e5cb47403123669399a3d86e27c1bcece99807c748fa18d2dce1bffb23dd21",
+    "width": 249
+  },
+  "assets/generated/hd/props/forest/prop_0.png": {
+    "height": 258,
+    "sha256": "3919ff42ec3464f23f35f43f0dbd5caf939efb26023a83eb0418e919698154e0",
+    "width": 272
+  },
+  "assets/generated/hd/props/forest/prop_1.png": {
+    "height": 183,
+    "sha256": "0b1dae1c368b10e0615e89708112fd5f97871765aba2df88892027a1edc22f85",
+    "width": 241
+  },
+  "assets/generated/hd/props/forest/prop_2.png": {
+    "height": 197,
+    "sha256": "33976a0ad82bd4a122b142562ccc4d7ea0b58f758cbbd9bc0b3fd63da942398e",
+    "width": 264
+  },
+  "assets/generated/hd/props/forest/prop_3.png": {
+    "height": 205,
+    "sha256": "5d6873f6a77dd1886e54d49ddf5a72ba586dff60541ea7094d4844497db0a3b7",
+    "width": 252
+  },
+  "assets/generated/hd/props/forest/prop_4.png": {
+    "height": 225,
+    "sha256": "e9ec1362bed4ede094817026e37826c4a4fef0d3b6dc6cfd881eb35eb3e55d4c",
+    "width": 253
+  },
+  "assets/generated/hd/props/forest/prop_5.png": {
+    "height": 198,
+    "sha256": "d8419b89d4edb368b9ec66ff01fd5b7bcb3348921582f4eadd5a73677ccc87d9",
+    "width": 240
+  },
+  "assets/generated/hd/props/night/prop_0.png": {
+    "height": 189,
+    "sha256": "3ecc8cc1dc7a2e5fc9788ed770f32369357e57296750033e4b2e83603886c147",
+    "width": 231
+  },
+  "assets/generated/hd/props/night/prop_1.png": {
+    "height": 184,
+    "sha256": "f164e9875318e992875010266f5f99e1c7336f329b9199ad8f7d222bb305c098",
+    "width": 223
+  },
+  "assets/generated/hd/props/night/prop_2.png": {
+    "height": 202,
+    "sha256": "352a98a9eaa0de9c4929254672e3b7478329347fcee165f4a684875834bc99a7",
+    "width": 230
+  },
+  "assets/generated/hd/props/night/prop_3.png": {
+    "height": 215,
+    "sha256": "db3b9169b53078fbd990294e97780d1e8d2f93d4ca448dc9082853ccd02c48fd",
+    "width": 239
+  },
+  "assets/generated/hd/props/night/prop_4.png": {
+    "height": 198,
+    "sha256": "cc7cae8b9cd7d99e0b2cdce79a488b79ecb918048e999d6918a274125808abaf",
+    "width": 246
+  },
+  "assets/generated/hd/props/night/prop_5.png": {
+    "height": 210,
+    "sha256": "7cfe6369e710d7ac4a78b4dea1f8824926a24c4d1502e8d3d6b4b5bbd86197ae",
+    "width": 229
+  },
+  "assets/generated/hd/props/swamp/prop_0.png": {
+    "height": 239,
+    "sha256": "161c056fc61577e0864bfc318d2f3ea779b7eff7c0bd1225bf04cc9282cd9e93",
+    "width": 252
+  },
+  "assets/generated/hd/props/swamp/prop_1.png": {
+    "height": 198,
+    "sha256": "2d2691bf67d475ef63d001a3eda4d933f6d17c1fad38df9544812675c15ab7ba",
+    "width": 240
+  },
+  "assets/generated/hd/props/swamp/prop_2.png": {
+    "height": 199,
+    "sha256": "2abe5b2be6b170d8d56f214cabe95a095df03ce4f762432376968bc83ed7f2eb",
+    "width": 251
+  },
+  "assets/generated/hd/props/swamp/prop_3.png": {
+    "height": 238,
+    "sha256": "30c3bfcf6cf652d17145875ba52c6ad5caa3faf252130e2ffb7ef60080b8ea96",
+    "width": 249
+  },
+  "assets/generated/hd/props/swamp/prop_4.png": {
+    "height": 222,
+    "sha256": "b4be38be050edaa0718c0a0bd150260340320d41351b8e4dba181bfe2fff20d0",
+    "width": 263
+  },
+  "assets/generated/hd/props/swamp/prop_5.png": {
+    "height": 227,
+    "sha256": "5c6e58bad614a168ec77baea51cc48ddddebad34e02a32117b443a4aff5a8a1f",
+    "width": 239
+  },
+  "assets/generated/hd/terrain/classic.png": {
+    "height": 1254,
+    "sha256": "31c69553c5ec685287a1f9aeb0c1671acbba4e3b4c88002aa18d6457d11e915c",
+    "width": 1254
+  },
+  "assets/generated/hd/terrain/forest.png": {
+    "height": 724,
+    "sha256": "957be6d788c87f2cc2a87e289bbd6f42cacd1b7b23401a195a22191b548a932d",
+    "width": 724
+  },
+  "assets/generated/hd/terrain/night.png": {
+    "height": 724,
+    "sha256": "23e4e27e60d0bd11ffd78eafd9e0f2447481a392b529771de9bb3984d49ea2a6",
+    "width": 724
+  },
+  "assets/generated/hd/terrain/swamp.png": {
+    "height": 724,
+    "sha256": "84361397049285bfcea6dc533d021b3764752fcd0c5ee78f3486c46d367ad64f",
+    "width": 724
+  },
+  "assets/generated/hd/vfx/evolution_0.png": {
+    "height": 164,
+    "sha256": "6a6bfc32cf563556df1ce1e2209b26c6d6d82db6fdaff84ee942c5b16f0fef0c",
+    "width": 320
+  },
+  "assets/generated/hd/vfx/evolution_1.png": {
+    "height": 154,
+    "sha256": "2d56d528e6159f44c688b6c74bce806b8a2c94bf205c4eee78b22074fa60460d",
+    "width": 292
+  },
+  "assets/generated/hd/vfx/evolution_2.png": {
+    "height": 139,
+    "sha256": "e347c682bee9a32fadd3316996872ea5eceff5d3da9c143194f49b894881a15c",
+    "width": 309
+  },
+  "assets/generated/hd/vfx/evolution_3.png": {
+    "height": 135,
+    "sha256": "18e3b06d5ae96751f49324b03a61a4a6a9708517bb0445f9826af7b5852e07d2",
+    "width": 310
+  },
+  "assets/generated/hd/vfx/evolution_4.png": {
+    "height": 128,
+    "sha256": "f7be764bd201fae1446d30e880e212846673ff7403f7e6f49e8f8fef9c0b6933",
+    "width": 289
+  },
+  "assets/generated/hd/vfx/evolution_5.png": {
+    "height": 128,
+    "sha256": "486ff257c22bea941bc046fa5d942f9f50eaeb38f001acd7dcf0c4230d43581c",
+    "width": 291
+  },
+  "assets/generated/hd/vfx/evolution_6.png": {
+    "height": 128,
+    "sha256": "419d7ec5b804b734980be52b887cf41c7cc292c293c1292f43c8683ffac942f9",
+    "width": 313
+  },
+  "assets/generated/hd/vfx/evolution_7.png": {
+    "height": 139,
+    "sha256": "a041cfc04418c47856953dc4fe33c479bb549eb929b665b7220e358243c1c1a9",
+    "width": 325
+  },
+  "assets/generated/hd/vfx/impact_0.png": {
+    "height": 1251,
+    "sha256": "000f09412eb7c579f17d91123a64240e9baeb60c346a2168ad2112e8ead984fe",
+    "width": 1254
+  },
+  "assets/generated/hd/vfx/impact_1.png": {
+    "height": 154,
+    "sha256": "eeb14c821f523a2b96d247812f943febd1ac2fc2cc418f00a5c09c527e683da4",
+    "width": 245
+  },
+  "assets/generated/hd/vfx/impact_2.png": {
+    "height": 139,
+    "sha256": "e191ac0713346ae4dbb4aa1ae460b54fbd5d4549192856022dc4aad1145efeb8",
+    "width": 265
+  },
+  "assets/generated/hd/vfx/impact_3.png": {
+    "height": 135,
+    "sha256": "2ecb8f2a62894a4facb3dd083f44fe2e8ca080e533edf6f3c03d74dc2f586286",
+    "width": 266
+  },
+  "assets/generated/hd/vfx/impact_4.png": {
+    "height": 128,
+    "sha256": "8f784b4767a3ef392c6b78bdb3b2a9f8ad1a9823731518b6347ca0005f66e876",
+    "width": 262
+  },
+  "assets/generated/hd/vfx/impact_5.png": {
+    "height": 128,
+    "sha256": "decdacd8800aa16af53f61e219f61b04b5baa2327ef6b47226a4491c485baeaa",
+    "width": 268
+  },
+  "assets/generated/hd/vfx/impact_6.png": {
+    "height": 128,
+    "sha256": "d8f8b1e50e553adfb57b4847b1f2d8c23380d3602f1b954cc9396ec944037ea2",
+    "width": 262
+  },
+  "assets/generated/hd/vfx/impact_7.png": {
+    "height": 139,
+    "sha256": "0e013c00a991163ae97781a2633f4d63cdf004640653cfffe72101829ca064fd",
+    "width": 272
+  },
+  "assets/generated/hd/vfx/projectile_0.png": {
+    "height": 445,
+    "sha256": "9fd1ea0c0755deed8246199c0d733eb273ae35e6037c4604fd250d08c6b615e1",
+    "width": 1189
+  },
+  "assets/generated/hd/vfx/projectile_1.png": {
+    "height": 129,
+    "sha256": "85c3198aa8e3b1a78cccdfbc8af5b1bf58a74fab94047244c74bc09343d2bd22",
+    "width": 282
+  },
+  "assets/generated/hd/vfx/projectile_2.png": {
+    "height": 130,
+    "sha256": "3517dd759043906caea9d480eca81b4944ad47d066b4c6f3518ea69ca3eabd27",
+    "width": 329
+  },
+  "assets/generated/hd/vfx/projectile_3.png": {
+    "height": 132,
+    "sha256": "046b88a5d1e2d03dfbff7e5524d6a73a2bc07466431a3c71f9d34ace746260e6",
+    "width": 329
+  },
+  "assets/generated/hd/vfx/projectile_4.png": {
+    "height": 128,
+    "sha256": "42774735d14ef4735e3c4e1de87ee2773ad4f466d654d2dab8953ce8e2d83606",
+    "width": 324
+  },
+  "assets/generated/hd/vfx/projectile_5.png": {
+    "height": 128,
+    "sha256": "a925e80456e5ee93bf2e41b08b1c9bdbe63d881daef91b6a689f9b834367b830",
+    "width": 314
+  },
+  "assets/generated/hd/vfx/projectile_6.png": {
+    "height": 128,
+    "sha256": "6807df1b6fbb5c2b7f6ceb2a4a0ab52a683d8bdd777913d014c35dc49c9a6476",
+    "width": 324
+  },
+  "assets/generated/hd/vfx/projectile_7.png": {
+    "height": 139,
+    "sha256": "02f0cbc1b80396356364853954920d5a5834893170eb91a3b92bdd778e5010a4",
+    "width": 340
+  },
+  "assets/generated/hd/weapons/weapon_0.png": {
+    "height": 512,
+    "sha256": "90c0a646a3c6d9aa0d0b9683fbf06a2e8fa6b29f854167c7c9e1178f6be06291",
+    "width": 512
+  },
+  "assets/generated/hd/weapons/weapon_1.png": {
+    "height": 512,
+    "sha256": "c1e97c8d55c84ce82c85857dc895b770c2d57717220a40f199662966226eaef5",
+    "width": 512
+  },
+  "assets/generated/hd/weapons/weapon_2.png": {
+    "height": 512,
+    "sha256": "d7f6b982d23a6510dd997f9151185755db09788fe2054da4ab1c1b82d35fb460",
+    "width": 512
+  },
+  "assets/generated/hd/weapons/weapon_3.png": {
+    "height": 512,
+    "sha256": "2ded908d8e0938a28fc81494d7c460560fac0c4df9a77b55ed69c491b748afd4",
+    "width": 512
+  },
+  "assets/generated/hd/weapons/weapon_4.png": {
+    "height": 512,
+    "sha256": "c67bd3dd0a3be1aafe9d37ef3b881425fbc91500089a351d3172136b1c84f0ae",
+    "width": 512
+  },
+  "assets/generated/hd/weapons/weapon_5.png": {
+    "height": 512,
+    "sha256": "6ded4221e1d272e9939247b82d08aeda00403f980ce80dd3409425afd94a7710",
+    "width": 512
+  },
+  "assets/generated/hd/weapons/weapon_6.png": {
+    "height": 887,
+    "sha256": "95a6ad6d57141e95f30b12edf7863f3639a1847d1c521caee23b31ad53e2a94d",
+    "width": 887
+  },
+  "assets/generated/hd/weapons/weapon_7.png": {
+    "height": 887,
+    "sha256": "161ada0202723566a1d5763ca2e8d88da5724f796a2fb8059ffbbfbdc8c80091",
+    "width": 887
+  }
+}

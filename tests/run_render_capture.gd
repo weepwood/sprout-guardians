@@ -47,22 +47,23 @@ func _run() -> void:
             break
         if bool(game.get("choice_open")):
             if not reward_captured:
-                var title: Label = game.get_node("UI/ChoiceLayer/ChoiceButton0/GiftName") as Label
-                var detail: Label = game.get_node("UI/ChoiceLayer/ChoiceButton0/GiftDetail") as Label
-                var card: Button = game.get_node("UI/ChoiceLayer/ChoiceButton0") as Button
-                var rarity: Label = card.get_node("GiftRarity") as Label
-                for state: String in ["normal", "hover", "pressed"]:
-                    var surface: StyleBoxFlat = card.get_theme_stylebox(state) as StyleBoxFlat
-                    if surface == null:
-                        failed = true
-                        continue
-                    for label: Label in [title, detail, rarity]:
-                        var ratio: float = PlayfulUITheme.contrast_ratio(label.get_theme_color("font_color"), surface.bg_color)
-                        print("REWARD_CONTRAST ", state, " ", label.name, " ", ratio)
-                        if ratio < 4.5:
-                            push_error("Reward card text contrast below 4.5:1")
-                            failed = true
+                var locale: LocalizationService = game.get("i18n") as LocalizationService
+                locale.set_locale("en", false)
+                game.call("_apply_locale")
+                await process_frame
+                _audit_reward_contrast(game)
                 await _capture("05-reward")
+                locale.set_locale("zh_CN", false)
+                game.call("_apply_locale")
+                var reward_title: Label = game.get("choice_title") as Label
+                if not reward_title.text.contains("等级提升"):
+                    push_error("Chinese reward screenshot must actually contain Chinese text")
+                    failed = true
+                await process_frame
+                _audit_reward_contrast(game)
+                await _capture("05-reward-zh")
+                locale.set_locale("en", false)
+                game.call("_apply_locale")
                 reward_captured = true
             var choices: Array = game.get("_current_choices")
             if not choices.is_empty():
@@ -80,3 +81,35 @@ func _run() -> void:
     game.queue_free()
     await process_frame
     quit(0 if not failed and combat_captured and reward_captured else 1)
+
+func _audit_reward_contrast(game: Node) -> void:
+    for index: int in range(3):
+        var card: Button = game.get_node("UI/ChoiceLayer/ChoiceButton%d" % index) as Button
+        if not card.visible:
+            continue
+        for child_name: String in ["GiftName", "GiftDetail", "GiftRarity"]:
+            var label: Label = card.get_node(child_name) as Label
+            if label.position.y + label.size.y > card.size.y or label.get_line_count() > label.get_visible_line_count():
+                push_error("Reward label overflows card: " + child_name)
+                failed = true
+        for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
+            var surface: StyleBoxFlat = card.get_theme_stylebox(state) as StyleBoxFlat
+            if surface == null:
+                failed = true
+                continue
+            for child_name: String in ["GiftName", "GiftDetail", "GiftRarity"]:
+                var label: Label = card.get_node(child_name) as Label
+                var ratio: float = PlayfulUITheme.contrast_ratio(label.get_theme_color("font_color"), surface.bg_color)
+                print("REWARD_CONTRAST ", index, " ", state, " ", child_name, " ", ratio)
+                if ratio < 7.0 or not label.is_visible_in_tree():
+                    push_error("Reward card text fails high contrast or visibility")
+                    failed = true
+    var panel: Panel = game.get_node("UI/ChoiceLayer/Panel") as Panel
+    var surface: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
+    for path: String in ["Title", "ChoiceHint"]:
+        var label: Label = game.get_node("UI/ChoiceLayer/" + path) as Label
+        var ratio: float = PlayfulUITheme.contrast_ratio(label.get_theme_color("font_color"), surface.bg_color)
+        print("REWARD_PANEL_CONTRAST ", path, " ", ratio)
+        if ratio < 7.0:
+            push_error("Reward panel text fails high contrast")
+            failed = true

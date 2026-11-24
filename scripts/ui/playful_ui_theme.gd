@@ -138,3 +138,56 @@ static func readable_on_light(foreground: Color, background: Color) -> Color:
             return candidate
         candidate = candidate.darkened(0.12)
     return INK
+
+# V0.6 forest chrome. Keep light reward cards and their contrast contract.
+static func apply_forest_panel(panel: Panel) -> void:
+    var style: StyleBoxFlat = surface(Color(0.09, 0.16, 0.12, 0.94), 12, Color("#6f8768"), 4)
+    style.set_border_width_all(1)
+    panel.add_theme_stylebox_override("panel", style)
+
+
+static func apply_forest_button(button: Button, primary: bool = false) -> void:
+    apply_button(button, "primary" if primary else "soft", false)
+    var focus: StyleBoxFlat = surface(Color(0, 0, 0, 0), 9, Color("#f6e4a5"), 0)
+    focus.set_border_width_all(2)
+    button.add_theme_stylebox_override("focus", focus)
+    if primary:
+        return
+    var normal: StyleBoxFlat = surface(Color("#294337"), 8, Color("#55725a"), 1)
+    var hover: StyleBoxFlat = surface(Color("#365643"), 8, Color("#9bb884"), 2)
+    var pressed: StyleBoxFlat = surface(Color("#314b38"), 8, Color("#f0cf80"), 1)
+    pressed.set_border_width_all(2)
+    button.add_theme_stylebox_override("normal", normal)
+    button.add_theme_stylebox_override("hover", hover)
+    button.add_theme_stylebox_override("pressed", pressed)
+    button.add_theme_stylebox_override("hover_pressed", pressed)
+    button.add_theme_stylebox_override("disabled", surface(Color("#25352d"), 8, Color("#475449"), 0))
+    for name_value: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+        button.add_theme_color_override(name_value, Color("#f8f3de"))
+    button.add_theme_color_override("font_disabled_color", Color("#a6b6a4"))
+
+# Native option popup, styled to match the game menu rather than the default cream theme.
+static func apply_forest_picker(picker: OptionButton) -> void:
+    apply_forest_button(picker)
+    picker.add_theme_color_override("font_color", Color("#f8f3de"))
+    picker.add_theme_color_override("font_disabled_color", Color("#a6b6a4"))
+    var popup: PopupMenu = picker.get_popup()
+    popup.add_theme_stylebox_override("panel", surface(Color("#20382b"), 8, Color("#6f8768"), 4))
+    popup.add_theme_stylebox_override("hover", surface(Color("#365643"), 5, Color("#9bb884"), 0))
+    popup.add_theme_color_override("font_color", Color("#f8f3de"))
+    popup.add_theme_color_override("font_hover_color", Color("#fff4d7"))
+    popup.add_theme_color_override("font_disabled_color", Color("#a6b6a4"))
+    popup.add_theme_constant_override("v_separation", 7)
+
+
+# Dark semantic inks on light reward surfaces, including pressed state.
+static func reward_rarity_ink(rarity: int) -> Color:
+    match rarity:
+        BlessingData.Rarity.RARE:
+            return Color("#123859")
+        BlessingData.Rarity.EPIC:
+            return Color("#4b2269")
+        BlessingData.Rarity.LEGENDARY:
+            return Color("#583400")
+        _:
+            return Color("#263e20")

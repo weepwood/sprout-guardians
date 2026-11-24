@@ -71,7 +71,7 @@ func _run_full_session(iteration: int) -> void:
     game.call("_toggle_pause")
     _check(state.phase == SurvivorRunState.Phase.RUNNING, "Resuming restores RUNNING state")
 
-    game.call("_on_experience_collected", 8)
+    game.call("_on_experience_collected", int(game.get("experience_to_next")))
     _check(state.phase == SurvivorRunState.Phase.REWARD, "Experience enters REWARD state")
     _check(bool(game.get("choice_open")), "Reward is visible")
     game.call("_select_choice", iteration % 3)
@@ -81,9 +81,12 @@ func _run_full_session(iteration: int) -> void:
     # Keep enemy contact irrelevant for this deterministic gameplay lifecycle test.
     hero.max_health = 20000
     hero.health = 20000
-    for second: int in range(93):
-        if bool(game.get("game_ended")):
+    for second: int in range(160):
+        if bool(game.get("game_ended")) or bool(game.get("final_boss_spawned")):
             break
+        if bool(game.get("choice_open")):
+            game.call("_select_choice", 0)
+            await process_frame
         game.call("_process", 1.0)
         if second % 12 == 0:
             await process_frame
@@ -99,6 +102,9 @@ func _run_full_session(iteration: int) -> void:
             break
     _check(found_boss != null, "Boss actor is active and correctly configured")
     if found_boss != null:
+        while bool(game.get("choice_open")):
+            game.call("_select_choice", 0)
+            await process_frame
         found_boss.take_damage(1000000.0)
         game.call("_process", 0.016)
         _check(bool(game.get("game_ended")), "Boss defeat completes a run")

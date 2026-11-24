@@ -74,6 +74,17 @@ func _run() -> void:
             result["hero_damage_per_second"] = float(source_damage.get("hero", 0.0)) / maxf(1.0, float(result["elapsed"]))
             result["projectile_pool"] = game.get("projectile_pool").metrics()
             result["pickup_pool"] = game.get("pickup_pool").metrics()
+            var blessings: BlessingSystem = game.get("blessing_system") as BlessingSystem
+            var weapon_ranks: Dictionary = {}
+            var evolved_count: int = 0
+            for index: int in range(SurvivorArsenal.IDS.size()):
+                var rank: int = blessings.get_blessing_stack(SurvivorArsenal.IDS[index])
+                if rank > 0:
+                    weapon_ranks[String(SurvivorArsenal.IDS[index])] = rank
+                if SurvivorArsenal.evolved(blessings, index):
+                    evolved_count += 1
+            result["weapon_ranks"] = weapon_ranks
+            result["evolved_count"] = evolved_count
             result["character"] = character_id
             result["map"] = map_id
             result["reward_policy"] = "first" if equal_rewards else "mixed"

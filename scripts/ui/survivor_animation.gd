@@ -44,3 +44,25 @@ static func frame(character_id: int, animation_state: int, elapsed: float) -> Te
         region.filter_clip = true
         _frames[key] = region
     return _frames[key] as Texture2D
+
+
+# High-resolution sheets use their native cell size. The fallback frame()
+# preserves the legacy 36px atlas contract for old resources/tests.
+static func display_frame(character_id: int, animation_state: int, elapsed: float) -> Texture2D:
+    var sheet: Texture2D = HDArt.load_png("animations/hero_%d" % character_id)
+    if sheet == null:
+        return frame(character_id, animation_state, elapsed)
+    var cell: int = floori(float(sheet.get_width()) / float(FRAMES))
+    if cell < 128 or sheet.get_width() != cell * FRAMES or sheet.get_height() != cell * 5:
+        return frame(character_id, animation_state, elapsed)
+    var one_shot: bool = animation_state >= State.ATTACK
+    var index: int = floori(maxf(0.0, elapsed) * (16.0 if one_shot else 9.0))
+    var frame_index: int = mini(index, FRAMES - 1) if one_shot else posmod(index, FRAMES)
+    var key: String = "hd:%d:%d:%d" % [character_id, animation_state, frame_index]
+    if not _frames.has(key):
+        var region: AtlasTexture = AtlasTexture.new()
+        region.atlas = sheet
+        region.region = Rect2(frame_index * cell, clampi(animation_state, 0, 4) * cell, cell, cell)
+        region.filter_clip = true
+        _frames[key] = region
+    return _frames[key] as Texture2D
