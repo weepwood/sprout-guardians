@@ -9,6 +9,8 @@ func _initialize() -> void:
 
 func _run() -> void:
     print("Running plant survivors tests...")
+    _test_balance()
+    _test_pool()
 
     _assert_true(PixelArtAssets.texture(&"hero") != null, "Main-plant pixel texture loads from the actor atlas")
     _assert_true(PixelArtAssets.texture(&"enemy_boss") != null, "Boss pixel texture loads from the actor atlas")
@@ -193,3 +195,39 @@ func _assert_true(condition: bool, message: String) -> void:
 
 func _assert_equal_int(actual: int, expected: int, message: String) -> void:
     _assert_true(actual == expected, "%s (expected %d, got %d)" % [message, expected, actual])
+
+
+func _test_balance() -> void:
+    for difficulty: int in range(3):
+        var previous: float = 0.0
+        for second: int in range(91):
+            var config: Dictionary = SurvivorBalance.enemy_config(float(second), difficulty, false, false)
+            _assert_true(not config["elite"] and not config["boss"], "Ordinary spawn never inherits elite flags")
+            _assert_true(float(config["health"]) >= previous, "Baseline HP curve is monotonic")
+            previous = float(config["health"])
+        for seed_value: int in range(20):
+            var a: SurvivorSpawnDirector = SurvivorSpawnDirector.new()
+            var b: SurvivorSpawnDirector = SurvivorSpawnDirector.new()
+            a.configure(difficulty, seed_value)
+            b.configure(difficulty, seed_value)
+            for second: int in range(90):
+                _assert_true(a.next_enemy(float(second), false, false) == b.next_enemy(float(second), false, false), "Seeded enemy sequence repeats")
+    _assert_true(SurvivorBalance.spawn_interval(0.0, 0) > SurvivorBalance.spawn_interval(0.0, 2), "Casual spawns more slowly")
+
+
+func _test_pool() -> void:
+    var pool: SurvivorNodePool = SurvivorNodePool.new()
+    var scene: PackedScene = load("res://scenes/effects/experience_gem.tscn") as PackedScene
+    var holder: Node2D = Node2D.new()
+    root.add_child(holder)
+    var first: SurvivorExperienceGem = pool.acquire(scene, holder) as SurvivorExperienceGem
+    first.recycle = pool.release
+    first.configure(null, 2)
+    first.age = 44.0
+    first._process(2.0)
+    _assert_true(not first.visible and not first.is_in_group("survivor_experience"), "Expired pickup is inactive and removed from active group")
+    var second: SurvivorExperienceGem = pool.acquire(scene, holder) as SurvivorExperienceGem
+    second.configure(null, 3)
+    _assert_true(first == second and second.age == 0.0 and second.visible, "Pooled pickup resets age and visibility")
+    _assert_equal_int(pool.created, 1, "Pool creates only one node")
+    holder.queue_free()

@@ -14,6 +14,7 @@ var target: GreedHeroPlant
 var experience_value: int = 1
 var age: float = 0.0
 var _phase: float = 0.0
+var recycle: Callable
 var _collected: bool = false
 
 
@@ -22,6 +23,7 @@ func configure(target_value: GreedHeroPlant, amount: int = 1) -> void:
     experience_value = maxi(1, amount)
     _phase = fmod(global_position.x * 0.017 + global_position.y * 0.031, TAU)
     _collected = false
+    age = 0.0
     add_to_group("survivor_experience")
     queue_redraw()
 
@@ -33,7 +35,7 @@ func _process(delta: float) -> void:
     _phase += delta * 4.0
     if age >= LIFE_SECONDS:
         _collected = true
-        queue_free()
+        _retire()
         return
     if target == null or not is_instance_valid(target):
         queue_redraw()
@@ -43,7 +45,7 @@ func _process(delta: float) -> void:
     if distance_value <= PICKUP_RADIUS:
         _collected = true
         collected.emit(experience_value)
-        queue_free()
+        _retire()
         return
     if distance_value <= MAGNET_RADIUS:
         var speed_scale: float = lerpf(0.55, 1.35, 1.0 - distance_value / MAGNET_RADIUS)
@@ -60,3 +62,12 @@ func _draw() -> void:
     draw_circle(Vector2.ZERO, radius + 2.0, Color(0.05, 0.15, 0.12, 0.75))
     draw_circle(Vector2.ZERO, radius, Color("71e6a0"))
     draw_circle(Vector2(-1.5, -1.5), 1.5, Color("d9ffe4"))
+
+
+func _retire() -> void:
+    if recycle.is_valid():
+        remove_from_group("survivor_experience")
+        target = null
+        recycle.call(self)
+    else:
+        queue_free()

@@ -103,6 +103,10 @@ func _event_config(event_id: StringName) -> Dictionary:
             return {"frequency": 720.0, "duration": 0.20, "gain": 0.26, "pitch": 1.0}
         &"combo":
             return {"frequency": 760.0, "duration": 0.075, "gain": 0.28, "pitch": 1.12}
+        &"survivor_hit":
+            return {"frequency": 310.0, "duration": 0.035, "gain": 0.12, "pitch": 1.0}
+        &"survivor_pickup":
+            return {"frequency": 1180.0, "duration": 0.065, "gain": 0.15, "pitch": 1.08}
         &"critical":
             return {"frequency": 1040.0, "duration": 0.095, "gain": 0.32, "pitch": 1.18}
         &"chest_open":
