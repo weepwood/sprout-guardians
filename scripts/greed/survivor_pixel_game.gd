@@ -840,7 +840,11 @@ func _announce_evolutions() -> void:
     for i: int in range(SurvivorArsenal.IDS.size()):
         if SurvivorArsenal.evolved(blessing_system, i) and not evolution_announced.has(i):
             evolution_announced[i] = true
-            _spawn_bitmap_effect(hero_plant.global_position, HDArt.weapon(SurvivorArsenal.IDS[i]), SurvivorArsenal.COLORS[i])
+            var evolution_texture: Texture2D = HDArt.load_png("vfx/evolution_%d" % i)
+            if evolution_texture != null:
+                _spawn_bitmap_effect(hero_plant.global_position, evolution_texture, Color.WHITE, 84.0, 0.85)
+            else:
+                _spawn_bitmap_effect(hero_plant.global_position, HDArt.weapon(SurvivorArsenal.IDS[i]), SurvivorArsenal.COLORS[i])
             _show_event_banner(_t("EVOLVED: ", "已进化：") + _t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]))
 
 
@@ -985,4 +989,4 @@ func _on_visual_impact(projectile: GreedProjectile, _target: GreedEnemy, _damage
     var prefix: String = "vfx/evolution_" if projectile.visual_evolved else "vfx/impact_"
     var image: Texture2D = HDArt.load_png(prefix + str(projectile.visual_weapon))
     if image != null:
-        _spawn_bitmap_effect(projectile.global_position, image, Color.WHITE, 64.0 if projectile.visual_evolved else 56.0, 0.85)
+        _spawn_bitmap_effect(projectile.global_position, image, Color.WHITE, 76.0 if projectile.visual_evolved else 66.0, 0.85)

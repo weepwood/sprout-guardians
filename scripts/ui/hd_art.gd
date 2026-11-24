@@ -104,7 +104,7 @@ static func decorate_map(world: Node2D, map_id: int) -> void:
             sprite.position = Vector2(lerpf(bounds.position.x + 20.0, bounds.end.x - 20.0, t), bounds.position.y + inset if side == 0 else bounds.end.y - inset)
         else:
             sprite.position = Vector2(bounds.position.x + inset if side == 1 else bounds.end.x - inset, lerpf(bounds.position.y + 20.0, bounds.end.y - 20.0, t))
-        sprite.scale = Vector2.ONE * fit(sprite.texture, rng.randf_range(22.0, 38.0))
+        sprite.scale = Vector2.ONE * fit(sprite.texture, _prop_display_size(map_id, sprite.texture, rng, true))
         sprite.flip_h = rng.randf() < 0.5
         sprite.modulate = Color(1.0, 1.0, 1.0, 0.90)
         layer.add_child(sprite)
@@ -131,7 +131,18 @@ static func decorate_map(world: Node2D, map_id: int) -> void:
         prop.texture = textures[rng.randi_range(0, textures.size() - 1)]
         prop.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
         prop.position = point
-        prop.scale = Vector2.ONE * fit(prop.texture, rng.randf_range(15.0, 25.0))
+        prop.scale = Vector2.ONE * fit(prop.texture, _prop_display_size(map_id, prop.texture, rng, false))
         prop.modulate = Color(1.0, 1.0, 1.0, 0.74)
         prop.flip_h = rng.randf() < 0.5
         layer.add_child(prop)
+
+# Keep small ground plants distinct from landmark-sized trees and ruins.
+# Values are display pixels only. Use the existing decoration RNG once per prop.
+static func _prop_display_size(map_id: int, texture_value: Texture2D, rng: RandomNumberGenerator, edge: bool) -> float:
+    var filename: String = texture_value.resource_path.get_file()
+    var landmark: bool = (map_id == 1 and filename in ["prop_0.png", "prop_4.png"]) or (map_id == 2 and filename == "prop_2.png") or (map_id == 3 and filename == "prop_3.png")
+    if landmark:
+        return rng.randf_range(58.0, 78.0) if edge else rng.randf_range(36.0, 48.0)
+    if map_id == 0:
+        return rng.randf_range(25.0, 36.0) if edge else rng.randf_range(20.0, 29.0)
+    return rng.randf_range(32.0, 46.0) if edge else rng.randf_range(22.0, 34.0)

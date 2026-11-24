@@ -161,7 +161,7 @@ func _audit_weapon_effects(packed: PackedScene) -> void:
             if is_instance_valid(effect):
                 _expect(effect.global_position.is_equal_approx(target.global_position), "Impact fixture uses actual target position")
                 var size: Vector2 = effect.texture.get_size() * effect.scale.abs()
-                _expect(maxf(size.x, size.y) >= 46.0, "HD impact initial visible footprint")
+                _expect(maxf(size.x, size.y) >= (63.0 if evolved else 55.0), "HD impact initial visible footprint")
             verified += 1
             await _capture_vfx("weapon-%d-%s" % [index, "evolution" if evolved else "impact"])
             if is_instance_valid(effect):
@@ -203,6 +203,9 @@ func _audit_map_props(game: Node, map_id: int) -> void:
         var path_value: String = _path(sprite.texture)
         _expect(sprite.is_visible_in_tree() and path_value.begins_with(prefix), "Map %d actual prop texture %s" % [map_id, path_value])
         paths[path_value] = true
+        if sprite.texture != null:
+            var size: Vector2 = sprite.texture.get_size() * sprite.scale.abs()
+            _expect(maxf(size.x, size.y) >= 19.0 and maxf(size.x, size.y) <= 79.0, "Decoration visual scale")
         _expect(sprite.get_child_count() == 0, "Decoration is visual only")
     _expect(paths.size() == 6, "Map %d all six independent prop textures" % map_id)
     _expect(layer.get_child_count() >= (12 if map_id == 0 else 28), "Map %d minimum edge decoration count" % map_id)
