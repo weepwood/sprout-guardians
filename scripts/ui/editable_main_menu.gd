@@ -412,10 +412,10 @@ func _show_character_screen() -> void:
     get_node("UI").add_child(character_screen)
     var backdrop: ColorRect = ColorRect.new()
     backdrop.size = Vector2(640, 360)
-    backdrop.color = Color(0.07, 0.13, 0.10, 0.96)
+    backdrop.color = Color(0.07, 0.13, 0.10, 0.93)
     character_screen.add_child(backdrop)
     var title: Label = Label.new()
-    title.position = Vector2(20, 16)
+    title.position = Vector2(20, 12)
     title.size = Vector2(600, 30)
     title.text = _t("CHOOSE YOUR GUARDIAN", "选择你的守护者")
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -423,8 +423,8 @@ func _show_character_screen() -> void:
     PlayfulUITheme.apply_label(title, Color("#f5df9c"))
     character_screen.add_child(title)
     var scroll: ScrollContainer = ScrollContainer.new()
-    scroll.position = Vector2(20, 55)
-    scroll.size = Vector2(600, 235)
+    scroll.position = Vector2(20, 50)
+    scroll.size = Vector2(600, 246)
     scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
     character_screen.add_child(scroll)
     var column: GridContainer = GridContainer.new()
@@ -439,20 +439,20 @@ func _show_character_screen() -> void:
         var button: Button = Button.new()
         button.icon = HDArt.portrait(i)
         button.expand_icon = true
-        button.custom_minimum_size = Vector2(280, 66)
+        button.custom_minimum_size = Vector2(280, 76)
         button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
         button.text = _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]) + "\n" + _t("DMG %.0f · SPD %.0f · HP %+d", "伤害 %.0f · 移速 %.0f · 生命 %+d") % [cfg["damage"], cfg["move_speed"], cfg["health_bonus"]]
         button.tooltip_text = _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i])
         button.disabled = not save_game.is_survivor_character_unlocked(i)
         if button.disabled:
             button.text += "\n" + _t("LOCKED", "未解锁")
-        button.add_theme_font_size_override("font_size", 12)
+        button.add_theme_font_size_override("font_size", 13)
         button.toggle_mode = true
         button.button_group = group
         button.button_pressed = i == SurvivorCharacters.selected
         button.pressed.connect(_choose_screen_hero.bind(i))
         PlayfulUITheme.apply_forest_button(button)
-        button.add_theme_constant_override("icon_max_width", 62)
+        button.add_theme_constant_override("icon_max_width", 72)
         column.add_child(button)
     var back: Button = Button.new()
     back.position = Vector2(20, 306)
@@ -519,8 +519,8 @@ func _apply_hd_menu() -> void:
         grass.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         grass.texture = background
         grass.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-        grass.modulate = Color(0.82, 0.90, 0.78, 1.0)
-        (get_node("World/Shade") as ColorRect).color = Color(0.06, 0.13, 0.09, 0.48)
+        grass.modulate = Color.WHITE if HDArt.load_png("menu/background") != null else Color(0.82, 0.90, 0.78, 1.0)
+        (get_node("World/Shade") as ColorRect).color = Color(0.06, 0.13, 0.09, 0.36)
     var names: Array[String] = ["HeroPreview", "FamiliarSunPreview", "FamiliarSproutPreview"]
     var ids: Array[int] = [0, 1, 2]
     for i: int in range(names.size()):

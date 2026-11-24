@@ -75,7 +75,7 @@ func _run() -> void:
             _expect(sprite != null and _path(sprite.texture) == HDArt.ROOT + "animations/hero_%d.png" % character_id, "Hero %d actual animated texture" % character_id)
             if sprite != null and sprite.texture != null:
                 var size: Vector2 = sprite.texture.get_size() * sprite.scale.abs()
-                _expect(maxf(size.x, size.y) < 80.0, "Hero native texture normalized to gameplay scale")
+                _expect(maxf(size.x, size.y) >= 47.0 and maxf(size.x, size.y) < 60.0, "Hero HD display size is readable without changing combat bounds")
             await _capture("map-%d-hero-%d" % [map_id, character_id])
             game.queue_free()
             await process_frame

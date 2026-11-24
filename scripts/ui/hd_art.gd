@@ -106,5 +106,32 @@ static func decorate_map(world: Node2D, map_id: int) -> void:
             sprite.position = Vector2(bounds.position.x + inset if side == 1 else bounds.end.x - inset, lerpf(bounds.position.y + 20.0, bounds.end.y - 20.0, t))
         sprite.scale = Vector2.ONE * fit(sprite.texture, rng.randf_range(22.0, 38.0))
         sprite.flip_h = rng.randf() < 0.5
-        sprite.modulate = Color(1.0, 1.0, 1.0, 0.78)
+        sprite.modulate = Color(1.0, 1.0, 1.0, 0.90)
         layer.add_child(sprite)
+
+    # Scatter some smaller props across the visible interior of the world.
+    # Keep the start area open and never affect collisions or the gameplay RNG.
+    var interior_count: int = 12 if map_id == SurvivorMaps.CLASSIC else 36
+    var placed: Array[Vector2] = []
+    for i: int in range(interior_count * 5):
+        if placed.size() >= interior_count:
+            break
+        var point: Vector2 = bounds.position + bounds.size * Vector2(rng.randf_range(0.12, 0.88), rng.randf_range(0.12, 0.88))
+        if point.distance_to(bounds.get_center()) < 96.0:
+            continue
+        var separated: bool = true
+        for existing: Vector2 in placed:
+            if existing.distance_to(point) < 72.0:
+                separated = false
+                break
+        if not separated:
+            continue
+        placed.append(point)
+        var prop: Sprite2D = Sprite2D.new()
+        prop.texture = textures[rng.randi_range(0, textures.size() - 1)]
+        prop.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+        prop.position = point
+        prop.scale = Vector2.ONE * fit(prop.texture, rng.randf_range(15.0, 25.0))
+        prop.modulate = Color(1.0, 1.0, 1.0, 0.74)
+        prop.flip_h = rng.randf() < 0.5
+        layer.add_child(prop)

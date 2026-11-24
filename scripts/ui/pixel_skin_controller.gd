@@ -1,6 +1,12 @@
 extends Node
 class_name PixelSkinController
 
+const HERO_PIXELS: float = 51.0
+const FAMILIAR_PIXELS: float = 27.0
+const ENEMY_PIXELS: float = 29.0
+const ELITE_PIXELS: float = 38.0
+const BOSS_PIXELS: float = 65.0
+
 var _sprites: Dictionary = {}
 var _enemy_poses: Dictionary = {}
 var _elapsed: float = 0.0
@@ -143,16 +149,16 @@ func _texture_for_node(node: Node) -> Texture2D:
 func _configure_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedHeroPlant:
         sprite.position = Vector2(0.0, -5.0)
-        sprite.scale = Vector2.ONE * 0.70 * HDArt.fit(sprite.texture, 56.0)
+        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, HERO_PIXELS)
         sprite.z_index = 5
     elif node is GreedPlant:
         sprite.position = Vector2(0.0, -2.0)
-        sprite.scale = Vector2.ONE * 0.39 * HDArt.fit(sprite.texture, 56.0)
+        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, FAMILIAR_PIXELS)
         sprite.z_index = 5
     elif node is GreedEnemy:
         var enemy: GreedEnemy = node as GreedEnemy
         sprite.position = Vector2(0.0, -3.0)
-        sprite.scale = Vector2.ONE * (0.92 if enemy.boss else (0.53 if enemy.elite else 0.40)) * HDArt.fit(sprite.texture, 56.0)
+        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, BOSS_PIXELS if enemy.boss else (ELITE_PIXELS if enemy.elite else ENEMY_PIXELS))
         sprite.z_index = 4
     elif node is GreedProjectile:
         sprite.scale = Vector2.ONE * 0.24
@@ -165,13 +171,13 @@ func _configure_sprite(node: Node, sprite: Sprite2D) -> void:
 func _update_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedHeroPlant:
         var hero: GreedHeroPlant = node as GreedHeroPlant
-        sprite.position.y = -5.0 + sin(_elapsed * 6.0) * 1.0
+        sprite.position.y = -9.0 + sin(_elapsed * 6.0) * 1.0
         var stride: float = sin(_elapsed * 13.0) * 0.045 if hero.arcade_direction.length_squared() > 0.0 else 0.0
-        sprite.scale = Vector2(0.70 + stride, 0.70 - stride)
+        sprite.scale = Vector2(1.0 + stride, 1.0 - stride)
         if absf(hero.arcade_direction.x) > 0.15:
             sprite.flip_h = hero.arcade_direction.x < 0.0
         if hero.is_dashing():
-            sprite.scale = Vector2.ONE * 0.75
+            sprite.scale = Vector2.ONE * 1.07
         sprite.modulate = Color(1.0, 0.72, 0.72) if float(hero.get("_hit_flash")) > 0.0 else Color.WHITE
         var character_id: int = int(hero.config.get("character_index", 0))
         if character_id == 3 and HDArt.load_png("animations/hero_3") == null:
@@ -190,13 +196,13 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
             var frame: Texture2D = SurvivorAnimation.display_frame(int(hero.config["character_index"]), state, _hero_animation_clock)
             if frame != null:
                 sprite.texture = frame
-        sprite.scale *= HDArt.fit(sprite.texture, 56.0)
+        sprite.scale *= HDArt.fit(sprite.texture, HERO_PIXELS)
         return
 
     if node is GreedPlant:
         var familiar: GreedPlant = node as GreedPlant
         sprite.position.y = -2.0 + sin(_elapsed * 7.5 + float(familiar.orbit_index) * PI) * 1.5
-        sprite.scale = Vector2.ONE * (0.39 + minf(0.12, float(familiar.level - 1) * 0.018)) * HDArt.fit(sprite.texture, 56.0)
+        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, FAMILIAR_PIXELS + minf(6.0, float(familiar.level - 1) * 0.9))
         return
 
     if node is GreedEnemy:
@@ -219,10 +225,9 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
             sprite.flip_h = movement.x < 0.0
         # Static HD art remains a visibly distinct fallback, not frame animation.
         var phase: float = _elapsed * (5.0 if enemy.boss else 9.0) + float(instance_id_value % 97) * 0.13
-        sprite.position.y = -3.0 + (sin(phase) * 0.8 if frame == null and state == 1 else 0.0)
+        sprite.position.y = (-10.0 if enemy.boss else -5.0) + (sin(phase) * 0.8 if frame == null and state == 1 else 0.0)
         var squash_active: bool = float(enemy.get("_squash_time")) > 0.0
-        var base_scale: float = 0.92 if enemy.boss else (0.53 if enemy.elite else 0.40)
-        base_scale *= HDArt.fit(sprite.texture, 56.0)
+        var base_scale: float = HDArt.fit(sprite.texture, BOSS_PIXELS if enemy.boss else (ELITE_PIXELS if enemy.elite else ENEMY_PIXELS))
         sprite.scale = Vector2(1.14, 0.84) * base_scale if squash_active else Vector2.ONE * base_scale
         if enemy.survivor_variant == 1 and fmod(float(enemy.get("_behavior_clock")), 3.4) < 0.55:
             sprite.scale *= Vector2(1.12, 0.76)
@@ -249,7 +254,7 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
         var hd: Texture2D = HDArt.load_png("vfx/projectile_%d" % projectile.visual_weapon) if projectile.visual_weapon >= 0 else null
         sprite.texture = hd if hd != null else PixelArtAssets.projectile_texture(projectile.splash_radius, projectile.slow_ratio)
         sprite.rotation = direction_value.angle()
-        sprite.scale = Vector2.ONE * (0.30 if projectile.critical else 0.24) * HDArt.fit(sprite.texture, 56.0)
+        sprite.scale = Vector2.ONE * HDArt.fit(sprite.texture, 21.0 if projectile.critical else 17.0)
         sprite.modulate = Color.WHITE if hd != null else projectile.body_color.lerp(Color.WHITE, 0.28)
         return
 

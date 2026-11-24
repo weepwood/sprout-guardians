@@ -584,9 +584,9 @@ func _apply_playful_hud() -> void:
     PlayfulUITheme.apply_label(choice_hint, Color("#fff8df"))
     PlayfulUITheme.apply_label(status_label, Color("#fff9e7"))
     PlayfulUITheme.apply_label(combo_label, Color("#ffed92"))
-    PlayfulUITheme.apply_button(language_button, "tiny")
-    PlayfulUITheme.apply_button(speed_button, "tiny")
-    PlayfulUITheme.apply_button(menu_button, "coral")
+    PlayfulUITheme.apply_forest_button(language_button)
+    PlayfulUITheme.apply_forest_button(speed_button)
+    PlayfulUITheme.apply_forest_button(menu_button)
     for button: Button in choice_buttons:
         PlayfulUITheme.apply_button(button, "soft")
     PlayfulUITheme.apply_button(result_button, "primary")
@@ -897,6 +897,7 @@ func _show_result_workspace(victory: bool) -> void:
     var column: VBoxContainer = VBoxContainer.new()
     column.position = Vector2(110, 90)
     column.size = Vector2(420, 190)
+    column.add_theme_constant_override("separation", 8)
     get_node("UI/ChoiceLayer").add_child(column)
     var metrics_label: Label = Label.new()
     metrics_label.text = _t("Time %.1fs · Kills %d · Level %d\nDamage %.0f · XP %d · Taken %d\nHero %.0f · Familiars %.0f · Weapons %.0f\nEvolutions %d · Events %d", "时间 %.1f秒 · 击杀 %d · 等级 %d\n伤害 %.0f · 经验 %d · 承伤 %d\n主角 %.0f · 随从 %.0f · 武器 %.0f\n进化 %d · 事件 %d") % [survival_elapsed, enemies_defeated, hero_plant.level, total_damage, total_xp, damage_received, damage_by_source["hero"], damage_by_source["familiar"], damage_by_source["arsenal"], evolution_announced.size(), map_events.completed]
@@ -956,7 +957,7 @@ func _show_result_workspace(victory: bool) -> void:
     home.size = Vector2(170, 38)
     get_node("UI/ChoiceLayer").add_child(home)
     home.pressed.connect(_leave_result)
-    PlayfulUITheme.apply_button(home)
+    PlayfulUITheme.apply_forest_button(home)
     result_button.grab_focus()
 
 func _leave_result() -> void:
