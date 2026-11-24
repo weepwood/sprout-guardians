@@ -141,6 +141,13 @@ func _run() -> void:
     key_right.keycode = KEY_LEFT
     game.call("_input", key_right)
     _assert_equal_int(int(game.get("reward_focus_index")), 0, "Left arrow moves reward selection")
+    game.call("_reroll_reward")
+    _assert_equal_int(int(game.get("reward_rerolls")), 1, "Reroll consumes one run-limited charge")
+    _assert_equal_int(int(game.get("pending_level_ups")), 1, "Reroll preserves the pending level")
+    _assert_true(bool(game.get("choice_open")), "Reroll preserves the reward overlay")
+    game.call("_reroll_reward")
+    game.call("_reroll_reward")
+    _assert_equal_int(int(game.get("reward_rerolls")), 0, "Reroll cannot exceed run budget")
     game.call("_select_choice", 99)
     _assert_true(bool(game.get("choice_open")), "Invalid choice index cannot dismiss the level-up overlay")
     _assert_equal_int(int(game.get("pending_level_ups")), 1, "Invalid choice index does not consume a level")
@@ -149,6 +156,13 @@ func _run() -> void:
     await process_frame
     _assert_true(not bool(game.get("choice_open")), "Choosing a mutation resumes time survival")
     _assert_equal_int(game_hero.level, 2, "Level-up choice evolves the main plant")
+
+    game.call("_on_experience_collected", int(game.get("experience_to_next")))
+    _assert_true(bool(game.get("choice_open")), "Next upgrade opens after choosing a reward")
+    game.call("_skip_reward")
+    _assert_true(not bool(game.get("choice_open")), "Skipping a reward resumes combat")
+    _assert_equal_int(int(game.get("pending_level_ups")), 0, "Skip consumes one pending upgrade")
+    _assert_equal_int(game_hero.level, 3, "Skip preserves base level growth")
 
     game.set("survival_elapsed", 31.0)
     game.call("_spawn_time_milestones")

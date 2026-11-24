@@ -38,7 +38,7 @@ jobs:
           set -euo pipefail
           mkdir -p build/simulation
           godot --headless --editor --path . --quit > build/simulation/import.log 2>&1
-          timeout 420s godot --headless --audio-driver Dummy --fixed-fps 60 --disable-render-loop --path . --script res://tests/run_survivor_simulation.gd -- --simulation-difficulty=${{ matrix.difficulty }} | tee build/simulation/results.log
+          timeout 420s godot --headless --audio-driver Dummy --fixed-fps 60 --disable-render-loop --path . --script res://tests/run_survivor_simulation.gd -- --simulation-difficulty=${{ matrix.difficulty }} 2>&1 | tee build/simulation/results.log
           test "$(grep -c '^SIMULATION ' build/simulation/results.log)" -eq 9
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access|Invalid call|on a null instance' build/simulation/*.log; then exit 1; fi
       - uses: actions/upload-artifact@v4
