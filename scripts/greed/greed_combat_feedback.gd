@@ -26,7 +26,9 @@ func spawn_damage(position_value: Vector2, damage: float, critical: bool) -> voi
     label.position = get_viewport().get_canvas_transform() * world_position
     label.size = Vector2(72.0 if critical else 44.0, 22.0)
     label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    label.add_theme_font_size_override("font_size", 16 if critical else 12)
+    label.add_theme_font_size_override("font_size", 17 if critical else 13)
+    label.add_theme_color_override("font_outline_color", Color("#182432"))
+    label.add_theme_constant_override("outline_size", 4 if critical else 3)
     label.add_theme_color_override("font_color", Color("ffe071") if critical else Color("f4f0d1"))
     label.modulate = Color.WHITE
     label.visible = true

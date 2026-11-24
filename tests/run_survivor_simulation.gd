@@ -11,6 +11,7 @@ func _run() -> void:
     var scene: PackedScene = load("res://scenes/main.tscn") as PackedScene
     var difficulties: Array[int] = [0, 1, 2]
     var equal_rewards: bool = OS.get_cmdline_user_args().has("--equal-rewards")
+    var recommended_rewards: bool = OS.get_cmdline_user_args().has("--simulation-reward=recommended")
     var character_id: int = 0
     var map_id: int = 0
     for argument: String in OS.get_cmdline_user_args():
@@ -42,7 +43,12 @@ func _run() -> void:
                     var choices: Array = game.get("_current_choices")
                     if not choices.is_empty():
                         var choice: int = 0
-                        if policy == 1 and not equal_rewards:
+                        if recommended_rewards:
+                            var typed_choices: Array[BlessingData] = []
+                            typed_choices.assign(choices)
+                            var suggested: int = SurvivorArsenal.recommended_index(typed_choices, game.get("blessing_system") as BlessingSystem)
+                            choice = maxi(0, suggested)
+                        elif policy == 1 and not equal_rewards:
                             for i: int in range(choices.size()):
                                 if SurvivorArsenal.IDS.has(choices[i].id):
                                     choice = i
@@ -87,7 +93,7 @@ func _run() -> void:
             result["evolved_count"] = evolved_count
             result["character"] = character_id
             result["map"] = map_id
-            result["reward_policy"] = "first" if equal_rewards else "mixed"
+            result["reward_policy"] = "recommended" if recommended_rewards else ("first" if equal_rewards else "mixed")
             result["outcome"] = "victory" if result["victory"] else ("defeat" if bool(game.get("game_ended")) else "timeout")
             if float(result["elapsed"]) <= 0.0 or int(result["kills"]) < 0 or (int(result["kills"]) > 0 and float(source_damage.get("hero", 0.0)) + float(source_damage.get("familiar", 0.0)) + float(source_damage.get("arsenal", 0.0)) <= 0.0):
                 push_error("Invalid simulation result: %s" % str(result))

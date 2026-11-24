@@ -29,6 +29,13 @@ jobs:
         id: assets
         continue-on-error: true
         run: python3 tools/verify_v06_art.py
+      - name: Restore verified Godot archives
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/sprout-godot
+          key: sprout-godot-linux-${{ hashFiles('tools/download_godot_linux.sh') }}-editor
+      - name: Configure archive cache
+        run: echo "GODOT_ASSET_CACHE=$HOME/.cache/sprout-godot" >> "$GITHUB_ENV"
       - name: Install Godot and virtual display
         run: |
           set -euo pipefail

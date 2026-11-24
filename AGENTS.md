@@ -194,3 +194,20 @@
 ### V0.7 CI 下载可靠性收口（57c8851）
 - 最新四套工作流 45469483968、45469484066、45469484214、45469483963 均在 Godot 官方下载入口连续 HTTP 403 时失败，游戏测试未执行；三平台存档恢复任务通过（使用官方 GitHub release）。不把网络安装失败误判为业务回归。
 - 统一 Linux editor/templates 下载至 tools/download_godot_linux.sh，优先官方 godotengine/godot-builds 4.7.1-stable release，失败再使用官方分发入口；以该 release API 返回的资产 SHA256 固定校验，校验失败不安装，版本不匹配直接失败。Mac 本机实际下载 Linux editor、SHA256及ZIP完整性检查通过，错误版本拒绝测试通过；templates 与四套工作流待CI复验。不改游戏逻辑、不降低门禁、不擅自批准未公证发布。
+
+
+## V0.7 Fluent / Acrylic 界面专项
+- 基于最新main 1251e63（已合并响应式重构），独立worktree /Volumes/data/Project/sprout-guardians-fluent，分支feat/v0.7-fluent-ui；不动旧V0.6/V0.7工作区、真实玩家存档、战斗数值及81项PNG。
+- 用户要求Windows毛玻璃质感、功能和排版重构：原生Godot Controls复用，统一冷灰蓝、细描边、7px按钮圆角、键盘焦点和高对比浅色奖励。现有glass_frosted.gdshader改为单次屏幕mipmap采样、像素圆角、轻微噪声与色调；主菜单/设置/图鉴/角色详情/暂停/奖励与结算实际接入，HUD使用轻量暗色表面；headless走无Shader回退，不宣称Windows系统DWM原生材质。
+- 主菜单右侧冒险配置集中，标题/文案精简；设置分组、显示模式直接OptionButton而非循环按钮；图鉴增宽且统一控件；选角保留原解锁与功能；武器栏显示等级及进化星号，事件警示移至HUD下，避免底部经验/武器栏冲突。保留原档位、武器属性、键鼠及存档机制。
+- 本地Godot 4.7.1实际导入、UI smoke、Survivor和Session通过；81 PNG哈希通过。Mac M4 OpenGL compatibility固定1280×720实际9张截图，FLUENT_SUMMARY captured=9 failed=false；已打开拼图审查。原生多次resize测试此前仅取得2图，后续frame_post_draw超时且自然战斗继续推进导致暂停断言未通过；修正测试中根游戏计时暂停，保留原20图门禁，仍需新Linux CI复验。不宣称完整多分辨率验收完成。旧ObjectDB退出警告仍存在。
+- 新增tests/run_fluent_capture.gd实际屏幕采集及质量CI 9图门禁（原7图/20图保持）。本机截图目录 /tmp/sprout-fluent-test.t6X7HA/build/fluent；只在隔离user:// SproutGuardians-Fluent-Capture-20261125及测试命名空间执行。正式Release仍v0.6.0；本轮仅UI PR，不直接发布。
+
+
+### 玩家体验集中专项：构筑推荐、语义图标、输入回放与资源治理
+- #30 已合并 d2ca13b 且正式 v0.6.0 发布；#32 e5b41c1 构建45474611146、144仿真45474610501、高清美术45474610475均成功；质量45474610738渲染任务通过、macOS存档任务仍排队。继续同一PR集中提交，未提前合并发布。
+- Mac Downloads 正式 v0.6.0 DMG 与公开 SHA256SUMS.txt 完全一致；本机hdiutil校验/挂载、Applications链接、版本0.6.0、x86_64+arm64、复制后codesign通过；macos-signing-status=ad-hoc-unnotarized，spctl拒绝。未修改Gatekeeper或覆盖已安装应用。本轮仅验证正式包结构，旧候选曾原生启动；没有假称已通过公证或人工Finder安装。
+- SurvivorArsenal 推荐评分优先可立即完成的自身/搭档进化；简单普通保持首个抽取及史诗以上，专家抽取/默认焦点不变；推荐卡星号、武器/被动类别、稀有度、等级与实际进化进度，默认Enter选推荐（简单普通）；仍可按1/2/3自由选择。新增Lucide 0.456.0八项语义SVG（官方ISC/MIT许可，128px统一蓝灰墨，保留原几何），武器原图不改，许可随四平台导出。暂停构筑精简，伤害数字深描边、真实命中特效、取得奖励反馈不覆盖正在显示的事件预警。敌人生成/伤害/武器基础数值不变。
+- 本机同种子36组专项：简单first 9/9胜、0/9进化、平均等级13.56；recommended 9/9胜、9/9进化、平均4次、等级13.33。普通first 9/9胜、0/9进化、等级11；recommended 9/9胜、9/9进化、平均3次、等级11。此为同版本策略对照，不是真人胜率或旧版对照。新增推荐策略可复验参数；已有144组不删。新正常游戏输入回放simulation_mode=false，方向Input action与Enter事件，简单胜91.736s/112杀/Lv14/4进化、普通胜95.589s/142杀/Lv11/3进化；原生GL窗口复验91.865s及95.620s，两场同样胜利且实际结算截图。并非人工手动试玩，使用隔离测试存档，Dummy音频不代表听感验收。
+- 本机Godot导入、UI、核心、会话通过；新增9图双语奖励标签边界检查通过，已实际审查9张1280×720图。无头verbose旧核心11个音频对象残留；显式停止/清空stream及无头不创建无用播放资源后UI/核心/Session无ObjectDB警告。原生正常路径回放Dummy音频仍10个AudioStreamWAV/PlaybackWAV残留，根因尚未根治，不能声称全部解决。地图缓存只保留当前地图地形/装饰，资源仍由活节点持有；实际内存和包体缩减待新CI测量，不删高清原画。旧正式DMG 91674658 bytes、Windows ZIP 61582670、Linux ZIP 52069244、Web ZIP 33952444。原始美术/开发资源已排除。
+- Linux四套工作流增加官方固定SHA256归档缓存，命中仍校验digest；本机复用73MiB原官方editor.zip逐字节一致测试通过，实际Actions命中率和耗时待复验。新增正常输入回放CI门禁，保留原7/20/9图、144组及各平台检查。新提交未正式发布，不默认允许未公证发布。

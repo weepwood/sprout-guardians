@@ -149,11 +149,12 @@ func _run() -> void:
     var key_right: InputEventKey = InputEventKey.new()
     key_right.pressed = true
     key_right.keycode = KEY_RIGHT
+    var start_focus: int = int(game.get("reward_focus_index"))
     game.call("_input", key_right)
-    _assert_equal_int(int(game.get("reward_focus_index")), 1, "Right arrow moves reward selection")
+    _assert_equal_int(int(game.get("reward_focus_index")), posmod(start_focus + 1, 3), "Right arrow moves reward selection")
     key_right.keycode = KEY_LEFT
     game.call("_input", key_right)
-    _assert_equal_int(int(game.get("reward_focus_index")), 0, "Left arrow moves reward selection")
+    _assert_equal_int(int(game.get("reward_focus_index")), start_focus, "Left arrow moves reward selection")
     game.call("_reroll_reward")
     _assert_equal_int(int(game.get("reward_rerolls")), 1, "Reroll consumes one run-limited charge")
     _assert_equal_int(int(game.get("pending_level_ups")), 1, "Reroll preserves the pending level")
@@ -325,6 +326,18 @@ func _test_arsenal() -> void:
     var assisted: Array[BlessingData] = SurvivorArsenal.assist_choices(choices.duplicate(), system, 1)
     _assert_true(assisted[0] == common and assisted[1] == epic, "Build assistance preserves first choice and epic")
     _assert_true(assisted[2].id == SurvivorArsenal.IDS[2], "Build assistance offers useful owned upgrade")
+    var before_partner: BlessingSystem = BlessingSystem.new()
+    before_partner.setup(rewards, 123)
+    for i: int in range(3):
+        before_partner.apply_blessing(rewards[0])
+    _assert_equal_int(SurvivorArsenal.recommendation_score(rewards[2], before_partner), 100, "Missing partner unlocks an immediate evolution")
+    var suggested: Array[BlessingData] = SurvivorArsenal.assist_choices(choices.duplicate(), before_partner, 0)
+    _assert_true(suggested[2] == rewards[2], "Easy offers missing evolution partner")
+    _assert_true(SurvivorArsenal.recommended_index(suggested, before_partner) == 2, "Recommendation marks the actual useful option")
+    _assert_true(HDArt.reward_icon(common) != null and HDArt.reward_icon(common).get_width() >= 128, "Passive uses crisp semantic UI icon")
+    common.effect_type = BlessingData.EffectType.SLOW
+    _assert_true(HDArt.reward_icon(common) != HDArt.reward_icon(rare), "Different passive effects have different icon resources")
+    before_partner.free()
     system.free()
 
 

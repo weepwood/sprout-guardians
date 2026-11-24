@@ -43,32 +43,53 @@ static func shot_interval(index: int, rank: int, evolution: bool, resonance: boo
     return base * rank_factor * (0.8 if evolution else 1.0) * (0.90 if resonance else 1.0)
 
 
-# Keep one useful weapon option without consuming another RNG draw. Preserve
-# the rolled first choice and any high-rarity guarantee whenever possible.
+# Pure, deterministic build guidance; no extra RNG draw or stat mutation.
+static func recommendation_score(data: BlessingData, blessings: BlessingSystem) -> int:
+    var index: int = IDS.find(data.id)
+    if index < 0:
+        return -1
+    var rank: int = blessings.get_blessing_stack(data.id)
+    if rank >= data.max_stacks:
+        return -1
+    var partner_rank: int = blessings.get_blessing_stack(IDS[EVOLUTION_PARTNERS[index]])
+    if (rank == 2 and partner_rank >= 1) or (rank == 0 and partner_rank >= 3):
+        return 100
+    if rank > 0:
+        return 20 + rank * 4 + partner_rank * 3
+    if partner_rank > 0:
+        return 26 + partner_rank * 4
+    return 1
+
+static func recommended_index(choices: Array[BlessingData], blessings: BlessingSystem) -> int:
+    var best: int = -1
+    var score: int = -1
+    for i: int in range(choices.size()):
+        var candidate: int = recommendation_score(choices[i], blessings)
+        if candidate > score:
+            score = candidate
+            best = i
+    return best
+
 static func assist_choices(choices: Array[BlessingData], blessings: BlessingSystem, difficulty: int) -> Array[BlessingData]:
     if difficulty >= 2 or choices.size() < 2:
         return choices
-    var owned: bool = false
-    for id: StringName in IDS:
-        if blessings.get_blessing_stack(id) > 0:
-            owned = true
     var best: BlessingData = null
     var best_score: int = -1
     for data: BlessingData in blessings.pool:
-        var index: int = IDS.find(data.id)
-        if index < 0 or blessings.get_blessing_stack(data.id) >= data.max_stacks:
-            continue
-        var rank: int = blessings.get_blessing_stack(data.id)
-        var partner: int = blessings.get_blessing_stack(IDS[EVOLUTION_PARTNERS[index]])
-        var score: int = 1 if not owned else (rank * 3 + partner * 2 if rank > 0 or partner > 0 else 0)
+        var score: int = recommendation_score(data, blessings)
         if score > best_score:
             best_score = score
             best = data
-    if best == null or (owned and best_score <= 0):
+    if best == null:
+        return choices
+    var existing: int = recommended_index(choices, blessings)
+    if existing >= 0 and recommendation_score(choices[existing], blessings) >= best_score:
         return choices
     for data: BlessingData in choices:
-        if data.id == best.id or (not owned and IDS.has(data.id)):
+        if data.id == best.id:
             return choices
+    # Prefer a replaceable trailing option. Keep the original first option and
+    # all epic/legendary choices; no extra reward or free weapon rank.
     for i: int in range(choices.size() - 1, 0, -1):
         if choices[i].rarity < BlessingData.Rarity.EPIC:
             choices[i] = best

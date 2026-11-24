@@ -1,15 +1,19 @@
 shader_type canvas_item;
 
-// Single mip-filtered scene sample instead of an expensive multi-pass blur.
+// Acrylic: sample scene mipmaps once, then tint and add subtle stable grain.
+// Corner radius is in logical pixels, not a fraction of panel width.
 uniform sampler2D scene_texture : hint_screen_texture, filter_linear_mipmap;
-uniform float blur_lod : hint_range(0.0, 5.0) = 2.4;
-uniform vec4 tint : source_color = vec4(0.17, 0.25, 0.22, 0.47);
-uniform float corner_radius : hint_range(0.0, 0.5) = 0.15;
+uniform float blur_lod : hint_range(0.0, 5.0) = 3.5;
+uniform vec4 tint : source_color = vec4(0.095, 0.12, 0.16, 0.62);
+uniform vec2 panel_size = vec2(280.0, 280.0);
+uniform float radius = 10.0;
 
 void fragment() {
-    vec2 uv = UV;
-    float distance_to_edge = length(max(abs(uv - vec2(0.5)) - vec2(0.5 - corner_radius), vec2(0.0))) - corner_radius;
-    float edge_mask = 1.0 - smoothstep(-0.015, 0.018, distance_to_edge);
-    vec4 blurred = textureLod(scene_texture, SCREEN_UV, blur_lod);
-    COLOR = vec4(mix(blurred.rgb, tint.rgb, tint.a), 0.88 * edge_mask);
+    vec2 p = abs((UV - vec2(0.5)) * panel_size) - panel_size * 0.5 + vec2(radius);
+    float distance_to_edge = length(max(p, vec2(0.0))) + min(max(p.x, p.y), 0.0) - radius;
+    float edge_mask = 1.0 - smoothstep(-0.7, 0.7, distance_to_edge);
+    vec3 backdrop = textureLod(scene_texture, SCREEN_UV, blur_lod).rgb;
+    vec3 acrylic = mix(backdrop, tint.rgb, tint.a);
+    float grain = fract(sin(dot(floor(FRAGCOORD.xy), vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+    COLOR = vec4(acrylic + grain * 0.015 + vec3(0.022 * (1.0 - UV.y)), edge_mask);
 }

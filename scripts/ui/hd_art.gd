@@ -29,6 +29,29 @@ static func weapon(id_value: StringName) -> Texture2D:
     var image: Texture2D = load_png("weapons/weapon_%d" % index) if index >= 0 else null
     return image if image != null else PixelArtAssets.blessing_icon(id_value)
 
+# Vector UI icons use distinct effect semantics; weapons keep their existing
+# approved native-resolution artwork. No generated game sprites are replaced.
+const PASSIVE_ICONS: Array[String] = ["sword", "zap", "target", "coins", "flask-conical", "snowflake", "crosshair", "sun"]
+
+static func reward_icon(data: BlessingData) -> Texture2D:
+    if SurvivorArsenal.IDS.has(data.id):
+        return weapon(data.id)
+    var key: String = "passive:" + str(data.effect_type)
+    if not _cache.has(key):
+        var path: String = "res://assets/ui/buff/" + PASSIVE_ICONS[clampi(data.effect_type, 0, PASSIVE_ICONS.size() - 1)] + ".svg"
+        _cache[key] = load(path) as Texture2D
+    return _cache[key] as Texture2D
+
+# Keep only the active map's large terrain and props cached. Live texture
+# references remain valid; later visits reload through ResourceLoader.
+static func retain_map(map_id: int) -> void:
+    var active: String = MAPS[clampi(map_id, 0, 3)]
+    for key: String in _cache.keys():
+        if key.begins_with("terrain/") and key != "terrain/" + active:
+            _cache.erase(key)
+        elif key.begins_with("props/") and not key.begins_with("props/" + active + "/"):
+            _cache.erase(key)
+
 static func portrait(character_id: int) -> Texture2D:
     var sheet: Texture2D = load_png("animations/hero_%d" % character_id)
     if sheet != null:
@@ -75,6 +98,7 @@ static func enemy_frame(key: String, state: int, elapsed: float) -> Texture2D:
 # Purely decorative edge placement. Never advances the combat/event RNG and
 # never introduces a collision shape, target, pickup or spawn restriction.
 static func decorate_map(world: Node2D, map_id: int) -> void:
+    retain_map(map_id)
     var old: Node = world.get_node_or_null("HDMapDecorations")
     if old != null:
         old.queue_free()

@@ -37,7 +37,7 @@ func _ready() -> void:
 
 
 func play_music() -> void:
-    if not music_enabled or _music_player == null:
+    if DisplayServer.get_name() == "headless" or not music_enabled or _music_player == null:
         return
     if _music_player.stream == null:
         _music_player.stream = _make_music_loop()
@@ -51,7 +51,7 @@ func stop_music() -> void:
 
 
 func play_event(event_id: StringName) -> void:
-    if not sfx_enabled:
+    if DisplayServer.get_name() == "headless" or not sfx_enabled:
         return
     var config: Dictionary = _event_config(event_id)
     var cache_key: String = "%s:%s:%s" % [event_id, config["frequency"], config["duration"]]
@@ -63,6 +63,8 @@ func play_event(event_id: StringName) -> void:
     var player: AudioStreamPlayer = _next_sfx_player()
     if player == null:
         return
+    if player.playing:
+        player.stop()
     player.pitch_scale = float(config.get("pitch", 1.0))
     player.stream = stream
     player.play()
@@ -78,6 +80,23 @@ func set_music_enabled(value: bool) -> void:
 
 func set_sfx_enabled(value: bool) -> void:
     sfx_enabled = value
+    if not value:
+        for player: AudioStreamPlayer in _sfx_players:
+            if is_instance_valid(player):
+                player.stop()
+
+func _exit_tree() -> void:
+    if is_instance_valid(_music_player):
+        _music_player.stop()
+        _music_player.stream = null
+    for player: AudioStreamPlayer in _sfx_players:
+        if is_instance_valid(player):
+            player.stop()
+            player.stream = null
+    _tone_cache.clear()
+    _sfx_players.clear()
+    _music_player = null
+
 
 
 func _next_sfx_player() -> AudioStreamPlayer:

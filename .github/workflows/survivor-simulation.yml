@@ -47,6 +47,13 @@ jobs:
           - {difficulty: 1, character: 0, map: 3, reward: first}
     steps:
       - uses: actions/checkout@v4
+      - name: Restore verified Godot archives
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/sprout-godot
+          key: sprout-godot-linux-${{ hashFiles('tools/download_godot_linux.sh') }}-editor
+      - name: Configure archive cache
+        run: echo "GODOT_ASSET_CACHE=$HOME/.cache/sprout-godot" >> "$GITHUB_ENV"
       - name: Install Godot editor
         run: |
           set -euo pipefail

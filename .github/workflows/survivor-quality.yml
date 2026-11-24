@@ -11,6 +11,8 @@ on:
       - 'tests/run_endurance_benchmark.gd'
       - 'tests/run_render_capture.gd'
       - 'tests/run_responsive_capture.gd'
+      - 'tests/run_fluent_capture.gd'
+      - 'assets/ui/**'
       - 'project.godot'
       - 'tests/run_render_benchmark.gd'
       - 'tests/run_save_recovery.gd'
@@ -27,6 +29,13 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: Restore verified Godot archives
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/sprout-godot
+          key: sprout-godot-linux-${{ hashFiles('tools/download_godot_linux.sh') }}-editor
+      - name: Configure archive cache
+        run: echo "GODOT_ASSET_CACHE=$HOME/.cache/sprout-godot" >> "$GITHUB_ENV"
       - name: Install editor and virtual display
         run: |
           set -euo pipefail
@@ -57,6 +66,13 @@ jobs:
           test "$(find build/visual -name '*.png' | wc -l)" -eq 7
           test -s build/visual/05-reward-zh.png
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Invalid access|Invalid call|on a null instance' build/quality/render.log; then exit 1; fi
+      - name: Fluent material and fixed-size screen capture
+        run: |
+          set -euo pipefail
+          timeout 90s xvfb-run -a -s '-screen 0 1280x720x24' godot --rendering-method gl_compatibility --audio-driver Dummy --resolution 1280x720 --path . --script res://tests/run_fluent_capture.gd 2>&1 | tee build/quality/fluent.log
+          grep '^FLUENT_SUMMARY captured=9 failed=false$' build/quality/fluent.log
+          test "$(find build/fluent -name '*.png' | wc -l)" -eq 9
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Shader compilation failed|Invalid access|Invalid call|on a null instance' build/quality/fluent.log; then exit 1; fi
       - name: Responsive native-window capture and preferences
         run: |
           set -euo pipefail
@@ -80,6 +96,7 @@ jobs:
             build/quality/
             build/visual/
             build/responsive/
+            build/fluent/
   save-recovery:
     strategy:
       fail-fast: false

@@ -383,6 +383,7 @@ func _render_reward_cards() -> void:
     skip_button.text = _t("Skip (X)", "跳过 (X)")
     choice_hint.visible = choice_open
     choice_badge.visible = choice_open
+    var recommended: int = SurvivorArsenal.recommended_index(_current_choices, blessing_system)
     for index: int in range(choice_buttons.size()):
         choice_buttons[index].visible = choice_open and index < _current_choices.size()
         if index >= _current_choices.size():
@@ -396,11 +397,17 @@ func _render_reward_cards() -> void:
         var icon_view: TextureRect = button.get_node("GiftIcon") as TextureRect
         icon_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         icon_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-        icon_view.texture = HDArt.weapon(data.id)
+        icon_view.texture = HDArt.reward_icon(data)
+        icon_view.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
         var rarity: Label = button.get_node("GiftRarity") as Label
-        rarity.text = data.rarity_name(i18n.locale_code).to_upper()
+        var is_weapon: bool = SurvivorArsenal.IDS.has(data.id)
+        var category: String = _t("Weapon", "武器") if is_weapon else _t("Passive", "被动")
+        rarity.text = category + " · " + data.rarity_name(i18n.locale_code)
+        if index == recommended:
+            rarity.text = "★ " + category + " · " + data.rarity_name(i18n.locale_code)
+        rarity.tooltip_text = (_t("Recommended · ", "推荐 · ") if index == recommended else "") + data.rarity_name(i18n.locale_code)
         rarity.add_theme_color_override("font_color", PlayfulUITheme.reward_rarity_ink(data.rarity))
-        rarity.add_theme_font_size_override("font_size", 12)
+        rarity.add_theme_font_size_override("font_size", 11)
         var title: Label = button.get_node("GiftName") as Label
         title.text = data.localized_name(i18n.locale_code)
         PlayfulUITheme.apply_label(title, Color("#2c251f"))
@@ -434,26 +441,27 @@ func _render_reward_cards() -> void:
             var next_damage: float = SurvivorArsenal.shot_damage(next_rank, evolved_next, evolved_next and partner_rank >= 3, difficulty)
             var interval: float = SurvivorArsenal.shot_interval(weapon_index, next_rank, evolved_next, evolved_next and partner_rank >= 3, difficulty)
             detail.text = rank_line + "\n" + _t("Hit %.0f → %.0f · %.2fs", "单发 %.0f → %.0f · %.2f秒") % [old_damage, next_damage, interval]
-            detail.text += "\n" + (_t("Evolution ready!", "本次可进化！") if evolved_next else _t("Evolve at Lv.3", "进化要求：3级") + "\n" + partner_name + " %d/1" % mini(partner_rank, 1))
+            var unlock_partner: bool = current == 0 and partner_rank >= 3
+            if unlock_partner:
+                detail.text += "\n" + _t("Evolves partner", "本次进化搭档") + "\n" + partner_name
+            elif evolved_next:
+                detail.text += "\n" + _t("Evolution ready!", "本次可进化！")
+            else:
+                detail.text += "\n" + _t("Evolution %d/3", "进化进度 %d/3") % next_rank + "\n" + partner_name + " %d/1" % mini(partner_rank, 1)
             full_detail += "\n" + _t("Base damage per projectile; interval after upgrade.", "基础单发伤害；显示升级后的攻击间隔。")
         else:
             detail.text = rank_line + "\n" + _buff_stat_preview(data, current, next_rank)
-        button.tooltip_text = title.text + "\n" + detail.text + "\n" + full_detail
-        var card_outline: Color = data.rarity_color().lerp(Color("#c5a88a"), 0.45)
-        button.add_theme_stylebox_override("normal", PlayfulUITheme.surface(Color("#fffaf1"), 14, card_outline, 3))
-        button.add_theme_stylebox_override("hover", PlayfulUITheme.surface(Color("#fff0d8"), 14, card_outline, 5))
-        button.add_theme_stylebox_override("pressed", PlayfulUITheme.surface(Color("#eedebd"), 14, card_outline, 1))
-        button.add_theme_stylebox_override("hover_pressed", button.get_theme_stylebox("pressed"))
-        var focus: StyleBoxFlat = PlayfulUITheme.surface(Color(0, 0, 0, 0), 14, Color("#846225"), 0)
-        focus.set_border_width_all(3)
-        button.add_theme_stylebox_override("focus", focus)
+        button.tooltip_text = (_t("Recommended · ", "推荐 · ") if index == recommended else "") + title.text + " · " + category + " · " + data.rarity_name(i18n.locale_code) + "\n" + detail.text + "\n" + full_detail
+        var card_outline: Color = data.rarity_color().lerp(Color("#b9c6d4"), 0.65)
+        PlayfulUITheme.apply_light_reward(button, Color("#386c9f") if index == recommended else card_outline)
         # Reset inherited tint; rarity is communicated by a dark label and outline.
         button.modulate = Color.WHITE
         for label: Label in [rarity, title, detail]:
             label.modulate = Color.WHITE
             label.self_modulate = Color.WHITE
     if choice_open and not choice_buttons.is_empty():
-        choice_buttons[0].grab_focus()
+        reward_focus_index = recommended if difficulty < 2 and recommended >= 0 else 0
+        choice_buttons[reward_focus_index].grab_focus()
 
 
 func _refresh_hud() -> void:
@@ -600,7 +608,10 @@ func _toggle_pause() -> void:
             var rank: int = blessing_system.get_blessing_stack(SurvivorArsenal.IDS[i])
             if rank > 0:
                 equipped.append(_t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]) + " Lv.%d%s" % [rank, " ★" if SurvivorArsenal.evolved(blessing_system, i) else ""])
-        pause_build_label.text = _t("YOUR GARDEN\n", "当前构筑\n") + power_label.text + "\n" + " · ".join(equipped)
+        pause_build_label.text = _t("Build · ", "构筑 · ") + str(equipped.size()) + _t(" weapons", " 项武器") + "\n" + " · ".join(equipped)
+        if equipped.is_empty():
+            pause_build_label.text += _t("No weapons acquired yet", "尚未获得额外武器")
+        pause_build_label.tooltip_text = power_label.text + "\n" + " · ".join(equipped)
         pause_resume_button.grab_focus()
     else:
         get_viewport().gui_release_focus()
@@ -613,12 +624,13 @@ func _apply_locale() -> void:
     if menu_button != null:
         menu_button.text = _t("PAUSE", "暂停")
     if pause_title != null:
-        pause_title.text = _t("TAKE A LITTLE BREAK", "歇一会儿吧")
+        pause_title.text = _t("Game paused", "游戏暂停")
         pause_subtitle.text = _t("Your garden is waiting for you.", "芽芽们会在这里等你回来。")
         pause_resume_button.text = _t("RESUME GAME", "继续游戏")
         pause_leave_button.text = _t("RETURN TO MENU", "返回主菜单")
     if choice_hint != null:
         choice_hint.text = _t("1 / 2 / 3 · Enter", "1 / 2 / 3 · 回车")
+        choice_hint.tooltip_text = _t("★ Recommended build option", "★ 推荐构筑选项")
     if choice_open and choice_hint != null:
         choice_title.text = _t("LEVEL UP · CHOOSE A GARDEN MUTATION", "等级提升 · 选择花园变异")
         _render_reward_cards()
@@ -636,31 +648,33 @@ func _update_control_status() -> void:
 func _apply_playful_hud() -> void:
     PlayfulUITheme.apply_forest_panel(get_node("UI/TopHUD/Frame") as Panel)
     PlayfulUITheme.apply_forest_panel(get_node("UI/ExperienceFrame") as Panel)
-    PlayfulUITheme.apply_panel(warning_frame, "glass")
-    PlayfulUITheme.apply_panel(choice_panel, "modal")
-    PlayfulUITheme.apply_forest_panel(pause_panel)
+    PlayfulUITheme.apply_forest_panel(warning_frame)
+    PlayfulUITheme.apply_acrylic_panel(choice_panel, true, true)
+    PlayfulUITheme.apply_forest_panel(pause_panel, true)
+    choice_backdrop.color = Color(0.035, 0.055, 0.085, 0.48)
+    pause_backdrop.color = Color(0.035, 0.055, 0.085, 0.46)
     PlayfulUITheme.apply_progress(experience_bar)
     for label: Label in [
         choice_title, result_label, pause_title, pause_subtitle, pause_build_label
     ]:
         PlayfulUITheme.apply_label(label)
     for label: Label in [wave_label, health_label, coins_label, greed_label]:
-        PlayfulUITheme.apply_label(label, Color("#fffaf0"))
+        PlayfulUITheme.apply_label(label, PlayfulUITheme.FLUENT_TEXT)
     for label: Label in [pause_title, pause_subtitle, pause_build_label]:
-        PlayfulUITheme.apply_label(label, Color("#f8f3de"))
-    PlayfulUITheme.apply_label(pause_title, Color("#f5df9c"))
-    PlayfulUITheme.apply_label(control_label, Color("#fef7e8"))
-    PlayfulUITheme.apply_label(choice_hint, Color("#493728"))
-    PlayfulUITheme.apply_label(status_label, Color("#fff9e7"))
+        PlayfulUITheme.apply_label(label, PlayfulUITheme.FLUENT_TEXT)
+    PlayfulUITheme.apply_label(pause_title, PlayfulUITheme.FLUENT_ACCENT)
+    PlayfulUITheme.apply_label(control_label, PlayfulUITheme.FLUENT_TEXT)
+    PlayfulUITheme.apply_label(choice_hint, Color("#344456"))
+    PlayfulUITheme.apply_label(status_label, PlayfulUITheme.FLUENT_TEXT)
     PlayfulUITheme.apply_label(combo_label, Color("#ffed92"))
     PlayfulUITheme.apply_forest_button(language_button)
     PlayfulUITheme.apply_forest_button(speed_button)
     PlayfulUITheme.apply_forest_button(menu_button)
     for button: Button in choice_buttons:
-        PlayfulUITheme.apply_button(button, "soft", false)
-    PlayfulUITheme.apply_button(result_button, "primary")
-    PlayfulUITheme.apply_button(reroll_button, "soft", false)
-    PlayfulUITheme.apply_button(skip_button, "soft", false)
+        PlayfulUITheme.apply_light_reward(button)
+    PlayfulUITheme.apply_forest_button(result_button, true)
+    PlayfulUITheme.apply_light_reward(reroll_button)
+    PlayfulUITheme.apply_light_reward(skip_button)
     PlayfulUITheme.apply_forest_button(pause_resume_button, true)
     PlayfulUITheme.apply_forest_button(pause_leave_button)
 
@@ -669,7 +683,10 @@ func _select_choice(index: int) -> void:
     var allowed: bool = choice_open and index >= 0 and index < _current_choices.size()
     if not allowed:
         return
+    var chosen: BlessingData = _current_choices[index]
     super._select_choice(index)
+    if not simulation_mode and _warning_seconds <= 0.0:
+        _show_event_banner(_t("Acquired: ", "已获得：") + chosen.localized_name(i18n.locale_code), 1.4)
     _hide_reward_actions()
     choice_hint.visible = false
     choice_badge.visible = false
@@ -722,7 +739,7 @@ func _on_plant_fired(_plant: GreedPlant, _target: GreedEnemy, _critical: bool, _
 func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void:
     super._on_enemy_damaged(enemy, damage, critical)
     if critical and is_instance_valid(enemy):
-        _spawn_bitmap_effect(enemy.global_position, HDArt.weapon(&"mutation_seed"), Color("ffe071"))
+        _spawn_bitmap_effect(enemy.global_position, HDArt.load_png("vfx/impact_0"), Color("ffe071"), 48.0, 0.8)
     var now: int = Time.get_ticks_msec()
     if now >= _next_hit_sound:
         _next_hit_sound = now + (90 if critical else 65)
@@ -979,8 +996,8 @@ func _track_health(current: int, _maximum: int) -> void:
 
 func _show_result_workspace(victory: bool) -> void:
     result_label.text = _t("ENDLESS RECORD · %d BOSSES", "无尽纪录 · %d 位首领") % bosses_defeated if endless_mode else (_t("GARDEN BLOOMED", "花园绽放") if victory else _t("GARDEN FELL", "花园倒下"))
-    PlayfulUITheme.apply_forest_panel(choice_panel)
-    PlayfulUITheme.apply_label(result_label, Color("#f5df9c"))
+    PlayfulUITheme.apply_forest_panel(choice_panel, true)
+    PlayfulUITheme.apply_label(result_label, PlayfulUITheme.FLUENT_ACCENT)
     PlayfulUITheme.apply_forest_button(result_button, true)
     result_label.position = Vector2(110, 48)
     result_label.size = Vector2(420, 36)
@@ -1000,7 +1017,7 @@ func _show_result_workspace(victory: bool) -> void:
     for i: int in range(captions.size()):
         var tile: PanelContainer = PanelContainer.new()
         tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-        tile.add_theme_stylebox_override("panel", PlayfulUITheme.surface(Color("#294337"), 7, Color("#55725a"), 0))
+        tile.add_theme_stylebox_override("panel", PlayfulUITheme.fluent_surface(Color("#303d4b"), 7, Color("#526171"), 0))
         metrics.add_child(tile)
         var labels_box: VBoxContainer = VBoxContainer.new()
         labels_box.add_theme_constant_override("separation", 0)
@@ -1009,19 +1026,19 @@ func _show_result_workspace(victory: bool) -> void:
         key.text = captions[i]
         key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
         key.add_theme_font_size_override("font_size", 10)
-        PlayfulUITheme.apply_label(key, Color("#c7d7b6"))
+        PlayfulUITheme.apply_label(key, PlayfulUITheme.FLUENT_MUTED)
         labels_box.add_child(key)
         var amount: Label = Label.new()
         amount.text = values[i]
         amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
         amount.add_theme_font_size_override("font_size", 16)
-        PlayfulUITheme.apply_label(amount, Color("#f5df9c"))
+        PlayfulUITheme.apply_label(amount, PlayfulUITheme.FLUENT_ACCENT)
         labels_box.add_child(amount)
     var summary: Label = Label.new()
     summary.text = _t("Evolutions %d · Events %d", "进化 %d · 事件 %d") % [evolution_announced.size(), map_events.completed]
     summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     summary.add_theme_font_size_override("font_size", 12)
-    PlayfulUITheme.apply_label(summary, Color("#f8f3de"))
+    PlayfulUITheme.apply_label(summary, PlayfulUITheme.FLUENT_TEXT)
     column.add_child(summary)
     var graph: HBoxContainer = HBoxContainer.new()
     graph.custom_minimum_size.y = 10.0
@@ -1050,7 +1067,7 @@ func _show_result_workspace(victory: bool) -> void:
         var key_label: Label = Label.new()
         key_label.text = labels[i] + " %.0f%%" % (amount / sum_damage * 100.0)
         key_label.add_theme_font_size_override("font_size", 10)
-        PlayfulUITheme.apply_label(key_label, Color("#f8f3de"))
+        PlayfulUITheme.apply_label(key_label, PlayfulUITheme.FLUENT_TEXT)
         legend.add_child(key_label)
     column.add_child(legend)
     var icons: HBoxContainer = HBoxContainer.new()
@@ -1149,16 +1166,16 @@ func _create_responsive_hud() -> void:
     hud_health_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
     top.add_child(hud_health_bar)
     PlayfulUITheme.apply_forest_progress(hud_health_bar, Color("#9bc879"))
-    PlayfulUITheme.apply_forest_progress(experience_bar, Color("#e2c17a"))
+    PlayfulUITheme.apply_forest_progress(experience_bar, PlayfulUITheme.FLUENT_ACCENT)
     wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     wave_label.add_theme_font_size_override("font_size", 16)
-    PlayfulUITheme.apply_label(wave_label, Color("#f5df9c"))
+    PlayfulUITheme.apply_label(wave_label, PlayfulUITheme.FLUENT_ACCENT)
     var pause_layer: Control = get_node("UI/PauseLayer") as Control
     language_button.reparent(pause_layer, false)
     speed_button.reparent(pause_layer, false)
     language_button.hide()
     speed_button.hide()
-    ResponsiveUI.place(pause_build_label, Rect2(155, 113, 330, 79))
+    ResponsiveUI.place(pause_build_label, Rect2(155, 113, 330, 70))
     ResponsiveUI.place(language_button, Rect2(179, 191, 134, 27))
     ResponsiveUI.place(speed_button, Rect2(327, 191, 134, 27))
     hud_weapons = HBoxContainer.new()
@@ -1185,13 +1202,30 @@ func _refresh_weapon_strip() -> void:
         var rank: int = blessing_system.get_blessing_stack(SurvivorArsenal.IDS[i])
         if rank <= 0:
             continue
+        var evolved: bool = SurvivorArsenal.evolved(blessing_system, i)
+        var slot: PanelContainer = PanelContainer.new()
+        slot.name = "Weapon%d" % i
+        slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        slot.add_theme_stylebox_override("panel", PlayfulUITheme.fluent_surface(Color("#263542"), 6, PlayfulUITheme.FLUENT_ACCENT if evolved else Color("#526171")))
+        hud_weapons.add_child(slot)
+        var stack: VBoxContainer = VBoxContainer.new()
+        stack.add_theme_constant_override("separation", 0)
+        stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        slot.add_child(stack)
         var icon: TextureRect = TextureRect.new()
         icon.texture = HDArt.weapon(SurvivorArsenal.IDS[i])
         icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-        icon.custom_minimum_size = Vector2(23, 23)
+        icon.custom_minimum_size = Vector2(19, 19)
         icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-        hud_weapons.add_child(icon)
+        stack.add_child(icon)
+        var rank_label: Label = Label.new()
+        rank_label.text = ("★" if evolved else "Lv.") + str(rank)
+        rank_label.add_theme_font_size_override("font_size", 9)
+        rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        PlayfulUITheme.apply_label(rank_label, PlayfulUITheme.FLUENT_ACCENT if evolved else PlayfulUITheme.FLUENT_TEXT)
+        rank_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        stack.add_child(rank_label)
 
 func _layout_game(view: Vector2) -> void:
     var top: Control = get_node("UI/TopHUD") as Control
@@ -1210,11 +1244,11 @@ func _layout_game(view: Vector2) -> void:
     ResponsiveUI.place(menu_button, Rect2(view.x - 81, 9, 69, 28))
     ResponsiveUI.place(control_label, Rect2(view.x * 0.5 - 195, 44, 390, 22))
     ResponsiveUI.place(combo_label, Rect2(view.x - 174, 43, 158, 25))
-    ResponsiveUI.place(warning_frame, Rect2(view.x * 0.5 - 162, view.y - 57, 324, 32))
-    ResponsiveUI.place(status_label, Rect2(view.x * 0.5 - 172, view.y - 51, 344, 20))
+    ResponsiveUI.place(warning_frame, Rect2(view.x * 0.5 - 162, 68, 324, 32))
+    ResponsiveUI.place(status_label, Rect2(view.x * 0.5 - 172, 74, 344, 20))
     ResponsiveUI.place(get_node("UI/ExperienceFrame") as Control, Rect2(8, view.y - 14, view.x - 16, 10))
     ResponsiveUI.place(experience_bar, Rect2(12, view.y - 12, view.x - 24, 6))
-    hud_weapons.position = Vector2(10, view.y - 40)
+    hud_weapons.position = Vector2(10, view.y - 55)
     ResponsiveUI.center_group(get_node("UI/ChoiceLayer") as Control, view)
     ResponsiveUI.center_group(get_node("UI/PauseLayer") as Control, view)
     _layout_camera()

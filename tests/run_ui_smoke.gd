@@ -48,7 +48,8 @@ func _test_main_menu() -> void:
     _assert_equal_int(difficulty_picker.item_count, 3, "Three difficulty tiers remain")
     _assert_equal_string(difficulty_picker.get_item_text(0), "简单" if localization.locale_code == "zh_CN" else "Easy", "Easy mode is explicitly labeled")
     var menu_button_style: StyleBoxFlat = (menu.get("play_button") as Button).get_theme_stylebox("normal") as StyleBoxFlat
-    _assert_true(menu_button_style != null and menu_button_style.corner_radius_top_left >= 12, "Play button uses rounded toy-like theme")
+    _assert_true(menu_button_style != null and menu_button_style.corner_radius_top_left == 7 and menu_button_style.border_width_left == 1, "Play button uses Fluent radius and fine outline")
+    _assert_true(PlayfulUITheme.contrast_ratio((menu.get("play_button") as Button).get_theme_color("font_color"), menu_button_style.bg_color) >= 7.0, "Primary action has strong contrast")
     _assert_true((menu.get("play_button") as Button).has_focus(), "Main menu starts with a keyboard-friendly focused action")
 
     menu.call("_show_character_screen")
@@ -191,8 +192,9 @@ func _test_survivor_scene() -> void:
     var choice_buttons: Array = game.get("choice_buttons") as Array
     _assert_true(bool(game.get("choice_open")), "Collecting enough experience opens a level-up choice")
     _assert_true(choice_panel.visible, "Level-up overlay is visible")
+    _assert_true(PlayfulUITheme.contrast_ratio(Color("#344456"), (choice_panel.get_theme_stylebox("panel") as StyleBoxFlat).bg_color) >= 7.0, "Fluent reward panel maintains strong text contrast")
     var reward_style: StyleBoxFlat = choice_panel.get_theme_stylebox("panel") as StyleBoxFlat
-    _assert_true(reward_style != null and reward_style.corner_radius_top_left >= 14, "Reward card shares the warm rounded style")
+    _assert_true(reward_style != null and reward_style.corner_radius_top_left >= 14, "Reward panel retains rounded edges")
     _assert_equal_int(choice_buttons.size(), 3, "Level-up presents three mutation choices")
     _assert_true((choice_buttons[0] as Button).get_node("GiftIcon") is TextureRect, "Reward card contains a separate illustration")
     _assert_true((choice_buttons[0] as Button).position.y == (choice_buttons[1] as Button).position.y, "Reward cards share a horizontal baseline")
