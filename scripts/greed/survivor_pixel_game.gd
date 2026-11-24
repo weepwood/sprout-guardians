@@ -256,6 +256,7 @@ func _spawn_configured_enemy(config: Dictionary, position_value: Vector2) -> Gre
     enemy.defeated.connect(_on_enemy_defeated)
     enemy.core_contact.connect(_on_enemy_core_contact)
     enemy.summon_requested.connect(_on_summon_requested)
+    enemy.skill_resolved.connect(_on_skill_resolved)
     return enemy
 
 
@@ -596,6 +597,8 @@ func _on_plant_fired(_plant: GreedPlant, _target: GreedEnemy, _critical: bool, _
 
 func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void:
     super._on_enemy_damaged(enemy, damage, critical)
+    if critical and is_instance_valid(enemy):
+        _spawn_bitmap_effect(enemy.global_position, PixelArtAssets.blessing_icon(&"mutation_seed"), Color("ffe071"))
     var now: int = Time.get_ticks_msec()
     if now >= _next_hit_sound:
         _next_hit_sound = now + (90 if critical else 65)
@@ -790,3 +793,7 @@ func _spawn_bitmap_effect(position_value: Vector2, texture_value: Texture2D, tin
     tween.tween_property(sprite, "scale", Vector2.ONE * 1.5, 0.35)
     tween.tween_property(sprite, "modulate:a", 0.0, 0.35)
     tween.chain().tween_callback(sprite.queue_free)
+
+
+func _on_skill_resolved(position_value: Vector2, boss_attack: bool) -> void:
+    _spawn_bitmap_effect(position_value, PixelArtAssets.blessing_icon(&"mutation_spore"), Color("e3a0f8") if boss_attack else Color("f5b1cc"))

@@ -14,6 +14,7 @@ func _run() -> void:
     _test_arsenal()
     _test_character_profiles()
     _test_growth_assist()
+    _test_map_events_and_progress()
     for mutation_id: StringName in SurvivorArsenal.IDS:
         var icon: AtlasTexture = PixelArtAssets.blessing_icon(mutation_id) as AtlasTexture
         _assert_true(icon != null and icon.atlas == PixelArtAssets.MUTATION_ATLAS and icon.region.size == Vector2(56, 56), "Generated mutation PNG region: %s" % mutation_id)
@@ -313,3 +314,33 @@ func _test_growth_assist() -> void:
     _assert_true(is_equal_approx(SurvivorExperienceGem.effective_magnet_radius(0.0, 1), 122.0), "Fresh gems retain immediate pickup radius")
     _assert_true(SurvivorExperienceGem.effective_magnet_radius(3.0, 1) >= 340.0, "Starter drops gradually magnetize from long range")
     _assert_true(SurvivorExperienceGem.effective_magnet_radius(6.0, 2) < 340.0, "Later progression retains incentive to move")
+
+
+func _test_map_events_and_progress() -> void:
+    var events: SurvivorMapEvents = SurvivorMapEvents.new()
+    _assert_equal_int(events.due(15.0), -1, "Map event waits until scheduled time")
+    _assert_equal_int(events.due(16.0), SurvivorMapEvents.Kind.CHEST, "Chest event fires")
+    _assert_equal_int(events.due(16.0), -1, "Chest event does not repeat")
+    events.start_challenge(68.0, 20)
+    _assert_equal_int(events.challenge_result(75.0, 30), 1, "Challenge completes once")
+    _assert_equal_int(events.challenge_result(75.0, 30), 0, "Challenge reward cannot be repeated")
+    events.start_challenge(68.0, 20)
+    _assert_equal_int(events.challenge_result(81.0, 25), -1, "Expired challenge fails")
+    for map_id: int in range(1, 4):
+        _assert_true(PixelArtAssets.biome_texture(map_id) != null, "Generated biome texture loads")
+        _assert_true(SurvivorMaps.world_size(map_id) == Vector2(1280, 720), "Biome world size")
+    var service: SaveGameService = SaveGameService.new()
+    service.save_path = "user://survivor_progress_test.json"
+    service.backup_path = "user://survivor_progress_test.bak"
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(service.save_path))
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(service.backup_path))
+    service.load_game()
+    _assert_true(not service.is_survivor_character_unlocked(3), "New hybrid character starts locked")
+    _assert_true(service.record_survivor_result(true, 95, 8, 100, {"events": 2, "evolutions": 1}), "Progress records with run")
+    _assert_true(service.is_survivor_character_unlocked(3), "Victory unlocks hybrid character")
+    _assert_true(service.buy_survivor_upgrade("health_rank"), "Earned seeds buy upgrade")
+    service.load_game()
+    _assert_equal_int(int(service.get_survivor_progress()["health_rank"]), 1, "Upgrade persists")
+    _assert_true(not service.buy_survivor_upgrade("health_rank"), "Insufficient seeds cannot buy upgrade")
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(service.save_path))
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(service.backup_path))

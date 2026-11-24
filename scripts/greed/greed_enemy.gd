@@ -7,6 +7,7 @@ signal damaged(enemy: GreedEnemy, final_damage: float, critical: bool)
 signal defeated(enemy: GreedEnemy, coin_reward: int, elite: bool)
 signal core_contact(enemy: GreedEnemy, damage: int)
 signal summon_requested(position_value: Vector2)
+signal skill_resolved(position_value: Vector2, boss_attack: bool)
 
 var target: GreedCore
 var max_health: float = 30.0
@@ -232,6 +233,7 @@ func _update_skill(delta: float) -> void:
         if _warning_left <= 0.0:
             if is_instance_valid(_warning_sprite):
                 _warning_sprite.hide()
+            skill_resolved.emit(_warning_position, boss)
             if target.global_position.distance_to(_warning_position) <= _warning_radius:
                 core_contact.emit(self, 2 if boss else 1)
             _skill_timer = 2.8 if boss and get_health_ratio() <= 0.5 else (4.2 if boss else 5.0)

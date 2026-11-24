@@ -41,12 +41,17 @@ func _ready() -> void:
     character_picker.name = "CharacterPicker"
     character_picker.position = Vector2(126, 145)
     character_picker.size = Vector2(94, 28)
+    character_picker.add_theme_constant_override("icon_max_width", 18)
+    character_picker.fit_to_longest_item = false
+    character_picker.clip_text = true
     get_node("UI/Main").add_child(character_picker)
     character_picker.item_selected.connect(_select_character)
     map_picker = OptionButton.new()
     map_picker.name = "MapPicker"
     map_picker.position = Vector2(226, 145)
     map_picker.size = Vector2(102, 28)
+    map_picker.fit_to_longest_item = false
+    map_picker.clip_text = true
     get_node("UI/Main").add_child(map_picker)
     map_picker.item_selected.connect(_select_map)
     _create_archive_tabs()
@@ -318,6 +323,7 @@ func _archive_entry(parent: VBoxContainer, texture_value: Texture2D, value: Stri
     label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     label.add_theme_font_size_override("font_size", 12)
+    label.add_theme_color_override("font_color", Color("3e4632"))
     row.add_child(label)
 
 
