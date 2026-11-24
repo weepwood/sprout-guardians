@@ -15,6 +15,8 @@ var sfx_volume_db: float = -9.0
 var fullscreen: bool = false
 var screen_flash_enabled: bool = true
 var performance_overlay_enabled: bool = false
+var survivor_difficulty: int = 1
+var survivor_character: int = 0
 
 
 func load_settings() -> void:
@@ -36,6 +38,8 @@ func load_settings() -> void:
     screen_flash_enabled = bool(config.get_value("effects", "screen_flash_enabled", screen_flash_enabled))
     performance_overlay_enabled = bool(config.get_value("effects", "performance_overlay_enabled", performance_overlay_enabled))
 
+    survivor_difficulty = clampi(int(config.get_value("gameplay", "survivor_difficulty", 1)), 0, 2)
+    survivor_character = clampi(int(config.get_value("gameplay", "survivor_character", 0)), 0, 2)
     if version < CURRENT_VERSION:
         save_settings()
 
@@ -51,6 +55,8 @@ func save_settings() -> bool:
     config.set_value("display", "fullscreen", fullscreen)
     config.set_value("effects", "screen_flash_enabled", screen_flash_enabled)
     config.set_value("effects", "performance_overlay_enabled", performance_overlay_enabled)
+    config.set_value("gameplay", "survivor_difficulty", survivor_difficulty)
+    config.set_value("gameplay", "survivor_character", survivor_character)
     var error: Error = config.save(settings_path)
     if error != OK:
         push_warning("Unable to save settings: %s" % error_string(error))
@@ -116,6 +122,8 @@ func _apply_defaults() -> void:
     fullscreen = false
     screen_flash_enabled = true
     performance_overlay_enabled = false
+    survivor_difficulty = 1
+    survivor_character = 0
 
 
 func _normalize_locale(value: String) -> String:

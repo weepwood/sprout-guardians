@@ -9,6 +9,7 @@ const HIT_STOP_TIME_SCALE: float = 0.08
 var _entries: Array[Dictionary] = []
 var _available_labels: Array[Label] = []
 var _label_pool: Array[Label] = []
+var hit_stop_enabled: bool = true
 var _hit_stop_end_msec: int = 0
 var _restore_time_scale: float = 1.0
 
@@ -39,7 +40,7 @@ func spawn_damage(position_value: Vector2, damage: float, critical: bool) -> voi
 
 
 func request_hit_stop(duration_seconds: float) -> void:
-    if duration_seconds <= 0.0:
+    if not hit_stop_enabled or duration_seconds <= 0.0:
         return
     var now: int = Time.get_ticks_msec()
     if not is_hit_stop_active():

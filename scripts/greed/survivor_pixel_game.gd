@@ -20,6 +20,9 @@ var pause_subtitle: Label
 var pause_resume_button: Button
 var pause_leave_button: Button
 var pause_build_label: Label
+var reward_rerolls: int = 2
+var reroll_button: Button
+var skip_button: Button
 var choice_hint: Label
 var choice_badge: TextureRect
 var reward_focus_index: int = 0
@@ -55,6 +58,10 @@ func _ready() -> void:
     run_state.start_run()
     run_save = SaveGameService.new()
     run_save.load_game()
+    if simulation_mode:
+        combat_feedback.hit_stop_enabled = false
+        audio_manager.set_music_enabled(false)
+        audio_manager.set_sfx_enabled(false)
     if impact_system != null:
         impact_system.z_index = 9
     _apply_playful_hud()
@@ -97,7 +104,7 @@ func _create_arena() -> void:
     hero_plant.name = "MainPlant"
     actors_container.add_child(hero_plant)
     hero_plant.global_position = player_spawn.global_position
-    hero_plant.configure(GreedBalance.STARTER_PLANTS[0], blessing_system)
+    hero_plant.configure(SurvivorCharacters.configuration(0 if simulation_mode else SurvivorCharacters.selected), blessing_system)
     hero_plant.health_changed.connect(_on_core_health_changed)
     hero_plant.defeated.connect(_on_core_defeated)
     hero_plant.fired.connect(_on_hero_fired)
@@ -114,7 +121,9 @@ func _create_arena() -> void:
         familiar.name = "FloatingFamiliar%d" % familiar_index
         actors_container.add_child(familiar)
         familiar.global_position = familiar_spawns[familiar_index].global_position
-        familiar.configure(hero_plant, GreedBalance.STARTER_PLANTS[config_index], familiar_index, blessing_system)
+        var familiar_config: Dictionary = GreedBalance.STARTER_PLANTS[config_index].duplicate(true)
+        familiar_config["survivor_art"] = true
+        familiar.configure(hero_plant, familiar_config, familiar_index, blessing_system)
         familiar.set_focus_source(hero_plant)
         familiar.fired.connect(_on_plant_fired)
         familiar.projectile_requested.connect(_on_projectile_requested)
@@ -141,6 +150,10 @@ func _create_ui() -> void:
     choice_title = get_node("UI/ChoiceLayer/Title") as Label
     choice_hint = get_node("UI/ChoiceLayer/ChoiceHint") as Label
     choice_badge = get_node("UI/ChoiceLayer/ChoiceSigil") as TextureRect
+    reroll_button = get_node("UI/ChoiceLayer/RerollButton") as Button
+    skip_button = get_node("UI/ChoiceLayer/SkipButton") as Button
+    reroll_button.pressed.connect(_reroll_reward)
+    skip_button.pressed.connect(_skip_reward)
     result_label = get_node("UI/ChoiceLayer/ResultLabel") as Label
     result_button = get_node("UI/ChoiceLayer/ResultButton") as Button
 
@@ -205,14 +218,19 @@ func _on_projectile_requested(
 func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
     var config: Dictionary = spawn_director.next_enemy(survival_elapsed, force_elite, force_boss)
 
+    return _spawn_configured_enemy(config, _survivor_spawn_edge())
+
+
+func _spawn_configured_enemy(config: Dictionary, position_value: Vector2) -> GreedEnemy:
     var enemy: GreedEnemy = ENEMY_SCENE.instantiate() as GreedEnemy
     enemy.name = "SurvivorEnemy"
     enemies_container.add_child(enemy)
-    enemy.global_position = _survivor_spawn_edge()
+    enemy.global_position = position_value
     enemy.configure(hero_plant, config, 1.0)
     enemy.damaged.connect(_on_enemy_damaged)
     enemy.defeated.connect(_on_enemy_defeated)
     enemy.core_contact.connect(_on_enemy_core_contact)
+    enemy.summon_requested.connect(_on_summon_requested)
     return enemy
 
 
@@ -261,10 +279,20 @@ func _open_surprise_choice() -> void:
     super._open_surprise_choice()
     if choice_open and run_state != null:
         run_state.open_reward()
+    _render_reward_cards()
+
+
+func _render_reward_cards() -> void:
     reward_focus_index = 0
+    reroll_button.visible = choice_open
+    skip_button.visible = choice_open
+    reroll_button.disabled = reward_rerolls <= 0
+    reroll_button.text = _t("Reroll (R) %d", "重选 (R) %d") % reward_rerolls
+    skip_button.text = _t("Skip (X)", "跳过 (X)")
     choice_hint.visible = choice_open
     choice_badge.visible = choice_open
     for index: int in range(choice_buttons.size()):
+        choice_buttons[index].visible = choice_open and index < _current_choices.size()
         if index >= _current_choices.size():
             continue
         var data: BlessingData = _current_choices[index]
@@ -350,7 +378,11 @@ func _show_event_banner(message: String, duration: float = 2.8) -> void:
 
 func _on_enemy_defeated(enemy: GreedEnemy, coin_reward: int, elite: bool) -> void:
     var was_boss: bool = enemy != null and is_instance_valid(enemy) and enemy.boss
+    var should_split: bool = is_instance_valid(enemy) and enemy.survivor_variant == 4
+    var death_position: Vector2 = enemy.global_position if is_instance_valid(enemy) else Vector2.ZERO
     super._on_enemy_defeated(enemy, coin_reward, elite)
+    if should_split and not game_ended:
+        call_deferred("_spawn_minions", death_position, 2)
     if was_boss or game_ended:
         return
     _combo_count = _combo_count + 1 if _combo_seconds > 0.0 else 1
@@ -379,6 +411,10 @@ func _input(event: InputEvent) -> void:
             _select_choice(1)
         KEY_3:
             _select_choice(2)
+        KEY_R:
+            _reroll_reward()
+        KEY_X:
+            _skip_reward()
         KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
             _select_choice(reward_focus_index)
         _:
@@ -415,7 +451,12 @@ func _toggle_pause() -> void:
         control.visible = pause_open
     if pause_open:
         _cancel_keyboard_motion()
-        pause_build_label.text = _t("YOUR GARDEN\n", "当前构筑\n") + power_label.text
+        var equipped: PackedStringArray = []
+        for i: int in range(SurvivorArsenal.IDS.size()):
+            var rank: int = blessing_system.get_blessing_stack(SurvivorArsenal.IDS[i])
+            if rank > 0:
+                equipped.append(_t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]) + " Lv.%d%s" % [rank, " ★" if SurvivorArsenal.evolved(blessing_system, i) else ""])
+        pause_build_label.text = _t("YOUR GARDEN\n", "当前构筑\n") + power_label.text + "\n" + " · ".join(equipped)
         pause_resume_button.grab_focus()
     else:
         get_viewport().gui_release_focus()
@@ -431,7 +472,7 @@ func _apply_locale() -> void:
         pause_resume_button.text = _t("RESUME GAME", "继续游戏")
         pause_leave_button.text = _t("RETURN TO MENU", "返回主菜单")
     if choice_hint != null:
-        choice_hint.text = _t("← → CHOOSE   ·   ENTER CONFIRM   ·   1 / 2 / 3 QUICK PICK", "← → 选择   ·   回车确认   ·   1 / 2 / 3 快速选择")
+        choice_hint.text = _t("1 / 2 / 3 · Enter", "1 / 2 / 3 · 回车")
 
 
 func _update_control_status() -> void:
@@ -475,6 +516,7 @@ func _select_choice(index: int) -> void:
     if not allowed:
         return
     super._select_choice(index)
+    _hide_reward_actions()
     choice_hint.visible = false
     choice_badge.visible = false
     if run_state != null:
@@ -485,13 +527,15 @@ func _finish_run(victory: bool) -> void:
     if game_ended:
         return
     super._finish_run(victory)
+    _hide_reward_actions()
     choice_hint.visible = false
     choice_badge.visible = false
     warning_frame.visible = false
     combo_label.visible = false
     if run_state != null:
         run_state.finish(victory)
-    if run_save != null:
+    result_label.text += "\n" + _t("Damage %.0f · XP %d · Peak %d", "伤害 %.0f · 经验 %d · 敌群峰值 %d") % [total_damage, total_xp, peak_enemies]
+    if run_save != null and not simulation_mode:
         var saved: bool = run_save.record_survivor_result(
             victory, survival_elapsed, hero_plant.level if is_instance_valid(hero_plant) else 1, enemies_defeated
         )
@@ -531,3 +575,65 @@ func _on_experience_collected(amount: int) -> void:
         _next_pickup_sound = now + 90
         audio_manager.play_event(&"survivor_pickup")
     super._on_experience_collected(amount)
+
+
+func _hide_reward_actions() -> void:
+    if reroll_button != null:
+        reroll_button.hide()
+    if skip_button != null:
+        skip_button.hide()
+
+
+func _reroll_reward() -> void:
+    if not choice_open or game_ended or reward_rerolls <= 0:
+        return
+    reward_rerolls -= 1
+    var previous_pity: int = blessing_system.pity_without_high
+    _current_choices = blessing_system.roll_choices(3)
+    # Rerolls do not advance the guarantee counter.
+    blessing_system.pity_without_high = previous_pity
+    _render_reward_cards()
+
+
+func _skip_reward() -> void:
+    if not choice_open or game_ended:
+        return
+    # A skipped reward still consumes exactly one level-up and retains base growth.
+    hero_plant.upgrade()
+    if hero_plant.level % 3 == 0:
+        var familiar: GreedPlant = _lowest_level_plant()
+        if familiar != null:
+            familiar.upgrade()
+    pending_level_ups = maxi(0, pending_level_ups - 1)
+    choice_open = false
+    choice_backdrop.hide()
+    choice_panel.hide()
+    choice_title.hide()
+    choice_hint.hide()
+    choice_badge.hide()
+    for button: Button in choice_buttons:
+        button.hide()
+    _current_choices.clear()
+    _hide_reward_actions()
+    _set_combat_frozen(false)
+    if run_state != null:
+        run_state.close_reward()
+    _refresh_hud()
+    if pending_level_ups > 0:
+        call_deferred("_open_surprise_choice")
+
+
+func _on_summon_requested(position_value: Vector2) -> void:
+    call_deferred("_spawn_minions", position_value, 3)
+
+
+func _spawn_minions(position_value: Vector2, count: int) -> void:
+    if game_ended or not is_instance_valid(hero_plant):
+        return
+    var available: int = maxi(0, _active_enemy_cap() - get_tree().get_nodes_in_group("greed_enemies").size())
+    for i: int in range(mini(count, available)):
+        var offset: Vector2 = Vector2.from_angle(TAU * float(i) / float(count)) * 24.0
+        var config: Dictionary = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, 5)
+        var minion: GreedEnemy = _spawn_configured_enemy(config, position_value + offset)
+        if choice_open or pause_open:
+            minion.process_mode = Node.PROCESS_MODE_DISABLED

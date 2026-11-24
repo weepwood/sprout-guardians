@@ -94,14 +94,25 @@ func _skin_node(node: Node) -> void:
 
 func _texture_for_node(node: Node) -> Texture2D:
     if node is GreedHeroPlant:
+        var hero: GreedHeroPlant = node as GreedHeroPlant
+        if hero.config.has("character_index"):
+            return PixelArtAssets.generated_actor(int(hero.config["character_index"]))
         return PixelArtAssets.texture(&"hero")
     if node is GreedPlant:
         var familiar: GreedPlant = node as GreedPlant
+        if familiar.config.has("survivor_art"):
+            return PixelArtAssets.generated_actor(1 if familiar.orbit_index % 2 == 0 else 2)
         if familiar.orbit_index % 2 == 0:
             return PixelArtAssets.texture(&"familiar_sun")
         return PixelArtAssets.texture(&"familiar_sprout")
     if node is GreedEnemy:
         var enemy: GreedEnemy = node as GreedEnemy
+        if enemy.survivor_combat:
+            if enemy.boss:
+                return PixelArtAssets.generated_actor(5)
+            if enemy.elite or enemy.survivor_variant == 2 or enemy.survivor_variant == 4:
+                return PixelArtAssets.generated_actor(4)
+            return PixelArtAssets.generated_actor(3)
         if enemy.boss:
             return PixelArtAssets.texture(&"enemy_boss")
         if enemy.elite:
@@ -147,6 +158,8 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
         sprite.position.y = -5.0 + sin(_elapsed * 6.0) * 1.0
         var stride: float = sin(_elapsed * 13.0) * 0.045 if hero.arcade_direction.length_squared() > 0.0 else 0.0
         sprite.scale = Vector2(0.56 + stride, 0.56 - stride)
+        if absf(hero.arcade_direction.x) > 0.15:
+            sprite.flip_h = hero.arcade_direction.x < 0.0
         if hero.is_dashing():
             sprite.scale = Vector2.ONE * 0.60
         sprite.modulate = Color(1.0, 0.72, 0.72) if float(hero.get("_hit_flash")) > 0.0 else Color.WHITE
@@ -173,6 +186,10 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
             sprite.modulate = Color(0.68, 0.92, 1.0)
         else:
             sprite.modulate = Color.WHITE
+        if enemy.survivor_combat and enemy.survivor_variant == 1:
+            sprite.modulate *= Color(0.82, 0.92, 1.0)
+        elif enemy.survivor_combat and enemy.survivor_variant == 3:
+            sprite.modulate *= Color(1.0, 0.77, 0.90)
         return
 
     if node is GreedProjectile:

@@ -6,6 +6,9 @@ const EFFECTS_ATLAS: Texture2D = preload("res://assets/pixel/effects_atlas.svg")
 const GRASS_TILE: Texture2D = preload("res://assets/pixel/grass_tile.svg")
 const UI_PANEL: Texture2D = preload("res://assets/pixel/ui_panel.svg")
 const TOY_ATLAS: Texture2D = preload("res://assets/toy/sprout_toy_atlas.png")
+const MUTATION_ATLAS: Texture2D = preload("res://assets/generated/mutation_icons.png")
+const GENERATED_ACTORS: Texture2D = preload("res://assets/generated/actor_atlas.png")
+const MUTATION_IDS: Array[String] = ["mutation_seed", "mutation_spore", "mutation_frost", "mutation_sun", "mutation_thorn", "mutation_symbiosis"]
 
 # 3x3 source art atlas. Each 56px cell is an authored image, never generated
 # by a gameplay Node2D.draw_* callback. Keep the original SVG keys below for
@@ -95,10 +98,29 @@ static func projectile_texture(splash_radius: float, slow_ratio: float) -> Textu
 
 static func blessing_icon(blessing_id: StringName) -> Texture2D:
     var id_text: String = String(blessing_id).to_lower()
-    if id_text.begins_with("mutation_"):
-        return preload("res://assets/ui/mutation_badges.svg") if id_text == "mutation_symbiosis" else texture(&"projectile_frost") if id_text == "mutation_frost" else texture(&"projectile_petal") if id_text == "mutation_spore" else texture(&"icon_leaf")
+    var index: int = MUTATION_IDS.find(id_text)
+    if index >= 0:
+        if not _texture_cache.has(blessing_id):
+            var icon: AtlasTexture = AtlasTexture.new()
+            icon.atlas = MUTATION_ATLAS
+            icon.region = Rect2(float(index % 3) * 56.0, float(floori(float(index) / 3.0)) * 56.0, 56.0, 56.0)
+            icon.filter_clip = true
+            _texture_cache[blessing_id] = icon
+        return _texture_cache[blessing_id] as Texture2D
     if id_text.contains("frozen") or id_text.contains("slow"):
         return texture(&"projectile_frost")
     if id_text.contains("spore") or id_text.contains("bloom"):
         return texture(&"projectile_petal")
     return texture(&"icon_leaf")
+
+
+static func generated_actor(index: int) -> Texture2D:
+    var safe_index: int = clampi(index, 0, 5)
+    var key: StringName = StringName("generated_actor_%d" % safe_index)
+    if not _texture_cache.has(key):
+        var icon: AtlasTexture = AtlasTexture.new()
+        icon.atlas = GENERATED_ACTORS
+        icon.region = Rect2(float(safe_index % 3) * 56.0, float(floori(float(safe_index) / 3.0)) * 56.0, 56.0, 56.0)
+        icon.filter_clip = true
+        _texture_cache[key] = icon
+    return _texture_cache[key] as Texture2D
