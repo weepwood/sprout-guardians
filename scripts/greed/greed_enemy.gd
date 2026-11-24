@@ -7,6 +7,7 @@ signal damaged(enemy: GreedEnemy, final_damage: float, critical: bool)
 signal defeated(enemy: GreedEnemy, coin_reward: int, elite: bool)
 signal core_contact(enemy: GreedEnemy, damage: int)
 signal summon_requested(position_value: Vector2)
+signal skill_resolved(position_value: Vector2, boss_attack: bool)
 
 var target: GreedCore
 var max_health: float = 30.0
@@ -21,6 +22,7 @@ var body_color: Color = Color("dd6d63")
 var body_size: float = 12.0
 var survivor_variant: int = 0
 var survivor_combat: bool = false
+var biome_enemy: int = 0
 var _skill_timer: float = 3.5
 var _warning_left: float = 0.0
 var _warning_position: Vector2 = Vector2.ZERO
@@ -52,6 +54,7 @@ func configure(core: GreedCore, config: Dictionary, health_scale: float = 1.0) -
     body_color = Color("a557d4") if boss else (Color("e39b4b") if elite else Color("dd6d63"))
     survivor_variant = int(config.get("variant", 0))
     survivor_combat = bool(config.get("survivor_combat", false))
+    biome_enemy = clampi(int(config.get("biome_enemy", 0)), 0, 3)
     if survivor_variant == 5:
         body_size = 8.0
     if survivor_variant == 1:
@@ -230,6 +233,7 @@ func _update_skill(delta: float) -> void:
         if _warning_left <= 0.0:
             if is_instance_valid(_warning_sprite):
                 _warning_sprite.hide()
+            skill_resolved.emit(_warning_position, boss)
             if target.global_position.distance_to(_warning_position) <= _warning_radius:
                 core_contact.emit(self, 2 if boss else 1)
             _skill_timer = 2.8 if boss and get_health_ratio() <= 0.5 else (4.2 if boss else 5.0)

@@ -11,6 +11,14 @@ var experience_bar: ProgressBar
 var pixel_skin: PixelSkinController
 var map_id: int = SurvivorMaps.CLASSIC
 var world_camera: Camera2D
+var simulation_character: int = 0
+var simulation_map: int = 0
+var map_events: SurvivorMapEvents = SurvivorMapEvents.new()
+var event_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+var event_nodes: Array[Sprite2D] = []
+var magnet_until: float = -1.0
+var evolution_announced: Dictionary = {}
+var effect_sprites: Array[Sprite2D] = []
 var run_state: SurvivorRunState
 var run_trace: SurvivorRunTrace
 var run_save: SaveGameService
@@ -52,15 +60,17 @@ var familiar_spawn_sprout: Marker2D
 
 
 func _ready() -> void:
+    if not simulation_mode:
+        run_save = SaveGameService.new()
+        run_save.load_game()
     super._ready()
+    event_rng.seed = run_seed ^ 0x6375
     _setup_map()
     pixel_skin = get_node("PixelSkinController") as PixelSkinController
     run_state = get_node("RunState") as SurvivorRunState
     run_trace = get_node("RunTrace") as SurvivorRunTrace
     run_state.phase_changed.connect(_on_run_phase_changed)
     run_state.start_run()
-    run_save = SaveGameService.new()
-    run_save.load_game()
     if simulation_mode:
         combat_feedback.hit_stop_enabled = false
         audio_manager.set_music_enabled(false)
@@ -107,7 +117,16 @@ func _create_arena() -> void:
     hero_plant.name = "MainPlant"
     actors_container.add_child(hero_plant)
     hero_plant.global_position = player_spawn.global_position
-    hero_plant.configure(SurvivorCharacters.configuration(0 if simulation_mode else SurvivorCharacters.selected), blessing_system)
+    var character_id: int = simulation_character if simulation_mode else SurvivorCharacters.selected
+    if not simulation_mode and run_save != null and not run_save.is_survivor_character_unlocked(character_id):
+        character_id = 0
+    var hero_config: Dictionary = SurvivorCharacters.configuration(character_id)
+    if not simulation_mode and run_save != null:
+        var progress: Dictionary = run_save.get_survivor_progress()
+        hero_config["damage"] = float(hero_config["damage"]) * (1.0 + 0.05 * int(progress["damage_rank"]))
+        hero_plant.max_health += int(progress["health_rank"])
+        hero_plant.health = hero_plant.max_health
+    hero_plant.configure(hero_config, blessing_system)
     hero_plant.health_changed.connect(_on_core_health_changed)
     hero_plant.defeated.connect(_on_core_defeated)
     hero_plant.fired.connect(_on_hero_fired)
@@ -220,7 +239,10 @@ func _on_projectile_requested(
 
 func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
     var config: Dictionary = spawn_director.next_enemy(survival_elapsed, force_elite, force_boss)
-
+    if map_id != SurvivorMaps.CLASSIC and not force_elite and not force_boss and survival_elapsed >= 25.0 and event_rng.randf() < 0.18:
+        config = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, SurvivorMaps.exclusive_variant(map_id))
+        config["biome_enemy"] = map_id
+        config["health"] = float(config["health"]) * 1.12
     return _spawn_configured_enemy(config, _survivor_spawn_edge())
 
 
@@ -234,6 +256,7 @@ func _spawn_configured_enemy(config: Dictionary, position_value: Vector2) -> Gre
     enemy.defeated.connect(_on_enemy_defeated)
     enemy.core_contact.connect(_on_enemy_core_contact)
     enemy.summon_requested.connect(_on_summon_requested)
+    enemy.skill_resolved.connect(_on_skill_resolved)
     return enemy
 
 
@@ -274,6 +297,7 @@ func _spawn_experience_gem(position_value: Vector2, amount: int) -> SurvivorExpe
     gem.recycle = pickup_pool.release
     gem.global_position = position_value
     gem.configure(hero_plant, amount)
+    gem.force_magnet = magnet_until > survival_elapsed
     if not gem.collected.is_connected(_on_experience_collected):
         gem.collected.connect(_on_experience_collected)
     return gem
@@ -350,6 +374,9 @@ func _process(delta: float) -> void:
     var old_second: bool = second_elite_spawned
     var old_boss: bool = final_boss_spawned
     super._process(delta)
+    if not choice_open and not game_ended:
+        _tick_map_events()
+        _announce_evolutions()
 
     if not old_first and first_elite_spawned:
         _show_event_banner(_t("ELITE INCOMING!", "精英怪来袭！"))
@@ -539,9 +566,11 @@ func _finish_run(victory: bool) -> void:
     if run_state != null:
         run_state.finish(victory)
     result_label.text += "\n" + _t("Damage %.0f · XP %d · Peak %d", "伤害 %.0f · 经验 %d · 敌群峰值 %d") % [total_damage, total_xp, peak_enemies]
+    result_label.text += "\n" + _t("Evolved %d · Events %d", "进化 %d · 事件 %d") % [evolution_announced.size(), map_events.completed]
     if run_save != null and not simulation_mode:
         var saved: bool = run_save.record_survivor_result(
-            victory, survival_elapsed, hero_plant.level if is_instance_valid(hero_plant) else 1, enemies_defeated
+            victory, survival_elapsed, hero_plant.level if is_instance_valid(hero_plant) else 1, enemies_defeated,
+            {"damage": total_damage, "xp": total_xp, "map": map_id, "difficulty": difficulty, "evolutions": evolution_announced.size(), "events": map_events.completed}
         )
         if run_trace != null:
             run_trace.note("run_recorded", "saved=%s victory=%s kills=%d" % [saved, victory, enemies_defeated])
@@ -568,6 +597,8 @@ func _on_plant_fired(_plant: GreedPlant, _target: GreedEnemy, _critical: bool, _
 
 func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void:
     super._on_enemy_damaged(enemy, damage, critical)
+    if critical and is_instance_valid(enemy):
+        _spawn_bitmap_effect(enemy.global_position, PixelArtAssets.blessing_icon(&"mutation_seed"), Color("ffe071"))
     var now: int = Time.get_ticks_msec()
     if now >= _next_hit_sound:
         _next_hit_sound = now + (90 if critical else 65)
@@ -645,14 +676,15 @@ func _spawn_minions(position_value: Vector2, count: int) -> void:
 
 func _setup_map() -> void:
     # Keep the existing benchmark arena independent of menu settings.
-    map_id = SurvivorMaps.CLASSIC if simulation_mode else SurvivorMaps.selected
+    map_id = simulation_map if simulation_mode else SurvivorMaps.selected
     var ground: TextureRect = get_node("World/ArenaGround") as TextureRect
     ground.size = SurvivorMaps.world_size(map_id)
     ground.texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR
     ground.stretch_mode = TextureRect.STRETCH_TILE
     hero_plant.movement_bounds = SurvivorMaps.movement_bounds(map_id)
-    if map_id != SurvivorMaps.EXPLORATION:
+    if map_id == SurvivorMaps.CLASSIC:
         return
+    ground.texture = PixelArtAssets.biome_texture(map_id)
     var backdrop: ColorRect = get_node("World/Backdrop") as ColorRect
     backdrop.size = SurvivorMaps.world_size(map_id)
     var offset: Vector2 = SurvivorMaps.EXPLORATION_SIZE * 0.5 - hero_plant.global_position
@@ -668,3 +700,100 @@ func _setup_map() -> void:
     hero_plant.add_child(world_camera)
     world_camera.make_current()
     world_camera.force_update_scroll()
+
+
+func _tick_map_events() -> void:
+    if map_id == SurvivorMaps.CLASSIC or not is_instance_valid(hero_plant):
+        return
+    var kind: int = map_events.due(survival_elapsed)
+    if kind >= 0:
+        _spawn_map_event(kind)
+    for index: int in range(event_nodes.size() - 1, -1, -1):
+        var item: Sprite2D = event_nodes[index]
+        if not is_instance_valid(item):
+            event_nodes.remove_at(index)
+            continue
+        if item.global_position.distance_to(hero_plant.global_position) <= 30.0:
+            var event_kind: int = int(item.get_meta("kind"))
+            item.queue_free()
+            event_nodes.remove_at(index)
+            _collect_map_event(event_kind)
+    var outcome: int = map_events.challenge_result(survival_elapsed, enemies_defeated)
+    if outcome == 1:
+        _spawn_experience_gem(hero_plant.global_position, 10)
+        _show_event_banner(_t("CHALLENGE COMPLETE", "挑战完成"))
+    elif outcome == -1:
+        _show_event_banner(_t("CHALLENGE EXPIRED", "挑战结束"))
+
+
+func _spawn_map_event(kind: int) -> void:
+    var item: Sprite2D = Sprite2D.new()
+    item.texture = PixelArtAssets.event_icon(kind if kind < 3 else 0)
+    item.scale = Vector2.ONE * 1.15
+    item.z_index = 3
+    item.set_meta("kind", kind)
+    effects_container.add_child(item)
+    var angle: float = event_rng.randf_range(0.0, TAU)
+    item.global_position = SurvivorMaps.clamp_spawn(map_id, hero_plant.global_position + Vector2.from_angle(angle) * 138.0)
+    var label: Label = Label.new()
+    label.text = [_t("Chest", "宝箱"), _t("Heal", "治疗"), _t("Magnet", "磁铁"), _t("Challenge", "挑战")][kind]
+    label.position = Vector2(-28.0, 17.0)
+    label.size = Vector2(56.0, 18.0)
+    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    label.add_theme_font_size_override("font_size", 10)
+    item.add_child(label)
+    event_nodes.append(item)
+    _show_event_banner(label.text + _t(" nearby", "已出现"))
+
+
+func _collect_map_event(kind: int) -> void:
+    match kind:
+        SurvivorMapEvents.Kind.CHEST:
+            _spawn_experience_gem(hero_plant.global_position, 8)
+        SurvivorMapEvents.Kind.HEAL:
+            hero_plant.heal(maxi(1, ceili(float(hero_plant.max_health) * 0.35)))
+        SurvivorMapEvents.Kind.MAGNET:
+            magnet_until = survival_elapsed + 10.0
+            for node: Node in get_tree().get_nodes_in_group("survivor_experience"):
+                if node is SurvivorExperienceGem:
+                    (node as SurvivorExperienceGem).force_magnet = true
+        SurvivorMapEvents.Kind.CHALLENGE:
+            map_events.start_challenge(survival_elapsed, enemies_defeated)
+            _show_event_banner(_t("10 KILLS IN 12s", "12秒击败10个敌人"), 3.8)
+            return
+    map_events.completed += 1
+    _spawn_bitmap_effect(hero_plant.global_position, PixelArtAssets.event_icon(kind), Color.WHITE)
+
+
+func _announce_evolutions() -> void:
+    for i: int in range(SurvivorArsenal.IDS.size()):
+        if SurvivorArsenal.evolved(blessing_system, i) and not evolution_announced.has(i):
+            evolution_announced[i] = true
+            _spawn_bitmap_effect(hero_plant.global_position, PixelArtAssets.blessing_icon(SurvivorArsenal.IDS[i]), SurvivorArsenal.COLORS[i])
+            _show_event_banner(_t("EVOLVED: ", "已进化：") + _t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]))
+
+
+func _spawn_bitmap_effect(position_value: Vector2, texture_value: Texture2D, tint: Color) -> void:
+    if simulation_mode or texture_value == null:
+        return
+    for i: int in range(effect_sprites.size() - 1, -1, -1):
+        if not is_instance_valid(effect_sprites[i]):
+            effect_sprites.remove_at(i)
+    if effect_sprites.size() >= 16:
+        return
+    var sprite: Sprite2D = Sprite2D.new()
+    sprite.texture = texture_value
+    sprite.modulate = Color(tint.r, tint.g, tint.b, 0.9)
+    sprite.z_index = 10
+    sprite.scale = Vector2.ONE * 0.55
+    effects_container.add_child(sprite)
+    sprite.global_position = position_value
+    effect_sprites.append(sprite)
+    var tween: Tween = sprite.create_tween().set_parallel(true)
+    tween.tween_property(sprite, "scale", Vector2.ONE * 1.5, 0.35)
+    tween.tween_property(sprite, "modulate:a", 0.0, 0.35)
+    tween.chain().tween_callback(sprite.queue_free)
+
+
+func _on_skill_resolved(position_value: Vector2, boss_attack: bool) -> void:
+    _spawn_bitmap_effect(position_value, PixelArtAssets.blessing_icon(&"mutation_spore"), Color("e3a0f8") if boss_attack else Color("f5b1cc"))

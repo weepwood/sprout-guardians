@@ -15,6 +15,7 @@ const LIFE_SECONDS: float = 45.0
 var target: GreedHeroPlant
 var experience_value: int = 1
 var age: float = 0.0
+var force_magnet: bool = false
 var _phase: float = 0.0
 var recycle: Callable
 var _collected: bool = false
@@ -26,6 +27,7 @@ func configure(target_value: GreedHeroPlant, amount: int = 1) -> void:
     _phase = fmod(global_position.x * 0.017 + global_position.y * 0.031, TAU)
     _collected = false
     age = 0.0
+    force_magnet = false
     add_to_group("survivor_experience")
     queue_redraw()
 
@@ -49,7 +51,7 @@ func _process(delta: float) -> void:
         collected.emit(experience_value)
         _retire()
         return
-    var radius: float = effective_magnet_radius(age, target.level)
+    var radius: float = 1800.0 if force_magnet else effective_magnet_radius(age, target.level)
     if distance_value <= radius:
         var speed_scale: float = lerpf(0.55, 1.35, 1.0 - distance_value / radius)
         global_position = global_position.move_toward(target.global_position, MAGNET_SPEED * speed_scale * delta)

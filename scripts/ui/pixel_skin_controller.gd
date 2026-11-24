@@ -96,7 +96,7 @@ func _texture_for_node(node: Node) -> Texture2D:
     if node is GreedHeroPlant:
         var hero: GreedHeroPlant = node as GreedHeroPlant
         if hero.config.has("character_index"):
-            return PixelArtAssets.generated_actor(int(hero.config["character_index"]))
+            return PixelArtAssets.generated_actor(SurvivorCharacters.art_index(int(hero.config["character_index"])))
         return PixelArtAssets.texture(&"hero")
     if node is GreedPlant:
         var familiar: GreedPlant = node as GreedPlant
@@ -163,6 +163,13 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
         if hero.is_dashing():
             sprite.scale = Vector2.ONE * 0.60
         sprite.modulate = Color(1.0, 0.72, 0.72) if float(hero.get("_hit_flash")) > 0.0 else Color.WHITE
+        if int(hero.config.get("character_index", 0)) == 3:
+            sprite.modulate *= Color(0.88, 0.72, 1.0)
+        if hero.config.has("character_index"):
+            var state: int = SurvivorAnimation.state(hero)
+            var frame: Texture2D = SurvivorAnimation.frame(int(hero.config["character_index"]), state, _elapsed)
+            if frame != null:
+                sprite.texture = frame
         return
 
     if node is GreedPlant:
@@ -186,6 +193,9 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
             sprite.modulate = Color(0.68, 0.92, 1.0)
         else:
             sprite.modulate = Color.WHITE
+        if enemy.biome_enemy > 0:
+            var biome_tints: Array[Color] = [Color.WHITE, Color(0.86, 1.0, 0.72), Color(0.68, 0.8, 1.0), Color(0.6, 0.95, 0.76)]
+            sprite.modulate *= biome_tints[clampi(enemy.biome_enemy, 0, 3)]
         if enemy.survivor_combat and enemy.survivor_variant == 1:
             sprite.modulate *= Color(0.82, 0.92, 1.0)
         elif enemy.survivor_combat and enemy.survivor_variant == 3:

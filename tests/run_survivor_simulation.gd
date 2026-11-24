@@ -11,9 +11,17 @@ func _run() -> void:
     var scene: PackedScene = load("res://scenes/main.tscn") as PackedScene
     var difficulties: Array[int] = [0, 1, 2]
     var equal_rewards: bool = OS.get_cmdline_user_args().has("--equal-rewards")
+    var character_id: int = 0
+    var map_id: int = 0
     for argument: String in OS.get_cmdline_user_args():
         if argument.begins_with("--simulation-difficulty="):
             difficulties = [clampi(int(argument.get_slice("=", 1)), 0, 2)]
+        elif argument.begins_with("--simulation-character="):
+            character_id = clampi(int(argument.get_slice("=", 1)), 0, 3)
+        elif argument.begins_with("--simulation-map="):
+            map_id = clampi(int(argument.get_slice("=", 1)), 0, 3)
+        elif argument == "--simulation-reward=first":
+            equal_rewards = true
     for difficulty: int in difficulties:
         for case_index: int in range(9):
             var seed_value: int = [101, 202, 303][floori(float(case_index) / 3.0)]
@@ -21,6 +29,8 @@ func _run() -> void:
             var game: Node = scene.instantiate()
             game.set("run_seed", seed_value)
             game.set("simulation_mode", true)
+            game.set("simulation_character", character_id)
+            game.set("simulation_map", map_id)
             root.add_child(game)
             var hero: GreedHeroPlant = game.get("hero_plant") as GreedHeroPlant
             # Full cross product: each seed runs each of the three policies.
@@ -42,7 +52,7 @@ func _run() -> void:
                         game.call("_select_choice", choice)
                 var direction: Vector2 = Vector2.ZERO
                 if policy == 1:
-                    var target: Vector2 = Vector2(320, 181) + Vector2(cos(frame / 110.0) * 170.0, sin(frame / 110.0) * 95.0)
+                    var target: Vector2 = (Vector2(320, 181) if map_id == 0 else SurvivorMaps.world_size(map_id) * 0.5) + Vector2(cos(frame / 110.0) * 170.0, sin(frame / 110.0) * 95.0)
                     direction = (target - hero.global_position).limit_length(1.0)
                 elif policy == 2:
                     var repel: Vector2 = Vector2.ZERO
@@ -51,10 +61,12 @@ func _run() -> void:
                         if is_instance_valid(enemy) and enemy.health > 0:
                             var offset: Vector2 = hero.global_position - enemy.global_position
                             repel += offset.normalized() / maxf(10.0, offset.length())
-                    direction = (repel * 130.0 + (Vector2(320,181) - hero.global_position) / 160.0).limit_length(1.0)
+                    direction = (repel * 130.0 + ((Vector2(320,181) if map_id == 0 else SurvivorMaps.world_size(map_id) * 0.5) - hero.global_position) / 160.0).limit_length(1.0)
                 game.set("simulation_direction", direction)
                 await process_frame
             var result: Dictionary = {"seed": seed_value, "difficulty": difficulty, "policy": policy, "victory": bool(game.get("final_boss_defeated")), "elapsed": game.get("survival_elapsed"), "first_upgrade": game.get("first_upgrade_seconds"), "kills": game.get("enemies_defeated"), "level": hero.level, "damage": game.get("total_damage"), "peak_enemies": game.get("peak_enemies")}
+            result["character"] = character_id
+            result["map"] = map_id
             result["reward_policy"] = "first" if equal_rewards else "mixed"
             result["outcome"] = "victory" if result["victory"] else ("defeat" if bool(game.get("game_ended")) else "timeout")
             if float(result["elapsed"]) <= 0.0 or int(result["kills"]) < 0:

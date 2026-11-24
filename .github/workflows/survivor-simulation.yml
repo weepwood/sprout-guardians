@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/greed/**'
       - 'scripts/systems/blessing_system.gd'
+      - 'scripts/services/save_game_service.gd'
+      - 'scripts/services/settings_service.gd'
       - 'scripts/ui/**'
       - 'assets/generated/**'
       - 'scenes/**'
@@ -22,7 +24,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        difficulty: [0, 1, 2]
+        include:
+          - {difficulty: 0, character: 0, map: 0, reward: mixed}
+          - {difficulty: 1, character: 0, map: 0, reward: mixed}
+          - {difficulty: 2, character: 0, map: 0, reward: mixed}
+          - {difficulty: 1, character: 0, map: 0, reward: first}
+          - {difficulty: 1, character: 1, map: 0, reward: first}
+          - {difficulty: 1, character: 2, map: 0, reward: first}
+          - {difficulty: 1, character: 3, map: 0, reward: first}
+          - {difficulty: 1, character: 0, map: 1, reward: first}
+          - {difficulty: 1, character: 0, map: 2, reward: first}
+          - {difficulty: 1, character: 0, map: 3, reward: first}
     steps:
       - uses: actions/checkout@v4
       - name: Install Godot editor
@@ -38,11 +50,11 @@ jobs:
           set -euo pipefail
           mkdir -p build/simulation
           godot --headless --editor --path . --quit > build/simulation/import.log 2>&1
-          timeout 420s godot --headless --audio-driver Dummy --fixed-fps 60 --disable-render-loop --path . --script res://tests/run_survivor_simulation.gd -- --simulation-difficulty=${{ matrix.difficulty }} 2>&1 | tee build/simulation/results.log
+          timeout 420s godot --headless --audio-driver Dummy --fixed-fps 60 --disable-render-loop --path . --script res://tests/run_survivor_simulation.gd -- --simulation-difficulty=${{ matrix.difficulty }} --simulation-character=${{ matrix.character }} --simulation-map=${{ matrix.map }} --simulation-reward=${{ matrix.reward }} 2>&1 | tee build/simulation/results.log
           test "$(grep -c '^SIMULATION ' build/simulation/results.log)" -eq 9
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Invalid access|Invalid call|on a null instance' build/simulation/*.log; then exit 1; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: simulation-${{ matrix.difficulty }}
+          name: simulation-${{ matrix.difficulty }}-${{ matrix.character }}-${{ matrix.map }}-${{ matrix.reward }}
           path: build/simulation/
