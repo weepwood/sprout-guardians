@@ -20,6 +20,9 @@ var pause_subtitle: Label
 var pause_resume_button: Button
 var pause_leave_button: Button
 var pause_build_label: Label
+var reward_rerolls: int = 2
+var reroll_button: Button
+var skip_button: Button
 var choice_hint: Label
 var choice_badge: TextureRect
 var reward_focus_index: int = 0
@@ -145,6 +148,10 @@ func _create_ui() -> void:
     choice_title = get_node("UI/ChoiceLayer/Title") as Label
     choice_hint = get_node("UI/ChoiceLayer/ChoiceHint") as Label
     choice_badge = get_node("UI/ChoiceLayer/ChoiceSigil") as TextureRect
+    reroll_button = get_node("UI/ChoiceLayer/RerollButton") as Button
+    skip_button = get_node("UI/ChoiceLayer/SkipButton") as Button
+    reroll_button.pressed.connect(_reroll_reward)
+    skip_button.pressed.connect(_skip_reward)
     result_label = get_node("UI/ChoiceLayer/ResultLabel") as Label
     result_button = get_node("UI/ChoiceLayer/ResultButton") as Button
 
@@ -265,10 +272,20 @@ func _open_surprise_choice() -> void:
     super._open_surprise_choice()
     if choice_open and run_state != null:
         run_state.open_reward()
+    _render_reward_cards()
+
+
+func _render_reward_cards() -> void:
     reward_focus_index = 0
+    reroll_button.visible = choice_open
+    skip_button.visible = choice_open
+    reroll_button.disabled = reward_rerolls <= 0
+    reroll_button.text = _t("Reroll (R) %d", "重选 (R) %d") % reward_rerolls
+    skip_button.text = _t("Skip (X)", "跳过 (X)")
     choice_hint.visible = choice_open
     choice_badge.visible = choice_open
     for index: int in range(choice_buttons.size()):
+        choice_buttons[index].visible = choice_open and index < _current_choices.size()
         if index >= _current_choices.size():
             continue
         var data: BlessingData = _current_choices[index]
@@ -383,6 +400,10 @@ func _input(event: InputEvent) -> void:
             _select_choice(1)
         KEY_3:
             _select_choice(2)
+        KEY_R:
+            _reroll_reward()
+        KEY_X:
+            _skip_reward()
         KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
             _select_choice(reward_focus_index)
         _:
@@ -440,7 +461,7 @@ func _apply_locale() -> void:
         pause_resume_button.text = _t("RESUME GAME", "继续游戏")
         pause_leave_button.text = _t("RETURN TO MENU", "返回主菜单")
     if choice_hint != null:
-        choice_hint.text = _t("← → CHOOSE   ·   ENTER CONFIRM   ·   1 / 2 / 3 QUICK PICK", "← → 选择   ·   回车确认   ·   1 / 2 / 3 快速选择")
+        choice_hint.text = _t("1 / 2 / 3 · Enter", "1 / 2 / 3 · 回车")
 
 
 func _update_control_status() -> void:
@@ -484,6 +505,7 @@ func _select_choice(index: int) -> void:
     if not allowed:
         return
     super._select_choice(index)
+    _hide_reward_actions()
     choice_hint.visible = false
     choice_badge.visible = false
     if run_state != null:
@@ -494,6 +516,7 @@ func _finish_run(victory: bool) -> void:
     if game_ended:
         return
     super._finish_run(victory)
+    _hide_reward_actions()
     choice_hint.visible = false
     choice_badge.visible = false
     warning_frame.visible = false
@@ -541,3 +564,49 @@ func _on_experience_collected(amount: int) -> void:
         _next_pickup_sound = now + 90
         audio_manager.play_event(&"survivor_pickup")
     super._on_experience_collected(amount)
+
+
+func _hide_reward_actions() -> void:
+    if reroll_button != null:
+        reroll_button.hide()
+    if skip_button != null:
+        skip_button.hide()
+
+
+func _reroll_reward() -> void:
+    if not choice_open or game_ended or reward_rerolls <= 0:
+        return
+    reward_rerolls -= 1
+    var previous_pity: int = blessing_system.pity_without_high
+    _current_choices = blessing_system.roll_choices(3)
+    # Rerolls do not advance the guarantee counter.
+    blessing_system.pity_without_high = previous_pity
+    _render_reward_cards()
+
+
+func _skip_reward() -> void:
+    if not choice_open or game_ended:
+        return
+    # A skipped reward still consumes exactly one level-up and retains base growth.
+    hero_plant.upgrade()
+    if hero_plant.level % 3 == 0:
+        var familiar: GreedPlant = _lowest_level_plant()
+        if familiar != null:
+            familiar.upgrade()
+    pending_level_ups = maxi(0, pending_level_ups - 1)
+    choice_open = false
+    choice_backdrop.hide()
+    choice_panel.hide()
+    choice_title.hide()
+    choice_hint.hide()
+    choice_badge.hide()
+    for button: Button in choice_buttons:
+        button.hide()
+    _current_choices.clear()
+    _hide_reward_actions()
+    _set_combat_frozen(false)
+    if run_state != null:
+        run_state.close_reward()
+    _refresh_hud()
+    if pending_level_ups > 0:
+        call_deferred("_open_surprise_choice")

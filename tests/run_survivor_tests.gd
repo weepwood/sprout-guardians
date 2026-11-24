@@ -12,6 +12,9 @@ func _run() -> void:
     _test_balance()
     _test_pool()
     _test_arsenal()
+    for mutation_id: StringName in SurvivorArsenal.IDS:
+        var icon: AtlasTexture = PixelArtAssets.blessing_icon(mutation_id) as AtlasTexture
+        _assert_true(icon != null and icon.atlas == PixelArtAssets.MUTATION_ATLAS and icon.region.size == Vector2(56, 56), "Generated mutation PNG region: %s" % mutation_id)
     _test_difficulty_settings()
 
     _assert_true(PixelArtAssets.texture(&"hero") != null, "Main-plant pixel texture loads from the actor atlas")

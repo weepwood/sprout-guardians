@@ -9,17 +9,21 @@ func _initialize() -> void:
 
 func _run() -> void:
     var scene: PackedScene = load("res://scenes/main.tscn") as PackedScene
-    for difficulty: int in range(3):
-        for seed_value: int in [101, 202, 303]:
+    var difficulties: Array[int] = [0, 1, 2]
+    for argument: String in OS.get_cmdline_user_args():
+        if argument.begins_with("--simulation-difficulty="):
+            difficulties = [clampi(int(argument.get_slice("=", 1)), 0, 2)]
+    for difficulty: int in difficulties:
+        for case_index: int in range(9):
+            var seed_value: int = [101, 202, 303][floori(float(case_index) / 3.0)]
             SurvivorBalance.selected_difficulty = difficulty
             var game: Node = scene.instantiate()
             game.set("run_seed", seed_value)
             game.set("simulation_mode", true)
             root.add_child(game)
             var hero: GreedHeroPlant = game.get("hero_plant") as GreedHeroPlant
-            var policy: int = seed_value % 3
-            # Vary policies independently of seed: stationary, orbit, evasive.
-            policy = [101, 202, 303].find(seed_value)
+            # Full cross product: each seed runs each of the three policies.
+            var policy: int = case_index % 3
             for frame: int in range(60 * 125):
                 if bool(game.get("game_ended")):
                     break
@@ -50,10 +54,15 @@ func _run() -> void:
                 game.set("simulation_direction", direction)
                 await process_frame
             var result: Dictionary = {"seed": seed_value, "difficulty": difficulty, "policy": policy, "victory": bool(game.get("final_boss_defeated")), "elapsed": game.get("survival_elapsed"), "first_upgrade": game.get("first_upgrade_seconds"), "kills": game.get("enemies_defeated"), "level": hero.level, "damage": game.get("total_damage"), "peak_enemies": game.get("peak_enemies")}
+            result["outcome"] = "victory" if result["victory"] else ("defeat" if bool(game.get("game_ended")) else "timeout")
+            if float(result["elapsed"]) <= 0.0 or int(result["kills"]) < 0:
+                push_error("Invalid simulation result: %s" % str(result))
+                quit(1)
+                return
             results.append(result)
             print("SIMULATION ", JSON.stringify(result))
             game.queue_free()
             await process_frame
             await process_frame
     print("SIMULATION_SUMMARY ", JSON.stringify(results))
-    quit(0)
+    quit(0 if results.size() == difficulties.size() * 9 else 1)

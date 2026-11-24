@@ -24,3 +24,8 @@
 - PR #23 已合并。新增真实场景仿真入口 tests/run_survivor_simulation.gd，运行：godot --headless --audio-driver Dummy --fixed-fps 60 --disable-render-loop --path . --script res://tests/run_survivor_simulation.gd。九组难度与策略样本，非人类胜率；需专项运行后校准。
 - 难度持久化、实际伤害/经验/敌群峰值统计、暂停构筑与进化状态、六张原创武器图标。仿真不写战绩并禁用实时停顿。
 - 尚未实测仿真输出或检查截图，不宣称数值达标。第三方动画素材、地图、远程/分裂敌人及高级奖励交互仍待完成。
+
+## 生成素材与专项 CI 规范
+- 用户明确要求游戏美术使用 AI 生成位图，不新增代码手绘 SVG 角色、武器图标或背景。生成源经裁切、尺寸统一、透明通道处理后接入 PNG 图集；保持历史资源兼容，逐步替换。
+- assets/generated/mutation_icons.png 来自本次 ChatGPT 图像生成（3×2，每格56px，保留透明通道，24色优化；不是 SVG 转换）。
+- 新增独立高风险仿真 CI，3难度×3种子×3策略，日志产物；未校准前不把策略胜率当发布门槛。奖励重选2次、跳过仍计基础升级；键盘 R/X。
