@@ -141,7 +141,7 @@ func _texture_for_node(node: Node) -> Texture2D:
 func _configure_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedHeroPlant:
         sprite.position = Vector2(0.0, -5.0)
-        sprite.scale = Vector2.ONE * 0.56
+        sprite.scale = Vector2.ONE * 0.70
         sprite.z_index = 5
     elif node is GreedPlant:
         sprite.position = Vector2(0.0, -2.0)
@@ -165,11 +165,11 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
         var hero: GreedHeroPlant = node as GreedHeroPlant
         sprite.position.y = -5.0 + sin(_elapsed * 6.0) * 1.0
         var stride: float = sin(_elapsed * 13.0) * 0.045 if hero.arcade_direction.length_squared() > 0.0 else 0.0
-        sprite.scale = Vector2(0.56 + stride, 0.56 - stride)
+        sprite.scale = Vector2(0.70 + stride, 0.70 - stride)
         if absf(hero.arcade_direction.x) > 0.15:
             sprite.flip_h = hero.arcade_direction.x < 0.0
         if hero.is_dashing():
-            sprite.scale = Vector2.ONE * 0.60
+            sprite.scale = Vector2.ONE * 0.75
         sprite.modulate = Color(1.0, 0.72, 0.72) if float(hero.get("_hit_flash")) > 0.0 else Color.WHITE
         if int(hero.config.get("character_index", 0)) == 3:
             sprite.modulate *= Color(0.88, 0.72, 1.0)

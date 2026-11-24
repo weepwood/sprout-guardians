@@ -47,7 +47,7 @@ func _ready() -> void:
     character_picker.name = "CharacterPicker"
     character_picker.position = Vector2(126, 145)
     character_picker.size = Vector2(94, 28)
-    character_picker.add_theme_constant_override("icon_max_width", 18)
+    character_picker.add_theme_constant_override("icon_max_width", 0)
     character_picker.fit_to_longest_item = false
     character_picker.clip_text = true
     get_node("UI/Main").add_child(character_picker)
@@ -145,10 +145,16 @@ func _apply_playful_design() -> void:
     PlayfulUITheme.apply_button(flash_button)
     PlayfulUITheme.apply_button(settings_back_button, "primary")
     PlayfulUITheme.apply_button(archive_back_button, "primary")
+    for picker: OptionButton in [difficulty_picker, character_picker, map_picker]:
+        PlayfulUITheme.apply_button(picker, "soft", false)
+        picker.add_theme_font_size_override("font_size", 12)
+    if is_instance_valid(archive_tabs):
+        PlayfulUITheme.apply_tabs(archive_tabs)
 
 
 func _apply_locale() -> void:
     super._apply_locale()
+    language_button.text = "ZH" if localization.locale_code == "en" else "EN"
     if is_instance_valid(select_hero_button):
         select_hero_button.text = _t("CHOOSE HERO / CHALLENGE", "选择角色 / 挑战")
     if difficulty_picker != null:
@@ -160,10 +166,12 @@ func _apply_locale() -> void:
     if character_picker != null:
         character_picker.clear()
         for i: int in range(SurvivorCharacters.EN.size()):
-            character_picker.add_icon_item(PixelArtAssets.generated_actor(SurvivorCharacters.art_index(i)), _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]))
+            var short_names: Array[String] = ["Sprout", "Sun", "Frost", "Symbio", "Bramble"]
+            character_picker.add_item(_t(short_names[i], SurvivorCharacters.ZH[i]))
             character_picker.set_item_tooltip(i, _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i]))
             character_picker.set_item_disabled(i, not save_game.is_survivor_character_unlocked(i))
         character_picker.select(SurvivorCharacters.selected)
+        character_picker.tooltip_text = _t(SurvivorCharacters.EN[SurvivorCharacters.selected], SurvivorCharacters.ZH[SurvivorCharacters.selected])
     if map_picker != null:
         map_picker.clear()
         for i: int in range(SurvivorMaps.NAMES_EN.size()):
@@ -296,6 +304,7 @@ func _refresh_archive_tabs() -> void:
         button.tooltip_text = _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i])
         button.disabled = not save_game.is_survivor_character_unlocked(i)
         button.pressed.connect(_choose_archive_character.bind(i))
+        PlayfulUITheme.apply_button(button, "soft", false)
         characters.add_child(button)
     var weapons: VBoxContainer = _archive_page(_t("Weapons", "武器"))
     for i: int in range(SurvivorArsenal.IDS.size()):
@@ -312,21 +321,26 @@ func _refresh_archive_tabs() -> void:
     var stats: Dictionary = save_game.get_survivor_statistics()
     _archive_entry(progress_page, null, _t("Seeds %d · Wins %d · Events %d · Evolutions %d", "种子 %d · 胜利 %d · 事件 %d · 进化 %d") % [progress["seeds"], stats["total_victories"], progress["events"], progress["evolutions"]])
     _archive_entry(progress_page, null, _t("Endless best: %ds / %d bosses · Daily: %s", "无尽纪录：%d秒 / %d首领 · 每日：%s") % [progress["endless_best_seconds"], progress["endless_best_bosses"], progress["last_daily_win"]])
+    var map_wins: Array = progress["map_wins"]
+    for map_index: int in range(4):
+        _archive_entry(progress_page, null, _t(SurvivorMaps.NAMES_EN[map_index], SurvivorMaps.NAMES_ZH[map_index]) + " · " + _t("%d wins", "%d 次胜利") % int(map_wins[map_index]))
     for key: String in ["health_rank", "damage_rank", "speed_rank"]:
         var rank: int = int(progress[key])
         var upgrade: Button = Button.new()
         upgrade.text = (_t("Health +1", "生命 +1") if key == "health_rank" else (_t("Damage +5%", "伤害 +5%") if key == "damage_rank" else _t("Speed +3%", "移速 +3%"))) + " · %d/3 · %d" % [rank, 15 * (rank + 1)]
         upgrade.disabled = rank >= 3 or int(progress["seeds"]) < 15 * (rank + 1)
         upgrade.pressed.connect(_buy_archive_upgrade.bind(key))
+        PlayfulUITheme.apply_button(upgrade, "soft", false)
         progress_page.add_child(upgrade)
     _archive_entry(progress_page, null, _t("Achievements", "成就") + "\n" + _t("First victory: ", "初次胜利：") + str(mini(1, int(stats["total_victories"]))) + "/1 · " + _t("Events: ", "事件达人：") + str(mini(5, int(progress["events"]))) + "/5 · " + _t("Evolutions: ", "进化大师：") + str(mini(3, int(progress["evolutions"]))) + "/3")
-    var achievement_keys: Array[String] = ["first_win", "events", "evolutions", "challenge", "endurance", "map_mastery"]
-    var achievement_names: Array[String] = [_t("First victory", "首次胜利"), _t("Five events", "完成五个事件"), _t("Three evolutions", "三次进化"), _t("Challenge victory", "挑战胜利"), _t("Two endless bosses", "无尽击败两位首领"), _t("All maps unlocked", "全部地图解锁")]
+    var achievement_keys: Array[String] = ["first_win", "events", "evolutions", "challenge", "endurance", "map_mastery", "all_map_wins", "endurance_300"]
+    var achievement_names: Array[String] = [_t("First victory", "首次胜利"), _t("Five events", "完成五个事件"), _t("Three evolutions", "三次进化"), _t("Challenge victory", "挑战胜利"), _t("Two endless bosses", "无尽击败两位首领"), _t("All maps unlocked", "全部地图解锁"), _t("Win on every map", "四张地图均通关"), _t("Survive 300s in endless", "无尽生存300秒")]
     for i: int in range(achievement_keys.size()):
         var claim: Button = Button.new()
         claim.text = achievement_names[i] + " · +15"
         claim.disabled = not save_game.achievement_available(achievement_keys[i])
         claim.pressed.connect(_claim_archive_achievement.bind(achievement_keys[i]))
+        PlayfulUITheme.apply_button(claim, "soft", false)
         progress_page.add_child(claim)
     _archive_entry(progress_page, null, archive_summary.text)
     archive_tabs.current_tab = mini(previous, archive_tabs.get_tab_count() - 1)
@@ -418,6 +432,9 @@ func _show_character_screen() -> void:
         button.text = _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]) + "\n" + _t("DMG %.0f · SPD %.0f · HP %+d", "伤害 %.0f · 移速 %.0f · 生命 %+d") % [cfg["damage"], cfg["move_speed"], cfg["health_bonus"]]
         button.tooltip_text = _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i])
         button.disabled = not save_game.is_survivor_character_unlocked(i)
+        if button.disabled:
+            button.text += "\n" + _t("LOCKED", "未解锁")
+        button.add_theme_font_size_override("font_size", 12)
         button.toggle_mode = true
         button.button_group = group
         button.button_pressed = i == SurvivorCharacters.selected
@@ -429,12 +446,14 @@ func _show_character_screen() -> void:
     back.size = Vector2(100, 36)
     back.text = _t("BACK", "返回")
     back.pressed.connect(_hide_character_screen)
+    PlayfulUITheme.apply_button(back, "soft", false)
     character_screen.add_child(back)
     var start: Button = Button.new()
     start.position = Vector2(126, 306)
     start.size = Vector2(154, 36)
     start.text = _t("START RUN", "开始冒险")
     start.pressed.connect(_start_screen_run.bind(false))
+    PlayfulUITheme.apply_button(start, "primary", false)
     character_screen.add_child(start)
     var challenge: Button = Button.new()
     challenge.position = Vector2(286, 306)
@@ -442,12 +461,14 @@ func _show_character_screen() -> void:
     challenge.text = _t("DAILY CHALLENGE", "每日挑战")
     challenge.tooltip_text = SurvivorChallenge.date_key() + " · " + _t("UTC seed · Night garden · no permanent bonuses", "UTC每日种子 · 夜间花园 · 禁用永久加成")
     challenge.pressed.connect(_start_screen_run.bind(true))
+    PlayfulUITheme.apply_button(challenge, "mint", false)
     character_screen.add_child(challenge)
     var endless: Button = Button.new()
     endless.position = Vector2(462, 306)
     endless.size = Vector2(158, 36)
     endless.text = _t("ENDLESS", "无尽模式")
     endless.pressed.connect(_start_endless)
+    PlayfulUITheme.apply_button(endless, "coral", false)
     character_screen.add_child(endless)
     back.grab_focus()
 

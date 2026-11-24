@@ -260,6 +260,12 @@ func _update_skill(delta: float) -> void:
         _warning_duration = 1.15
         _warning_left = _warning_duration
     _warning_radius = float(_boss_rules["radius"]) if boss else 25.0
+    # Swamp boss alternates a small fast cast with a wider, slower cast.
+    # Each cast keeps a visible warning area matching its actual damage radius.
+    if boss and boss_profile == 3 and _skill_casts % 2 == 0:
+        _warning_radius *= 1.22
+        _warning_duration *= 1.25
+        _warning_left = _warning_duration
     if not is_instance_valid(_warning_sprite):
         _warning_sprite = Sprite2D.new()
         _warning_sprite.texture = PixelArtAssets.blessing_icon(&"mutation_spore")

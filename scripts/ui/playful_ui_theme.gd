@@ -77,6 +77,8 @@ static func apply_button(button: Button, kind: String = "soft", animate: bool = 
     button.add_theme_stylebox_override("pressed", pressed)
     button.add_theme_stylebox_override("hover_pressed", pressed)
     button.add_theme_stylebox_override("focus", focused)
+    button.add_theme_stylebox_override("disabled", surface(Color("#ddd8c9"), 12, Color("#a69c8d"), 0))
+    button.add_theme_color_override("font_disabled_color", Color("#685f55"))
     for state_name: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
         button.add_theme_color_override(state_name, INK)
     button.focus_mode = Control.FOCUS_ALL
@@ -110,3 +112,29 @@ static func _animate_button(button: Button, active: bool) -> void:
     tween.set_trans(Tween.TRANS_BACK)
     tween.set_ease(Tween.EASE_OUT)
     tween.tween_property(button, "scale", Vector2.ONE * (1.035 if should_raise else 1.0), 0.15)
+
+
+static func apply_tabs(tabs: TabContainer) -> void:
+    tabs.add_theme_stylebox_override("tab_selected", surface(MINT, 8, OUTLINE, 0))
+    tabs.add_theme_stylebox_override("tab_unselected", surface(PAPER, 8, OUTLINE, 0))
+    tabs.add_theme_stylebox_override("tab_hovered", surface(CREAM, 8, OUTLINE, 0))
+    tabs.add_theme_stylebox_override("panel", surface(CREAM, 8, OUTLINE, 0))
+    tabs.add_theme_color_override("font_selected_color", INK)
+    tabs.add_theme_color_override("font_unselected_color", MUTED)
+    tabs.add_theme_color_override("font_hovered_color", INK)
+
+
+# WCAG relative luminance is linear sRGB, not the encoded RGB components.
+static func contrast_ratio(foreground: Color, background: Color) -> float:
+    var a: float = foreground.srgb_to_linear().get_luminance()
+    var b: float = background.srgb_to_linear().get_luminance()
+    return (maxf(a, b) + 0.05) / (minf(a, b) + 0.05)
+
+
+static func readable_on_light(foreground: Color, background: Color) -> Color:
+    var candidate: Color = foreground
+    for _i: int in range(12):
+        if contrast_ratio(candidate, background) >= 4.5:
+            return candidate
+        candidate = candidate.darkened(0.12)
+    return INK

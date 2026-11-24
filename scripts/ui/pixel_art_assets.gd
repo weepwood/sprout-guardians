@@ -7,6 +7,7 @@ const GRASS_TILE: Texture2D = preload("res://assets/pixel/grass_tile.svg")
 const UI_PANEL: Texture2D = preload("res://assets/pixel/ui_panel.svg")
 const TOY_ATLAS: Texture2D = preload("res://assets/toy/sprout_toy_atlas.png")
 const MUTATION_ATLAS: Texture2D = preload("res://assets/generated/mutation_icons.png")
+const ENDLESS_ICONS: Texture2D = preload("res://assets/generated/endless_weapon_icons.png")
 const GENERATED_ACTORS: Texture2D = preload("res://assets/generated/actor_atlas.png")
 const BIOME_ATLAS: Texture2D = preload("res://assets/generated/biomes_events.png")
 const BIOME_ACTORS: Texture2D = preload("res://assets/generated/biome_actors.png")
@@ -100,10 +101,14 @@ static func projectile_texture(splash_radius: float, slow_ratio: float) -> Textu
 
 static func blessing_icon(blessing_id: StringName) -> Texture2D:
     var id_text: String = String(blessing_id).to_lower()
-    if id_text == "mutation_barrage":
-        return blessing_icon(&"mutation_thorn")
-    if id_text == "mutation_mist":
-        return blessing_icon(&"mutation_frost")
+    if id_text == "mutation_barrage" or id_text == "mutation_mist":
+        if not _texture_cache.has(blessing_id):
+            var icon: AtlasTexture = AtlasTexture.new()
+            icon.atlas = ENDLESS_ICONS
+            icon.region = Rect2(0 if id_text == "mutation_barrage" else 48, 0, 48, 48)
+            icon.filter_clip = true
+            _texture_cache[blessing_id] = icon
+        return _texture_cache[blessing_id] as Texture2D
     var index: int = MUTATION_IDS.find(id_text)
     if index >= 0:
         if not _texture_cache.has(blessing_id):
@@ -136,6 +141,13 @@ static func biome_texture(map_id: int) -> Texture2D:
     var i: int = clampi(map_id - 1, 0, 2)
     var key: StringName = StringName("biome_%d" % i)
     if not _texture_cache.has(key):
+        var names: Array[String] = ["forest", "night", "swamp"]
+        var path: String = "res://assets/generated/terrain/%s.png" % names[i]
+        if ResourceLoader.exists(path):
+            var terrain: Texture2D = load(path) as Texture2D
+            if terrain != null:
+                _texture_cache[key] = terrain
+                return terrain
         var source: Image = BIOME_ATLAS.get_image()
         var tile: Image = source.get_region(Rect2i(i * 32, 0, 32, 32))
         tile.resize(128, 128, Image.INTERPOLATE_BILINEAR)

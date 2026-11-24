@@ -18,9 +18,15 @@ func _run() -> void:
     _test_animation_and_boss_profiles()
     _test_pool_pressure()
     _test_endurance_rules()
+    _test_visual_theme()
     for mutation_id: StringName in SurvivorArsenal.IDS:
         var icon: AtlasTexture = PixelArtAssets.blessing_icon(mutation_id) as AtlasTexture
-        _assert_true(icon != null and icon.atlas == PixelArtAssets.MUTATION_ATLAS and icon.region.size == Vector2(56, 56), "Generated mutation PNG region: %s" % mutation_id)
+        var endless_icon: bool = mutation_id in [&"mutation_barrage", &"mutation_mist"]
+        var expected_atlas: Texture2D = PixelArtAssets.ENDLESS_ICONS if endless_icon else PixelArtAssets.MUTATION_ATLAS
+        var expected_size: Vector2 = Vector2(48, 48) if endless_icon else Vector2(56, 56)
+        _assert_true(icon != null and icon.atlas == expected_atlas and icon.region.size == expected_size, "Generated mutation PNG region: %s" % mutation_id)
+        if icon != null:
+            _assert_true(Rect2(Vector2.ZERO, expected_atlas.get_size()).encloses(icon.region), "Mutation icon stays inside its source texture: %s" % mutation_id)
     _test_difficulty_settings()
 
     _assert_true(PixelArtAssets.texture(&"hero") != null, "Main-plant pixel texture loads from the actor atlas")
@@ -362,6 +368,12 @@ func _test_animation_and_boss_profiles() -> void:
             _assert_true(icon != null and icon.region.size == Vector2(36, 36), "Generated animation frame resolves")
             if icon != null:
                 _assert_true(icon.region.position == Vector2(frame_index * 36, state * 36), "Generated frame index is correct")
+    for state: int in range(5):
+        for frame_index: int in range(4):
+            var frost: AtlasTexture = SurvivorAnimation.frame(2, state, (float(frame_index) + 0.01) / (16.0 if state >= 2 else 9.0)) as AtlasTexture
+            _assert_true(frost != null and frost.atlas == SurvivorAnimation.FROST_SHEET and frost.region == Rect2(frame_index * 36, state * 36, 36, 36), "Independent Frostflower animation frame resolves")
+    var frost_death: AtlasTexture = SurvivorAnimation.frame(2, SurvivorAnimation.State.DEATH, 10.0) as AtlasTexture
+    _assert_true(frost_death != null and frost_death.region.position.x == 108.0, "Frostflower death animation does not loop")
     var death: AtlasTexture = SurvivorAnimation.frame(0, SurvivorAnimation.State.DEATH, 10.0) as AtlasTexture
     _assert_true(death != null and death.region.position.x == 108.0, "Death animation does not loop")
     _assert_true(float(SurvivorBiomeBoss.profile(1)["hp"]) > 1.0, "Forest boss emphasizes durability")
@@ -402,7 +414,21 @@ func _test_endurance_rules() -> void:
     _assert_true(SurvivorEndurance.enemy_multiplier(360.0) > 1.0, "Endurance scales enemies")
     _assert_equal_int(SurvivorArsenal.reward_pool().size(), 6, "Classic reward pool stays unchanged")
     _assert_equal_int(SurvivorArsenal.reward_pool(true).size(), 8, "Endless gets two additional weapons")
+    var barrage: AtlasTexture = PixelArtAssets.blessing_icon(&"mutation_barrage") as AtlasTexture
+    var mist: AtlasTexture = PixelArtAssets.blessing_icon(&"mutation_mist") as AtlasTexture
+    _assert_true(barrage != null and mist != null and barrage.region != mist.region and barrage.atlas == mist.atlas, "Endless weapons use two distinct generated PNG regions")
     _assert_equal_int(SurvivorChallenge.seed_for("2026-11-24"), 20261124, "Daily seed uses UTC date")
     for i: int in range(9):
         var tile: AtlasTexture = PixelArtAssets.biome_actor(i) as AtlasTexture
         _assert_true(tile != null and tile.region.size == Vector2(48, 48), "Generated biome art region resolves")
+
+
+func _test_visual_theme() -> void:
+    _assert_true(is_equal_approx(PlayfulUITheme.contrast_ratio(Color.BLACK, Color.WHITE), 21.0), "Black-white reference contrast is 21:1")
+    _assert_true(is_equal_approx(PlayfulUITheme.contrast_ratio(Color.WHITE, Color.WHITE), 1.0), "Identical reference colors are 1:1")
+    for background: Color in [Color("#fffaf1"), Color("#fff0d8"), Color("#eedebd")]:
+        _assert_true(PlayfulUITheme.contrast_ratio(PlayfulUITheme.INK, background) >= 4.5, "Reward title contrast at least 4.5:1")
+        _assert_true(PlayfulUITheme.contrast_ratio(Color("#665249"), background) >= 4.5, "Reward detail contrast at least 4.5:1")
+        _assert_true(PlayfulUITheme.contrast_ratio(PlayfulUITheme.readable_on_light(Color("#ffd36d"), background), background) >= 4.5, "Bright rarity is darkened to readable contrast")
+    _assert_equal_int(SurvivorSpawnDirector.swamp_ranged_cap(1), 4, "Swamp caps simultaneous ranged enemies")
+    _assert_true(SurvivorEndurance.enemy_multiplier(900.0) < 3.2, "Endurance growth softens after six waves")

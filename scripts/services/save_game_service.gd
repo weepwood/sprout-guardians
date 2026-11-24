@@ -135,6 +135,9 @@ func record_survivor_result(victory: bool, elapsed_seconds: float, reached_level
             progress["seeds"] = mini(999999, int(progress["seeds"]) + 15)
     if victory and not bool(details.get("challenge", false)) and not bool(details.get("endless", false)):
         var map_id: int = clampi(int(details.get("map", 0)), 0, 3)
+        var map_wins: Array = progress["map_wins"]
+        map_wins[map_id] = mini(999999, int(map_wins[map_id]) + 1)
+        progress["map_wins"] = map_wins
         if map_id <= int(progress["unlocked_map"]):
             progress["unlocked_map"] = mini(3, maxi(int(progress["unlocked_map"]), map_id + 1))
     if bool(details.get("endless", false)):
@@ -279,6 +282,7 @@ func get_survivor_progress() -> Dictionary:
         "challenge_wins": maxi(0, int(raw.get("challenge_wins", 0))),
         "last_daily_win": String(raw.get("last_daily_win", "")),
         "unlocked_map": clampi(int(raw.get("unlocked_map", 3)), 1, 3),
+        "map_wins": _normalize_map_wins(raw.get("map_wins", [])),
         "endless_best_seconds": maxi(0, int(raw.get("endless_best_seconds", 0))),
         "endless_best_bosses": maxi(0, int(raw.get("endless_best_bosses", 0))),
         "claimed": _sanitize_claims(raw.get("claimed", [])),
@@ -313,7 +317,7 @@ func _sanitize_claims(value: Variant) -> Array:
     var valid: Array = []
     if value is Array:
         for key: Variant in value:
-            if key in ["first_win", "events", "evolutions", "challenge", "endurance", "map_mastery"] and not valid.has(key):
+            if key in ["first_win", "events", "evolutions", "challenge", "endurance", "map_mastery", "all_map_wins", "endurance_300"] and not valid.has(key):
                 valid.append(key)
     return valid
 
@@ -334,6 +338,13 @@ func achievement_available(key: String) -> bool:
             return int(progress["endless_best_bosses"]) >= 2
         "map_mastery":
             return int(progress["unlocked_map"]) >= 3
+        "all_map_wins":
+            for wins: Variant in progress["map_wins"]:
+                if int(wins) <= 0:
+                    return false
+            return true
+        "endurance_300":
+            return int(progress["endless_best_seconds"]) >= 300
     return false
 
 func claim_achievement(key: String) -> bool:
@@ -352,3 +363,11 @@ func claim_achievement(key: String) -> bool:
 
 func is_survivor_map_unlocked(index: int) -> bool:
     return index >= 0 and index <= int(get_survivor_progress()["unlocked_map"])
+
+
+func _normalize_map_wins(value: Variant) -> Array:
+    var result: Array = [0, 0, 0, 0]
+    if value is Array:
+        for i: int in range(mini(4, value.size())):
+            result[i] = clampi(int(value[i]), 0, 999999)
+    return result

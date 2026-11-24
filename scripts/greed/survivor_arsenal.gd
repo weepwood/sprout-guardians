@@ -73,6 +73,11 @@ func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: C
         elif i == 7:
             splash = 46.0 + rank * 6.0
             slow = 0.50 if evolution else 0.34
+        # Endless weapons reward positioning and the paired control build.
+        if i == 6 and blessings.get_blessing_stack(IDS[7]) >= 2:
+            slow = maxf(slow, 0.18)
+        if i == 7 and blessings.get_blessing_stack(IDS[6]) >= 2:
+            count = 2
         var damage: float = (8.0 + rank * 5.0) * (1.45 if evolution else 1.0)
         if resonance:
             damage *= 1.15
