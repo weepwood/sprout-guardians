@@ -5,6 +5,7 @@ enum State { IDLE, MOVE, ATTACK, HIT, DEATH }
 const FRAMES: int = 4
 const CELL: int = 36
 const SPROUT_SHEET: Texture2D = preload("res://assets/generated/animations/hero_0.png")
+const FROST_SHEET: Texture2D = preload("res://assets/generated/animations/hero_2.png")
 static var _sheets: Dictionary = {}
 static var _frames: Dictionary = {}
 
@@ -24,6 +25,8 @@ static func frame(character_id: int, animation_state: int, elapsed: float) -> Te
     if not _sheets.has(character_id):
         var path: String = "res://assets/generated/animations/hero_%d.png" % character_id
         var sheet: Texture2D = SPROUT_SHEET if character_id == 0 or character_id >= 3 else (load(path) as Texture2D if ResourceLoader.exists(path) else null)
+        if character_id == 2:
+            sheet = FROST_SHEET
         if sheet != null and sheet.get_size() != Vector2(CELL * FRAMES, CELL * 5):
             sheet = null
         _sheets[character_id] = sheet

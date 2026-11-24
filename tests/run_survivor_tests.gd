@@ -368,6 +368,12 @@ func _test_animation_and_boss_profiles() -> void:
             _assert_true(icon != null and icon.region.size == Vector2(36, 36), "Generated animation frame resolves")
             if icon != null:
                 _assert_true(icon.region.position == Vector2(frame_index * 36, state * 36), "Generated frame index is correct")
+    for state: int in range(5):
+        for frame_index: int in range(4):
+            var frost: AtlasTexture = SurvivorAnimation.frame(2, state, (float(frame_index) + 0.01) / (16.0 if state >= 2 else 9.0)) as AtlasTexture
+            _assert_true(frost != null and frost.atlas == SurvivorAnimation.FROST_SHEET and frost.region == Rect2(frame_index * 36, state * 36, 36, 36), "Independent Frostflower animation frame resolves")
+    var frost_death: AtlasTexture = SurvivorAnimation.frame(2, SurvivorAnimation.State.DEATH, 10.0) as AtlasTexture
+    _assert_true(frost_death != null and frost_death.region.position.x == 108.0, "Frostflower death animation does not loop")
     var death: AtlasTexture = SurvivorAnimation.frame(0, SurvivorAnimation.State.DEATH, 10.0) as AtlasTexture
     _assert_true(death != null and death.region.position.x == 108.0, "Death animation does not loop")
     _assert_true(float(SurvivorBiomeBoss.profile(1)["hp"]) > 1.0, "Forest boss emphasizes durability")
