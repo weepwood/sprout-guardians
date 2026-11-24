@@ -49,6 +49,11 @@
     "sha256": "f299a7ef5d96e5b3a6386e04b62191fff56ddef66d2ce4eb79118ed1967b0e93",
     "width": 1120
   },
+  "assets/generated/hd/animations/hero_4.png": {
+    "height": 1400,
+    "sha256": "10cdb1382e73766d502d932afd96d2c60e8e35c418e47d0d209add51be67f85b",
+    "width": 1120
+  },
   "assets/generated/hd/biome/biome_0.png": {
     "height": 341,
     "sha256": "1970e7899384bfa0c6b533208274937b24f8ae2e80294c57eb2d58dbd6ec6cf2",
