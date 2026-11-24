@@ -14,6 +14,7 @@ on:
       - 'project.godot'
       - 'tests/run_render_benchmark.gd'
       - 'tests/run_save_recovery.gd'
+      - 'tools/download_godot_linux.sh'
       - '.github/workflows/survivor-quality.yml'
 permissions:
   contents: read
@@ -29,7 +30,7 @@ jobs:
       - name: Install editor and virtual display
         run: |
           set -euo pipefail
-          curl --fail --location --retry 5 --retry-all-errors --silent --show-error 'https://downloads.godotengine.org/?flavor=stable&platform=linux.64&slug=linux.x86_64.zip&version=4.7.1' -o /tmp/godot.zip
+          bash tools/download_godot_linux.sh editor /tmp/godot.zip
           unzip -q /tmp/godot.zip -d /tmp/godot
           chmod +x /tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           ln -s /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 /tmp/godot/godot
