@@ -4,6 +4,8 @@ var difficulty_picker: OptionButton
 var character_picker: OptionButton
 var map_picker: OptionButton
 var archive_tabs: TabContainer
+var character_screen: Control
+var select_hero_button: Button
 var archive_backdrop: ColorRect
 var archive_panel: Panel
 var archive_title: Label
@@ -13,6 +15,7 @@ var archive_back_button: Button
 
 
 func _ready() -> void:
+    SurvivorChallenge.selected = false
     settings = SettingsService.new()
     settings.load_settings()
     SurvivorBalance.selected_difficulty = settings.survivor_difficulty
@@ -55,6 +58,12 @@ func _ready() -> void:
     get_node("UI/Main").add_child(map_picker)
     map_picker.item_selected.connect(_select_map)
     _create_archive_tabs()
+    select_hero_button = Button.new()
+    select_hero_button.position = Vector2(28, 184)
+    select_hero_button.size = Vector2(300, 34)
+    get_node("UI/Main").add_child(select_hero_button)
+    select_hero_button.pressed.connect(_show_character_screen)
+    PlayfulUITheme.apply_button(select_hero_button, "mint")
     _apply_locale()
     _apply_playful_design()
     if OS.get_cmdline_user_args().has("--ci-survivors-smoke"):
@@ -137,6 +146,8 @@ func _apply_playful_design() -> void:
 
 func _apply_locale() -> void:
     super._apply_locale()
+    if is_instance_valid(select_hero_button):
+        select_hero_button.text = _t("CHOOSE HERO / CHALLENGE", "选择角色 / 挑战")
     if difficulty_picker != null:
         difficulty_picker.clear()
         difficulty_picker.add_item(_t("Casual", "休闲"))
@@ -213,6 +224,10 @@ func _refresh_archive() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+    if is_instance_valid(character_screen) and character_screen.visible and event.is_action_pressed("ui_cancel"):
+        _hide_character_screen()
+        get_viewport().set_input_as_handled()
+        return
     if archive_backdrop != null and archive_backdrop.visible and event.is_action_pressed("ui_cancel"):
         _hide_archive()
         get_viewport().set_input_as_handled()
@@ -229,7 +244,7 @@ func _select_difficulty(index: int) -> void:
 func _select_character(index: int) -> void:
     if not save_game.is_survivor_character_unlocked(index):
         return
-    SurvivorCharacters.selected = clampi(index, 0, 3)
+    SurvivorCharacters.selected = clampi(index, 0, 4)
     settings.survivor_character = SurvivorCharacters.selected
     settings.save_settings()
 
@@ -242,7 +257,7 @@ func _select_map(index: int) -> void:
 
 func _set_main_controls_visible(value: bool) -> void:
     super._set_main_controls_visible(value)
-    for picker: OptionButton in [difficulty_picker, character_picker, map_picker]:
+    for picker: Control in [difficulty_picker, character_picker, map_picker, select_hero_button]:
         if is_instance_valid(picker):
             picker.visible = value
 
@@ -276,7 +291,7 @@ func _refresh_archive_tabs() -> void:
         characters.add_child(button)
     var weapons: VBoxContainer = _archive_page(_t("Weapons", "武器"))
     for i: int in range(SurvivorArsenal.IDS.size()):
-        _archive_entry(weapons, PixelArtAssets.blessing_icon(SurvivorArsenal.IDS[i]), _t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]) + "\n" + _t("Lv.3 + ", "三级 + ") + _t(SurvivorArsenal.NAMES_EN[SurvivorArsenal.EVOLUTION_PARTNERS[i]], SurvivorArsenal.NAMES_ZH[SurvivorArsenal.EVOLUTION_PARTNERS[i]]))
+        _archive_entry(weapons, PixelArtAssets.blessing_icon(SurvivorArsenal.IDS[i]), _t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]) + "\n" + _t("Lv.3 + ", "三级 + ") + _t(SurvivorArsenal.NAMES_EN[SurvivorArsenal.EVOLUTION_PARTNERS[i]], SurvivorArsenal.NAMES_ZH[SurvivorArsenal.EVOLUTION_PARTNERS[i]]) + "\n" + _t(SurvivorArsenal.DESC_EN[i], SurvivorArsenal.DESC_ZH[i]) + "\n" + _t("Both Lv.3: resonance", "双方三级：共鸣"))
     var enemies: VBoxContainer = _archive_page(_t("Enemies", "敌人"))
     var enemy_names: Array[String] = [_t("Chaser", "追击怪"), _t("Charger", "冲锋怪"), _t("Armored", "重甲怪"), _t("Ranged warning", "远程预警"), _t("Splitter", "分裂怪"), _t("Bloom Boss", "黑花首领")]
     for i: int in range(enemy_names.size()):
@@ -285,14 +300,22 @@ func _refresh_archive_tabs() -> void:
     var progress: Dictionary = save_game.get_survivor_progress()
     var stats: Dictionary = save_game.get_survivor_statistics()
     _archive_entry(progress_page, null, _t("Seeds %d · Wins %d · Events %d · Evolutions %d", "种子 %d · 胜利 %d · 事件 %d · 进化 %d") % [progress["seeds"], stats["total_victories"], progress["events"], progress["evolutions"]])
-    for key: String in ["health_rank", "damage_rank"]:
+    for key: String in ["health_rank", "damage_rank", "speed_rank"]:
         var rank: int = int(progress[key])
         var upgrade: Button = Button.new()
-        upgrade.text = (_t("Health +1", "生命 +1") if key == "health_rank" else _t("Damage +5%", "伤害 +5%")) + " · %d/3 · %d" % [rank, 15 * (rank + 1)]
+        upgrade.text = (_t("Health +1", "生命 +1") if key == "health_rank" else (_t("Damage +5%", "伤害 +5%") if key == "damage_rank" else _t("Speed +3%", "移速 +3%"))) + " · %d/3 · %d" % [rank, 15 * (rank + 1)]
         upgrade.disabled = rank >= 3 or int(progress["seeds"]) < 15 * (rank + 1)
         upgrade.pressed.connect(_buy_archive_upgrade.bind(key))
         progress_page.add_child(upgrade)
     _archive_entry(progress_page, null, _t("Achievements", "成就") + "\n" + _t("First victory: ", "初次胜利：") + str(mini(1, int(stats["total_victories"]))) + "/1 · " + _t("Events: ", "事件达人：") + str(mini(5, int(progress["events"]))) + "/5 · " + _t("Evolutions: ", "进化大师：") + str(mini(3, int(progress["evolutions"]))) + "/3")
+    var achievement_keys: Array[String] = ["first_win", "events", "evolutions", "challenge"]
+    var achievement_names: Array[String] = [_t("First victory", "首次胜利"), _t("Five events", "完成五个事件"), _t("Three evolutions", "三次进化"), _t("Challenge victory", "挑战胜利")]
+    for i: int in range(achievement_keys.size()):
+        var claim: Button = Button.new()
+        claim.text = achievement_names[i] + " · +15"
+        claim.disabled = not save_game.achievement_available(achievement_keys[i])
+        claim.pressed.connect(_claim_archive_achievement.bind(achievement_keys[i]))
+        progress_page.add_child(claim)
     _archive_entry(progress_page, null, archive_summary.text)
     archive_tabs.current_tab = mini(previous, archive_tabs.get_tab_count() - 1)
 
@@ -336,3 +359,89 @@ func _choose_archive_character(index: int) -> void:
 func _buy_archive_upgrade(key: String) -> void:
     if save_game.buy_survivor_upgrade(key):
         call_deferred("_refresh_archive_tabs")
+
+
+func _claim_archive_achievement(key: String) -> void:
+    if save_game.claim_achievement(key):
+        call_deferred("_refresh_archive_tabs")
+
+func _show_character_screen() -> void:
+    if is_instance_valid(character_screen):
+        character_screen.queue_free()
+    _set_main_chrome_visible(false)
+    _set_main_controls_visible(false)
+    character_screen = Control.new()
+    character_screen.name = "HeroSelection"
+    get_node("UI").add_child(character_screen)
+    var backdrop: ColorRect = ColorRect.new()
+    backdrop.size = Vector2(640, 360)
+    backdrop.color = Color("273a2c")
+    character_screen.add_child(backdrop)
+    var title: Label = Label.new()
+    title.position = Vector2(20, 16)
+    title.size = Vector2(600, 30)
+    title.text = _t("CHOOSE YOUR GUARDIAN", "选择你的守护者")
+    title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    title.add_theme_font_size_override("font_size", 22)
+    character_screen.add_child(title)
+    var scroll: ScrollContainer = ScrollContainer.new()
+    scroll.position = Vector2(20, 55)
+    scroll.size = Vector2(600, 235)
+    scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    character_screen.add_child(scroll)
+    var column: VBoxContainer = VBoxContainer.new()
+    column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    scroll.add_child(column)
+    var group: ButtonGroup = ButtonGroup.new()
+    for i: int in range(SurvivorCharacters.EN.size()):
+        var cfg: Dictionary = SurvivorCharacters.configuration(i)
+        var button: Button = Button.new()
+        button.icon = PixelArtAssets.generated_actor(SurvivorCharacters.art_index(i))
+        button.expand_icon = true
+        button.custom_minimum_size = Vector2(580, 54)
+        button.text = _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i]) + " · " + _t("DMG %.0f · SPD %.0f · HP %+d", "伤害 %.0f · 移速 %.0f · 生命 %+d") % [cfg["damage"], cfg["move_speed"], cfg["health_bonus"]]
+        button.tooltip_text = _t(SurvivorCharacters.DESCRIPTIONS_EN[i], SurvivorCharacters.DESCRIPTIONS_ZH[i])
+        button.disabled = not save_game.is_survivor_character_unlocked(i)
+        button.toggle_mode = true
+        button.button_group = group
+        button.button_pressed = i == SurvivorCharacters.selected
+        button.pressed.connect(_choose_screen_hero.bind(i))
+        PlayfulUITheme.apply_button(button, "mint")
+        column.add_child(button)
+    var back: Button = Button.new()
+    back.position = Vector2(20, 306)
+    back.size = Vector2(165, 36)
+    back.text = _t("BACK", "返回")
+    back.pressed.connect(_hide_character_screen)
+    character_screen.add_child(back)
+    var start: Button = Button.new()
+    start.position = Vector2(195, 306)
+    start.size = Vector2(205, 36)
+    start.text = _t("START RUN", "开始冒险")
+    start.pressed.connect(_start_screen_run.bind(false))
+    character_screen.add_child(start)
+    var challenge: Button = Button.new()
+    challenge.position = Vector2(410, 306)
+    challenge.size = Vector2(210, 36)
+    challenge.text = _t("EXPERT CHALLENGE", "专家挑战")
+    challenge.tooltip_text = _t("Fixed seed · Night garden · no permanent bonuses", "固定种子 · 夜间花园 · 禁用永久加成")
+    challenge.pressed.connect(_start_screen_run.bind(true))
+    character_screen.add_child(challenge)
+    back.grab_focus()
+
+func _choose_screen_hero(index: int) -> void:
+    _select_character(index)
+    character_picker.select(SurvivorCharacters.selected)
+
+func _hide_character_screen() -> void:
+    if is_instance_valid(character_screen):
+        character_screen.hide()
+        character_screen.queue_free()
+    character_screen = null
+    _set_main_chrome_visible(true)
+    _set_main_controls_visible(true)
+    select_hero_button.grab_focus()
+
+func _start_screen_run(challenge: bool) -> void:
+    SurvivorChallenge.selected = challenge
+    _open_level_select()

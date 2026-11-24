@@ -23,6 +23,9 @@ var body_size: float = 12.0
 var survivor_variant: int = 0
 var survivor_combat: bool = false
 var biome_enemy: int = 0
+var boss_profile: int = 0
+var _boss_rules: Dictionary = SurvivorBiomeBoss.profile(0)
+var _warning_duration: float = 0.9
 var _skill_timer: float = 3.5
 var _warning_left: float = 0.0
 var _warning_position: Vector2 = Vector2.ZERO
@@ -55,6 +58,8 @@ func configure(core: GreedCore, config: Dictionary, health_scale: float = 1.0) -
     survivor_variant = int(config.get("variant", 0))
     survivor_combat = bool(config.get("survivor_combat", false))
     biome_enemy = clampi(int(config.get("biome_enemy", 0)), 0, 3)
+    boss_profile = clampi(int(config.get("boss_profile", 0)), 0, 3)
+    _boss_rules = SurvivorBiomeBoss.profile(boss_profile)
     if survivor_variant == 5:
         body_size = 8.0
     if survivor_variant == 1:
@@ -223,27 +228,28 @@ func _draw() -> void:
 
 # A locked ground target gives the player a visible opportunity to dodge.
 func _update_skill(delta: float) -> void:
-    if boss and not _summoned and get_health_ratio() <= 0.5:
+    if boss and not _summoned and get_health_ratio() <= float(_boss_rules["summon_threshold"]):
         _summoned = true
         summon_requested.emit(global_position)
     if _warning_left > 0.0:
         _warning_left = maxf(0.0, _warning_left - delta)
         if is_instance_valid(_warning_sprite):
-            _warning_sprite.modulate.a = 0.35 + 0.55 * (1.0 - _warning_left / 0.9)
+            _warning_sprite.modulate.a = 0.35 + 0.55 * (1.0 - _warning_left / _warning_duration)
         if _warning_left <= 0.0:
             if is_instance_valid(_warning_sprite):
                 _warning_sprite.hide()
             skill_resolved.emit(_warning_position, boss)
             if target.global_position.distance_to(_warning_position) <= _warning_radius:
                 core_contact.emit(self, 2 if boss else 1)
-            _skill_timer = 2.8 if boss and get_health_ratio() <= 0.5 else (4.2 if boss else 5.0)
+            _skill_timer = (float(_boss_rules["phase_cooldown"]) if get_health_ratio() <= 0.5 else float(_boss_rules["cooldown"])) if boss else 5.0
         return
     _skill_timer -= delta
     if _skill_timer > 0.0 or global_position.distance_to(target.global_position) > 250.0:
         return
-    _warning_left = 0.9
+    _warning_duration = float(_boss_rules["warning"]) if boss else 0.9
+    _warning_left = _warning_duration
     _warning_position = target.global_position
-    _warning_radius = 43.0 if boss else 25.0
+    _warning_radius = float(_boss_rules["radius"]) if boss else 25.0
     if not is_instance_valid(_warning_sprite):
         _warning_sprite = Sprite2D.new()
         _warning_sprite.texture = PixelArtAssets.blessing_icon(&"mutation_spore")

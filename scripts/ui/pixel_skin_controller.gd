@@ -3,6 +3,9 @@ class_name PixelSkinController
 
 var _sprites: Dictionary = {}
 var _elapsed: float = 0.0
+var _frame_delta: float = 0.0
+var _hero_animation_state: int = -1
+var _hero_animation_clock: float = 0.0
 
 
 func _ready() -> void:
@@ -17,6 +20,7 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
     _elapsed += delta
+    _frame_delta = delta
     var stale_ids: Array[int] = []
     for instance_id_value: Variant in _sprites.keys():
         var node: Node = instance_from_id(int(instance_id_value)) as Node
@@ -165,11 +169,21 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
         sprite.modulate = Color(1.0, 0.72, 0.72) if float(hero.get("_hit_flash")) > 0.0 else Color.WHITE
         if int(hero.config.get("character_index", 0)) == 3:
             sprite.modulate *= Color(0.88, 0.72, 1.0)
+        elif int(hero.config.get("character_index", 0)) == 4:
+            sprite.modulate *= Color(0.78, 0.91, 0.52)
         if hero.config.has("character_index"):
             var state: int = SurvivorAnimation.state(hero)
-            var frame: Texture2D = SurvivorAnimation.frame(int(hero.config["character_index"]), state, _elapsed)
+            if _hero_animation_state >= SurvivorAnimation.State.ATTACK and _hero_animation_state < SurvivorAnimation.State.DEATH and state < SurvivorAnimation.State.ATTACK and _hero_animation_clock < 0.24:
+                state = _hero_animation_state
+            if state != _hero_animation_state:
+                _hero_animation_state = state
+                _hero_animation_clock = 0.0
+            else:
+                _hero_animation_clock += _frame_delta
+            var frame: Texture2D = SurvivorAnimation.frame(int(hero.config["character_index"]), state, _hero_animation_clock)
             if frame != null:
                 sprite.texture = frame
+                sprite.scale *= 56.0 / float(SurvivorAnimation.CELL)
         return
 
     if node is GreedPlant:

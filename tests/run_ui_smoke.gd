@@ -48,6 +48,14 @@ func _test_main_menu() -> void:
     _assert_true(menu_button_style != null and menu_button_style.corner_radius_top_left >= 12, "Play button uses rounded toy-like theme")
     _assert_true((menu.get("play_button") as Button).has_focus(), "Main menu starts with a keyboard-friendly focused action")
 
+    menu.call("_show_character_screen")
+    await process_frame
+    var selection: Control = menu.get("character_screen") as Control
+    _assert_true(selection != null and selection.visible, "Dedicated hero screen opens")
+    _assert_true(not (menu.get("play_button") as Button).visible, "Hero screen hides main actions")
+    menu.call("_hide_character_screen")
+    await process_frame
+    _assert_true((menu.get("play_button") as Button).visible, "Hero screen closes and restores menu")
     menu.call("_show_collection_summary")
     await process_frame
     var archive_panel: Panel = menu.get("archive_panel") as Panel

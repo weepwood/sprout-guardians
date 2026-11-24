@@ -17,7 +17,7 @@ func _run() -> void:
         if argument.begins_with("--simulation-difficulty="):
             difficulties = [clampi(int(argument.get_slice("=", 1)), 0, 2)]
         elif argument.begins_with("--simulation-character="):
-            character_id = clampi(int(argument.get_slice("=", 1)), 0, 3)
+            character_id = clampi(int(argument.get_slice("=", 1)), 0, 4)
         elif argument.begins_with("--simulation-map="):
             map_id = clampi(int(argument.get_slice("=", 1)), 0, 3)
         elif argument == "--simulation-reward=first":
@@ -65,11 +65,16 @@ func _run() -> void:
                 game.set("simulation_direction", direction)
                 await process_frame
             var result: Dictionary = {"seed": seed_value, "difficulty": difficulty, "policy": policy, "victory": bool(game.get("final_boss_defeated")), "elapsed": game.get("survival_elapsed"), "first_upgrade": game.get("first_upgrade_seconds"), "kills": game.get("enemies_defeated"), "level": hero.level, "damage": game.get("total_damage"), "peak_enemies": game.get("peak_enemies")}
+            var source_damage: Dictionary = game.get("damage_by_source")
+            result["source_damage"] = source_damage.duplicate()
+            result["damage_received"] = game.get("damage_received")
+            result["projectile_pool"] = game.get("projectile_pool").metrics()
+            result["pickup_pool"] = game.get("pickup_pool").metrics()
             result["character"] = character_id
             result["map"] = map_id
             result["reward_policy"] = "first" if equal_rewards else "mixed"
             result["outcome"] = "victory" if result["victory"] else ("defeat" if bool(game.get("game_ended")) else "timeout")
-            if float(result["elapsed"]) <= 0.0 or int(result["kills"]) < 0:
+            if float(result["elapsed"]) <= 0.0 or int(result["kills"]) < 0 or (int(result["kills"]) > 0 and float(source_damage.get("hero", 0.0)) + float(source_damage.get("familiar", 0.0)) + float(source_damage.get("arsenal", 0.0)) <= 0.0):
                 push_error("Invalid simulation result: %s" % str(result))
                 quit(1)
                 return

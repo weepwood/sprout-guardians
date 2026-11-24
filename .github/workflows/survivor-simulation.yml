@@ -11,6 +11,7 @@ on:
       - 'assets/generated/**'
       - 'scenes/**'
       - 'tests/run_survivor_simulation.gd'
+      - 'tests/run_survivor_tests.gd'
       - '.github/workflows/survivor-simulation.yml'
 permissions:
   contents: read
@@ -32,6 +33,12 @@ jobs:
           - {difficulty: 1, character: 1, map: 0, reward: first}
           - {difficulty: 1, character: 2, map: 0, reward: first}
           - {difficulty: 1, character: 3, map: 0, reward: first}
+          - {difficulty: 1, character: 4, map: 0, reward: first}
+          - {difficulty: 2, character: 0, map: 0, reward: first}
+          - {difficulty: 2, character: 1, map: 0, reward: first}
+          - {difficulty: 2, character: 2, map: 0, reward: first}
+          - {difficulty: 2, character: 3, map: 0, reward: first}
+          - {difficulty: 2, character: 4, map: 0, reward: first}
           - {difficulty: 1, character: 0, map: 1, reward: first}
           - {difficulty: 1, character: 0, map: 2, reward: first}
           - {difficulty: 1, character: 0, map: 3, reward: first}

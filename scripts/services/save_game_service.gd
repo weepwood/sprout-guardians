@@ -104,6 +104,7 @@ func mark_encyclopedia_seen(entry_id: StringName) -> void:
 
 func record_survivor_result(victory: bool, elapsed_seconds: float, reached_level: int, kills: int, details: Dictionary = {}) -> bool:
     _ensure_loaded()
+    var before: Dictionary = data.duplicate(true)
     var statistics: Dictionary = get_survivor_statistics()
     statistics["total_runs"] = int(statistics["total_runs"]) + 1
     if victory:
@@ -126,8 +127,13 @@ func record_survivor_result(victory: bool, elapsed_seconds: float, reached_level
     progress["seeds"] = mini(999999, int(progress["seeds"]) + floori(float(maxi(0, kills)) / 10.0) + (12 if victory else 0))
     progress["evolutions"] = int(progress["evolutions"]) + maxi(0, int(details.get("evolutions", 0)))
     progress["events"] = int(progress["events"]) + maxi(0, int(details.get("events", 0)))
+    if victory and bool(details.get("challenge", false)):
+        progress["challenge_wins"] = int(progress["challenge_wins"]) + 1
     data["survivor_progress"] = progress
-    return save_game()
+    if save_game():
+        return true
+    data = before
+    return false
 
 
 func get_survivor_statistics() -> Dictionary:
@@ -230,13 +236,22 @@ func _read_json(path: String) -> Variant:
 
 
 func _write_text(path: String, text: String) -> bool:
-    var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+    var temporary: String = path + ".tmp"
+    var file: FileAccess = FileAccess.open(temporary, FileAccess.WRITE)
     if file == null:
         push_warning("Unable to write save file %s: %s" % [path, error_string(FileAccess.get_open_error())])
         return false
     file.store_string(text)
     file.flush()
+    var write_error: Error = file.get_error()
     file.close()
+    if write_error != OK:
+        DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary))
+        return false
+    var rename_error: Error = DirAccess.rename_absolute(ProjectSettings.globalize_path(temporary), ProjectSettings.globalize_path(path))
+    if rename_error != OK:
+        DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary))
+        return false
     return true
 
 
@@ -248,17 +263,20 @@ func get_survivor_progress() -> Dictionary:
         "seeds": clampi(int(raw.get("seeds", 0)), 0, 999999),
         "health_rank": clampi(int(raw.get("health_rank", 0)), 0, 3),
         "damage_rank": clampi(int(raw.get("damage_rank", 0)), 0, 3),
+        "speed_rank": clampi(int(raw.get("speed_rank", 0)), 0, 3),
+        "challenge_wins": maxi(0, int(raw.get("challenge_wins", 0))),
+        "claimed": _sanitize_claims(raw.get("claimed", [])),
         "evolutions": maxi(0, int(raw.get("evolutions", 0))),
         "events": maxi(0, int(raw.get("events", 0))),
     }
 
 
 func is_survivor_character_unlocked(index: int) -> bool:
-    return index >= 0 and (index < 3 or (index == 3 and int(get_survivor_statistics()["total_victories"]) >= 1))
+    return index >= 0 and (index < 3 or (index == 3 and int(get_survivor_statistics()["total_victories"]) >= 1) or (index == 4 and int(get_survivor_progress()["events"]) >= 5))
 
 
 func buy_survivor_upgrade(key: String) -> bool:
-    if key not in ["health_rank", "damage_rank"]:
+    if key not in ["health_rank", "damage_rank", "speed_rank"]:
         return false
     var progress: Dictionary = get_survivor_progress()
     var rank: int = int(progress[key])
@@ -272,4 +290,41 @@ func buy_survivor_upgrade(key: String) -> bool:
     if save_game():
         return true
     data["survivor_progress"] = old
+    return false
+
+
+func _sanitize_claims(value: Variant) -> Array:
+    var valid: Array = []
+    if value is Array:
+        for key: Variant in value:
+            if key in ["first_win", "events", "evolutions", "challenge"] and not valid.has(key):
+                valid.append(key)
+    return valid
+
+func achievement_available(key: String) -> bool:
+    var progress: Dictionary = get_survivor_progress()
+    if (progress["claimed"] as Array).has(key):
+        return false
+    match key:
+        "first_win":
+            return int(get_survivor_statistics()["total_victories"]) >= 1
+        "events":
+            return int(progress["events"]) >= 5
+        "evolutions":
+            return int(progress["evolutions"]) >= 3
+        "challenge":
+            return int(progress["challenge_wins"]) >= 1
+    return false
+
+func claim_achievement(key: String) -> bool:
+    if not achievement_available(key):
+        return false
+    var before: Dictionary = get_survivor_progress()
+    var progress: Dictionary = before.duplicate(true)
+    (progress["claimed"] as Array).append(key)
+    progress["seeds"] = mini(999999, int(progress["seeds"]) + 15)
+    data["survivor_progress"] = progress
+    if save_game():
+        return true
+    data["survivor_progress"] = before
     return false
