@@ -1,0 +1,21 @@
+name: V0.6 HD art acceptance
+on:
+  pull_request:
+    paths:
+      - 'assets/generated/hd/**'
+      - 'art_sources/**'
+      - 'V06_ASSET_MANIFEST.json'
+      - 'scripts/ui/**'
+      - 'scripts/greed/**'
+      - 'tools/verify_v06_art.py'
+      - '.github/workflows/v06-art-gate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-native-png:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require real full-color assets, dimensions and hashes
+        run: python3 tools/verify_v06_art.py

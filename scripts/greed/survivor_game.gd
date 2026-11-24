@@ -71,7 +71,7 @@ func _process(delta: float) -> void:
         familiar.fury_multiplier = GreedBalance.fury_multiplier(seconds_since_last_kill)
         familiar.rescue_active = GreedBalance.rescue_active(seconds_since_last_kill)
 
-    arsenal.tick(delta, hero_plant, blessing_system, _on_projectile_requested)
+    arsenal.tick(delta, hero_plant, blessing_system, _on_projectile_requested, _on_arsenal_visual_requested)
     _spawn_time_milestones()
     if survival_elapsed < SURVIVAL_DURATION or endless_mode:
         survival_spawn_timer -= delta
@@ -289,3 +289,8 @@ func _create_services() -> void:
 func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void:
     total_damage += damage
     super._on_enemy_damaged(enemy, damage, critical)
+
+
+# Visual metadata is separate from damage, targeting, timing and seeded RNG.
+func _on_arsenal_visual_requested(origin: Vector2, target: GreedEnemy, damage: float, critical: bool, speed: float, splash_radius: float, slow_ratio: float, knockback_force: float, color: Color, _weapon: int, _evolved: bool) -> void:
+    _on_projectile_requested(origin, target, damage, critical, speed, splash_radius, slow_ratio, knockback_force, color)

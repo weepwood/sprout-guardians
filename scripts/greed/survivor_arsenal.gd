@@ -30,7 +30,7 @@ static func reward_pool(include_endless: bool = false) -> Array[BlessingData]:
 static func evolved(blessings: BlessingSystem, index: int) -> bool:
     return blessings.get_blessing_stack(IDS[index]) >= 3 and blessings.get_blessing_stack(IDS[EVOLUTION_PARTNERS[index]]) >= 1
 
-func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: Callable) -> void:
+func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: Callable, visual_fire: Callable = Callable()) -> void:
     if not is_instance_valid(hero) or blessings == null:
         return
     for i: int in range(IDS.size()):
@@ -86,6 +86,9 @@ func tick(delta: float, hero: GreedHeroPlant, blessings: BlessingSystem, fire: C
             if slow > 0.0:
                 slow = minf(0.8, slow + 0.08)
         for shot: int in range(mini(count, targets.size())):
-            fire.call(hero.global_position, targets[shot], damage, false, 400.0, splash, slow, 38.0, COLORS[i])
+            if visual_fire.is_valid():
+                visual_fire.call(hero.global_position, targets[shot], damage, false, 400.0, splash, slow, 38.0, COLORS[i], i, evolution)
+            else:
+                fire.call(hero.global_position, targets[shot], damage, false, 400.0, splash, slow, 38.0, COLORS[i])
         var base_interval: float = 7.0 if i == 3 else (1.1 if i == 6 else (2.6 if i == 7 else 1.8))
         timers[i] = base_interval * (0.8 if evolution else 1.0) * (0.90 if resonance else 1.0)

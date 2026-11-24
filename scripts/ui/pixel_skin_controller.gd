@@ -100,12 +100,12 @@ func _texture_for_node(node: Node) -> Texture2D:
     if node is GreedHeroPlant:
         var hero: GreedHeroPlant = node as GreedHeroPlant
         if hero.config.has("character_index"):
-            return PixelArtAssets.generated_actor(SurvivorCharacters.art_index(int(hero.config["character_index"])))
+            return HDArt.portrait(int(hero.config["character_index"]))
         return PixelArtAssets.texture(&"hero")
     if node is GreedPlant:
         var familiar: GreedPlant = node as GreedPlant
         if familiar.config.has("survivor_art"):
-            return PixelArtAssets.generated_actor(1 if familiar.orbit_index % 2 == 0 else 2)
+            return HDArt.actor(1 if familiar.orbit_index % 2 == 0 else 2)
         if familiar.orbit_index % 2 == 0:
             return PixelArtAssets.texture(&"familiar_sun")
         return PixelArtAssets.texture(&"familiar_sprout")
@@ -113,14 +113,14 @@ func _texture_for_node(node: Node) -> Texture2D:
         var enemy: GreedEnemy = node as GreedEnemy
         if enemy.survivor_combat:
             if enemy.boss and enemy.boss_profile > 0:
-                return PixelArtAssets.biome_actor(enemy.boss_profile - 1)
+                return HDArt.biome(enemy.boss_profile - 1)
             if enemy.biome_enemy > 0 and not enemy.boss:
-                return PixelArtAssets.biome_actor(enemy.biome_enemy + 2)
+                return HDArt.biome(enemy.biome_enemy + 2)
             if enemy.boss:
-                return PixelArtAssets.generated_actor(5)
+                return HDArt.actor(5)
             if enemy.elite or enemy.survivor_variant == 2 or enemy.survivor_variant == 4:
-                return PixelArtAssets.generated_actor(4)
-            return PixelArtAssets.generated_actor(3)
+                return HDArt.actor(4)
+            return HDArt.actor(3)
         if enemy.boss:
             return PixelArtAssets.texture(&"enemy_boss")
         if enemy.elite:
@@ -184,24 +184,23 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
                 _hero_animation_clock = 0.0
             else:
                 _hero_animation_clock += _frame_delta
-            var frame: Texture2D = SurvivorAnimation.frame(int(hero.config["character_index"]), state, _hero_animation_clock)
+            var frame: Texture2D = SurvivorAnimation.display_frame(int(hero.config["character_index"]), state, _hero_animation_clock)
             if frame != null:
                 sprite.texture = frame
-                sprite.scale *= 56.0 / float(SurvivorAnimation.CELL)
+        sprite.scale *= HDArt.fit(sprite.texture, 56.0)
         return
 
     if node is GreedPlant:
         var familiar: GreedPlant = node as GreedPlant
         sprite.position.y = -2.0 + sin(_elapsed * 7.5 + float(familiar.orbit_index) * PI) * 1.5
-        sprite.scale = Vector2.ONE * (0.39 + minf(0.12, float(familiar.level - 1) * 0.018))
+        sprite.scale = Vector2.ONE * (0.39 + minf(0.12, float(familiar.level - 1) * 0.018)) * HDArt.fit(sprite.texture, 56.0)
         return
 
     if node is GreedEnemy:
         var enemy: GreedEnemy = node as GreedEnemy
         var squash_active: bool = float(enemy.get("_squash_time")) > 0.0
         var base_scale: float = 0.92 if enemy.boss else (0.53 if enemy.elite else 0.40)
-        if enemy.boss_profile > 0 or enemy.biome_enemy > 0:
-            base_scale *= 56.0 / 48.0
+        base_scale *= HDArt.fit(sprite.texture, 56.0)
         sprite.scale = Vector2(1.14, 0.84) * base_scale if squash_active else Vector2.ONE * base_scale
         if enemy.survivor_variant == 1 and fmod(float(enemy.get("_behavior_clock")), 3.4) < 0.55:
             sprite.scale *= Vector2(1.12, 0.76)
@@ -225,10 +224,11 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedProjectile:
         var projectile: GreedProjectile = node as GreedProjectile
         var direction_value: Vector2 = projectile.get("_travel_direction")
-        sprite.texture = PixelArtAssets.projectile_texture(projectile.splash_radius, projectile.slow_ratio)
+        var hd: Texture2D = HDArt.load_png("vfx/projectile_%d" % projectile.visual_weapon) if projectile.visual_weapon >= 0 else null
+        sprite.texture = hd if hd != null else PixelArtAssets.projectile_texture(projectile.splash_radius, projectile.slow_ratio)
         sprite.rotation = direction_value.angle()
-        sprite.scale = Vector2.ONE * (0.30 if projectile.critical else 0.24)
-        sprite.modulate = projectile.body_color.lerp(Color.WHITE, 0.28)
+        sprite.scale = Vector2.ONE * (0.30 if projectile.critical else 0.24) * HDArt.fit(sprite.texture, 56.0)
+        sprite.modulate = Color.WHITE if hd != null else projectile.body_color.lerp(Color.WHITE, 0.28)
         return
 
     if node is SurvivorExperienceGem:

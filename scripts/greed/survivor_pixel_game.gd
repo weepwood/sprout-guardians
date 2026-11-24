@@ -20,6 +20,8 @@ var damage_by_source: Dictionary = {"hero": 0.0, "familiar": 0.0, "arsenal": 0.0
 var damage_received: int = 0
 var _previous_health: int = -1
 var _projectile_source: String = "arsenal"
+var _visual_weapon: int = -1
+var _visual_evolved: bool = false
 var simulation_map: int = 0
 var map_events: SurvivorMapEvents = SurvivorMapEvents.new()
 var event_rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -256,6 +258,10 @@ func _on_projectile_requested(
         knockback_force,
         color
     )
+    projectile.visual_weapon = _visual_weapon
+    projectile.visual_evolved = _visual_evolved
+    if not projectile.impacted.is_connected(_on_visual_impact):
+        projectile.impacted.connect(_on_visual_impact)
     launched_projectiles += 1
 
 
@@ -361,7 +367,9 @@ func _render_reward_cards() -> void:
         button.text = ""
         button.icon = null
         var icon_view: TextureRect = button.get_node("GiftIcon") as TextureRect
-        icon_view.texture = PixelArtAssets.blessing_icon(data.id)
+        icon_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+        icon_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+        icon_view.texture = HDArt.weapon(data.id)
         var rarity: Label = button.get_node("GiftRarity") as Label
         rarity.text = data.rarity_name(i18n.locale_code).to_upper()
         rarity.add_theme_color_override("font_color", PlayfulUITheme.readable_on_light(data.rarity_color(), Color("#eedebd")))
@@ -645,7 +653,7 @@ func _on_plant_fired(_plant: GreedPlant, _target: GreedEnemy, _critical: bool, _
 func _on_enemy_damaged(enemy: GreedEnemy, damage: float, critical: bool) -> void:
     super._on_enemy_damaged(enemy, damage, critical)
     if critical and is_instance_valid(enemy):
-        _spawn_bitmap_effect(enemy.global_position, PixelArtAssets.blessing_icon(&"mutation_seed"), Color("ffe071"))
+        _spawn_bitmap_effect(enemy.global_position, HDArt.weapon(&"mutation_seed"), Color("ffe071"))
     var now: int = Time.get_ticks_msec()
     if now >= _next_hit_sound:
         _next_hit_sound = now + (90 if critical else 65)
@@ -733,10 +741,17 @@ func _setup_map() -> void:
     ground.modulate = Color(0.73, 0.78, 0.75, 1.0)
     ground.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
     hero_plant.movement_bounds = SurvivorMaps.movement_bounds(map_id)
+    var hd_ground: Texture2D = HDArt.terrain(map_id)
+    if hd_ground != null:
+        ground.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+        ground.texture = hd_ground
+        ground.stretch_mode = TextureRect.STRETCH_SCALE
+        ground.modulate = Color(0.84, 0.86, 0.80, 1.0)
     if map_id == SurvivorMaps.CLASSIC:
         return
-    ground.texture = PixelArtAssets.biome_texture(map_id)
-    if ground.texture.get_width() >= 512:
+    if hd_ground == null:
+        ground.texture = PixelArtAssets.biome_texture(map_id)
+    if hd_ground == null and ground.texture.get_width() >= 512:
         # Use the native high-res tile, not a magnified 32px thumbnail.
         ground.modulate = Color.WHITE
     var backdrop: ColorRect = get_node("World/Backdrop") as ColorRect
@@ -782,8 +797,8 @@ func _tick_map_events() -> void:
 
 func _spawn_map_event(kind: int) -> void:
     var item: Sprite2D = Sprite2D.new()
-    item.texture = PixelArtAssets.event_icon(kind if kind < 3 else 0)
-    item.scale = Vector2.ONE * 1.15
+    item.texture = HDArt.biome(6 + (kind if kind < 3 else 0))
+    item.scale = Vector2.ONE * HDArt.fit(item.texture, 55.2)
     item.z_index = 3
     item.set_meta("kind", kind)
     effects_container.add_child(item)
@@ -791,7 +806,8 @@ func _spawn_map_event(kind: int) -> void:
     item.global_position = SurvivorMaps.clamp_spawn(map_id, hero_plant.global_position + Vector2.from_angle(angle) * 138.0)
     var label: Label = Label.new()
     label.text = [_t("Chest", "宝箱"), _t("Heal", "治疗"), _t("Magnet", "磁铁"), _t("Challenge", "挑战")][kind]
-    label.position = Vector2(-28.0, 17.0)
+    label.position = Vector2(-28.0, 17.0) / item.scale
+    label.scale = Vector2.ONE / item.scale
     label.size = Vector2(56.0, 18.0)
     label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     label.add_theme_font_size_override("font_size", 10)
@@ -816,14 +832,14 @@ func _collect_map_event(kind: int) -> void:
             _show_event_banner(_t("10 KILLS IN 12s", "12秒击败10个敌人"), 3.8)
             return
     map_events.completed += 1
-    _spawn_bitmap_effect(hero_plant.global_position, PixelArtAssets.event_icon(kind), Color.WHITE)
+    _spawn_bitmap_effect(hero_plant.global_position, HDArt.biome(6 + clampi(kind, 0, 2)), Color.WHITE)
 
 
 func _announce_evolutions() -> void:
     for i: int in range(SurvivorArsenal.IDS.size()):
         if SurvivorArsenal.evolved(blessing_system, i) and not evolution_announced.has(i):
             evolution_announced[i] = true
-            _spawn_bitmap_effect(hero_plant.global_position, PixelArtAssets.blessing_icon(SurvivorArsenal.IDS[i]), SurvivorArsenal.COLORS[i])
+            _spawn_bitmap_effect(hero_plant.global_position, HDArt.weapon(SurvivorArsenal.IDS[i]), SurvivorArsenal.COLORS[i])
             _show_event_banner(_t("EVOLVED: ", "已进化：") + _t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]))
 
 
@@ -839,18 +855,19 @@ func _spawn_bitmap_effect(position_value: Vector2, texture_value: Texture2D, tin
     sprite.texture = texture_value
     sprite.modulate = Color(tint.r, tint.g, tint.b, 0.9)
     sprite.z_index = 10
-    sprite.scale = Vector2.ONE * 0.55
+    var fit_scale: float = HDArt.fit(texture_value, 56.0)
+    sprite.scale = Vector2.ONE * 0.55 * fit_scale
     effects_container.add_child(sprite)
     sprite.global_position = position_value
     effect_sprites.append(sprite)
     var tween: Tween = sprite.create_tween().set_parallel(true)
-    tween.tween_property(sprite, "scale", Vector2.ONE * 1.5, 0.35)
+    tween.tween_property(sprite, "scale", Vector2.ONE * 1.5 * fit_scale, 0.35)
     tween.tween_property(sprite, "modulate:a", 0.0, 0.35)
     tween.chain().tween_callback(sprite.queue_free)
 
 
 func _on_skill_resolved(position_value: Vector2, boss_attack: bool) -> void:
-    _spawn_bitmap_effect(position_value, PixelArtAssets.blessing_icon(&"mutation_spore"), Color("e3a0f8") if boss_attack else Color("f5b1cc"))
+    _spawn_bitmap_effect(position_value, HDArt.weapon(&"mutation_spore"), Color("e3a0f8") if boss_attack else Color("f5b1cc"))
 
 
 func _on_attributed_projectile(origin: Vector2, target: GreedEnemy, damage: float, critical: bool, speed: float, splash_radius: float, slow_ratio: float, knockback_force: float, color: Color, source: String) -> void:
@@ -924,7 +941,7 @@ func _show_result_workspace(victory: bool) -> void:
         if rank <= 0:
             continue
         var item: TextureRect = TextureRect.new()
-        item.texture = PixelArtAssets.blessing_icon(SurvivorArsenal.IDS[i])
+        item.texture = HDArt.weapon(SurvivorArsenal.IDS[i])
         item.custom_minimum_size = Vector2(32, 32)
         item.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         item.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -951,3 +968,19 @@ func _on_attributed_contact(enemy: GreedEnemy, damage: int) -> void:
     _current_threat = "boss" if enemy.boss else ("ranged" if enemy.survivor_variant == 3 else "contact")
     _on_enemy_core_contact(enemy, damage)
     _current_threat = "contact"
+
+
+func _on_arsenal_visual_requested(origin: Vector2, target: GreedEnemy, damage: float, critical: bool, speed: float, splash_radius: float, slow_ratio: float, knockback_force: float, color: Color, weapon: int, evolved: bool) -> void:
+    _visual_weapon = weapon
+    _visual_evolved = evolved
+    _on_projectile_requested(origin, target, damage, critical, speed, splash_radius, slow_ratio, knockback_force, color)
+    _visual_weapon = -1
+    _visual_evolved = false
+
+func _on_visual_impact(projectile: GreedProjectile, _target: GreedEnemy, _damage: float, _critical: bool) -> void:
+    if projectile.visual_weapon < 0:
+        return
+    var prefix: String = "vfx/evolution_" if projectile.visual_evolved else "vfx/impact_"
+    var image: Texture2D = HDArt.load_png(prefix + str(projectile.visual_weapon))
+    if image != null:
+        _spawn_bitmap_effect(projectile.global_position, image, Color.WHITE)

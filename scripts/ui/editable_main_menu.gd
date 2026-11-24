@@ -69,6 +69,7 @@ func _ready() -> void:
     PlayfulUITheme.apply_button(select_hero_button, "mint")
     _apply_locale()
     _apply_playful_design()
+    _apply_hd_menu()
     if OS.get_cmdline_user_args().has("--ci-survivors-smoke"):
         # The export-only smoke path opens the actual gameplay scene instead
         # of testing only whether the main menu window can be created.
@@ -297,7 +298,7 @@ func _refresh_archive_tabs() -> void:
     var characters: VBoxContainer = _archive_page(_t("Heroes", "角色"))
     for i: int in range(SurvivorCharacters.EN.size()):
         var button: Button = Button.new()
-        button.icon = PixelArtAssets.generated_actor(SurvivorCharacters.art_index(i))
+        button.icon = HDArt.portrait(i)
         button.expand_icon = true
         button.custom_minimum_size = Vector2(320, 34)
         button.text = _t(SurvivorCharacters.EN[i], SurvivorCharacters.ZH[i])
@@ -308,14 +309,14 @@ func _refresh_archive_tabs() -> void:
         characters.add_child(button)
     var weapons: VBoxContainer = _archive_page(_t("Weapons", "武器"))
     for i: int in range(SurvivorArsenal.IDS.size()):
-        _archive_entry(weapons, PixelArtAssets.blessing_icon(SurvivorArsenal.IDS[i]), _t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]) + "\n" + _t("Lv.3 + ", "三级 + ") + _t(SurvivorArsenal.NAMES_EN[SurvivorArsenal.EVOLUTION_PARTNERS[i]], SurvivorArsenal.NAMES_ZH[SurvivorArsenal.EVOLUTION_PARTNERS[i]]) + "\n" + _t(SurvivorArsenal.DESC_EN[i], SurvivorArsenal.DESC_ZH[i]) + "\n" + _t("Both Lv.3: resonance", "双方三级：共鸣"))
+        _archive_entry(weapons, HDArt.weapon(SurvivorArsenal.IDS[i]), _t(SurvivorArsenal.NAMES_EN[i], SurvivorArsenal.NAMES_ZH[i]) + "\n" + _t("Lv.3 + ", "三级 + ") + _t(SurvivorArsenal.NAMES_EN[SurvivorArsenal.EVOLUTION_PARTNERS[i]], SurvivorArsenal.NAMES_ZH[SurvivorArsenal.EVOLUTION_PARTNERS[i]]) + "\n" + _t(SurvivorArsenal.DESC_EN[i], SurvivorArsenal.DESC_ZH[i]) + "\n" + _t("Both Lv.3: resonance", "双方三级：共鸣"))
     var enemies: VBoxContainer = _archive_page(_t("Enemies", "敌人"))
     var enemy_names: Array[String] = [_t("Chaser", "追击怪"), _t("Charger", "冲锋怪"), _t("Armored", "重甲怪"), _t("Ranged warning", "远程预警"), _t("Splitter", "分裂怪"), _t("Bloom Boss", "黑花首领")]
     for i: int in range(enemy_names.size()):
-        _archive_entry(enemies, PixelArtAssets.generated_actor(5 if i == 5 else (4 if i == 2 or i == 4 else 3)), enemy_names[i])
+        _archive_entry(enemies, HDArt.actor(5 if i == 5 else (4 if i == 2 or i == 4 else 3)), enemy_names[i])
     for map_index: int in range(1, 4):
-        _archive_entry(enemies, PixelArtAssets.biome_actor(map_index - 1), _t(SurvivorBiomeBoss.EN[map_index], SurvivorBiomeBoss.ZH[map_index]))
-        _archive_entry(enemies, PixelArtAssets.biome_actor(map_index + 2), _t(SurvivorMaps.NAMES_EN[map_index], SurvivorMaps.NAMES_ZH[map_index]) + _t(" special enemy", "专属敌人"))
+        _archive_entry(enemies, HDArt.biome(map_index - 1), _t(SurvivorBiomeBoss.EN[map_index], SurvivorBiomeBoss.ZH[map_index]))
+        _archive_entry(enemies, HDArt.biome(map_index + 2), _t(SurvivorMaps.NAMES_EN[map_index], SurvivorMaps.NAMES_ZH[map_index]) + _t(" special enemy", "专属敌人"))
     var progress_page: VBoxContainer = _archive_page(_t("Growth", "成长"))
     var progress: Dictionary = save_game.get_survivor_progress()
     var stats: Dictionary = save_game.get_survivor_statistics()
@@ -425,7 +426,7 @@ func _show_character_screen() -> void:
     for i: int in range(SurvivorCharacters.EN.size()):
         var cfg: Dictionary = SurvivorCharacters.configuration(i)
         var button: Button = Button.new()
-        button.icon = PixelArtAssets.generated_actor(SurvivorCharacters.art_index(i))
+        button.icon = HDArt.portrait(i)
         button.expand_icon = true
         button.custom_minimum_size = Vector2(280, 66)
         button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -495,3 +496,30 @@ func _start_endless() -> void:
     SurvivorChallenge.selected = false
     SurvivorEndurance.selected = true
     _open_level_select()
+
+
+func _apply_hd_menu() -> void:
+    var background: Texture2D = HDArt.load_png("menu/background")
+    if background == null:
+        background = HDArt.terrain(SurvivorMaps.CLASSIC)
+    if background != null:
+        var grass: TextureRect = get_node("World/Grass") as TextureRect
+        grass.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+        grass.texture = background
+        grass.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+        grass.modulate = Color(0.75, 0.82, 0.70, 1.0)
+        (get_node("World/Shade") as ColorRect).color = Color(0.96, 0.92, 0.78, 0.36)
+    var names: Array[String] = ["HeroPreview", "FamiliarSunPreview", "FamiliarSproutPreview"]
+    var ids: Array[int] = [0, 1, 2]
+    for i: int in range(names.size()):
+        var preview: Node2D = get_node("World/" + names[i]) as Node2D
+        var image: Texture2D = HDArt.portrait(ids[i])
+        if image == null:
+            continue
+        var sprite: Sprite2D = Sprite2D.new()
+        sprite.name = names[i] + "HD"
+        sprite.texture = image
+        sprite.position = preview.position
+        sprite.scale = Vector2.ONE * HDArt.fit(image, 112.0 if i == 0 else 70.0)
+        preview.hide()
+        preview.get_parent().add_child(sprite)
