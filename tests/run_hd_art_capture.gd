@@ -81,6 +81,7 @@ func _run() -> void:
             await process_frame
     for index: int in range(SurvivorArsenal.IDS.size()):
         _expect(_path(HDArt.weapon(SurvivorArsenal.IDS[index])) == HDArt.ROOT + "weapons/weapon_%d.png" % index, "Weapon %d icon actual resolver" % index)
+    await _audit_weapon_effects(packed)
     if preview:
         _expect(captures >= 14, "Preview covers at least three heroes and four maps")
         print("HD_ART_PREVIEW_COMPLETE ", failures, " CAPTURES ", captures)
@@ -88,3 +89,72 @@ func _run() -> void:
         _expect(captures == 22, "Strict capture count")
         print("HD_ART_COMPLETE ", failures)
     quit(0 if failures == 0 else 1)
+
+# Isolated renderer test: use actual launch/impact signals, not screenshots of icons.
+# No damage is applied and no save is written. Normal simulations remain unchanged.
+func _audit_weapon_effects(packed: PackedScene) -> void:
+    var game: Node = packed.instantiate()
+    game.set("simulation_mode", true)
+    game.set("simulation_map", 0)
+    game.set("simulation_character", 0)
+    game.set("run_seed", 101)
+    root.add_child(game)
+    game.set_process(false)
+    var hero: GreedHeroPlant = game.get("hero_plant") as GreedHeroPlant
+    hero.set_process(false)
+    for familiar: Node in get_nodes_in_group("greed_familiars"):
+        familiar.set_process(false)
+    var target: GreedEnemy = game.call("_spawn_configured_enemy", SurvivorBalance.enemy_config(0.0, 1, false, false, 0), hero.global_position + Vector2(120.0, 0.0)) as GreedEnemy
+    target.set_process(false)
+    var verified: int = 0
+    for index: int in range(8):
+        var projectile_path: String = "vfx/projectile_%d" % index
+        var has_projectile: bool = HDArt.load_png(projectile_path) != null
+        var has_impact: bool = HDArt.load_png("vfx/impact_%d" % index) != null
+        var has_evolution: bool = HDArt.load_png("vfx/evolution_%d" % index) != null
+        if not preview:
+            _expect(has_projectile and has_impact and has_evolution, "Weapon %d complete VFX assets" % index)
+        if not has_projectile and not has_impact and not has_evolution:
+            continue
+        game.call("_on_arsenal_visual_requested", hero.global_position, target, 1.0, false, 360.0, 0.0, 0.0, 0.0, Color.WHITE, index, false)
+        var projectile: GreedProjectile = null
+        for node: Node in get_nodes_in_group("greed_projectiles"):
+            if node is GreedProjectile and (node as GreedProjectile).visual_weapon == index:
+                projectile = node as GreedProjectile
+                break
+        _expect(projectile != null, "Weapon %d actual launched projectile" % index)
+        if projectile == null:
+            continue
+        projectile.set_process(false)
+        await process_frame
+        await process_frame
+        await RenderingServer.frame_post_draw
+        if has_projectile:
+            var sprite: Sprite2D = projectile.get_node_or_null("PixelSprite") as Sprite2D
+            _expect(sprite != null and sprite.is_visible_in_tree() and _path(sprite.texture) == HDArt.ROOT + projectile_path + ".png", "Weapon %d actual projectile texture" % index)
+            verified += 1
+        for evolved: bool in [false, true]:
+            if (evolved and not has_evolution) or (not evolved and not has_impact):
+                continue
+            projectile.visual_evolved = evolved
+            # Visual effects are normally suppressed in headless simulations.
+            # Enable only for this synchronous visual signal, not a gameplay tick.
+            game.set("simulation_mode", false)
+            projectile.impacted.emit(projectile, target, 0.0, false)
+            game.set("simulation_mode", true)
+            var effects: Array = game.get("effect_sprites")
+            var effect: Sprite2D = effects.back() as Sprite2D if not effects.is_empty() else null
+            var expected_path: String = HDArt.ROOT + ("vfx/evolution_" if evolved else "vfx/impact_") + str(index) + ".png"
+            _expect(is_instance_valid(effect) and effect.is_visible_in_tree() and _path(effect.texture) == expected_path, "Weapon %d actual %s texture" % [index, "evolution" if evolved else "impact"])
+            verified += 1
+            await RenderingServer.frame_post_draw
+            if is_instance_valid(effect):
+                effect.queue_free()
+            await process_frame
+        projectile.call("_finish")
+        await process_frame
+    print("HD_ART_VFX_RUNTIME_CHECKS ", verified)
+    if not preview:
+        _expect(verified == 24, "All 24 weapon visual routes exercised")
+    game.queue_free()
+    await process_frame

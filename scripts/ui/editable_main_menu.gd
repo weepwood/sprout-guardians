@@ -147,7 +147,7 @@ func _apply_playful_design() -> void:
     PlayfulUITheme.apply_button(settings_back_button, "primary")
     PlayfulUITheme.apply_button(archive_back_button, "primary")
     for picker: OptionButton in [difficulty_picker, character_picker, map_picker]:
-        PlayfulUITheme.apply_button(picker, "soft", false)
+        PlayfulUITheme.apply_forest_picker(picker)
         picker.add_theme_font_size_override("font_size", 12)
     if is_instance_valid(archive_tabs):
         PlayfulUITheme.apply_tabs(archive_tabs)
