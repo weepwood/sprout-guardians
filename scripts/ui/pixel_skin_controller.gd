@@ -186,6 +186,9 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
             sprite.modulate = Color(0.68, 0.92, 1.0)
         else:
             sprite.modulate = Color.WHITE
+        if enemy.biome_enemy > 0:
+            var biome_tints: Array[Color] = [Color.WHITE, Color(0.86, 1.0, 0.72), Color(0.68, 0.8, 1.0), Color(0.6, 0.95, 0.76)]
+            sprite.modulate *= biome_tints[clampi(enemy.biome_enemy, 0, 3)]
         if enemy.survivor_combat and enemy.survivor_variant == 1:
             sprite.modulate *= Color(0.82, 0.92, 1.0)
         elif enemy.survivor_combat and enemy.survivor_variant == 3:

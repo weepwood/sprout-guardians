@@ -8,6 +8,7 @@ const UI_PANEL: Texture2D = preload("res://assets/pixel/ui_panel.svg")
 const TOY_ATLAS: Texture2D = preload("res://assets/toy/sprout_toy_atlas.png")
 const MUTATION_ATLAS: Texture2D = preload("res://assets/generated/mutation_icons.png")
 const GENERATED_ACTORS: Texture2D = preload("res://assets/generated/actor_atlas.png")
+const BIOME_ATLAS: Texture2D = preload("res://assets/generated/biomes_events.png")
 const MUTATION_IDS: Array[String] = ["mutation_seed", "mutation_spore", "mutation_frost", "mutation_sun", "mutation_thorn", "mutation_symbiosis"]
 
 # 3x3 source art atlas. Each 56px cell is an authored image, never generated
@@ -121,6 +122,29 @@ static func generated_actor(index: int) -> Texture2D:
         var icon: AtlasTexture = AtlasTexture.new()
         icon.atlas = GENERATED_ACTORS
         icon.region = Rect2(float(safe_index % 3) * 56.0, float(floori(float(safe_index) / 3.0)) * 56.0, 56.0, 56.0)
+        icon.filter_clip = true
+        _texture_cache[key] = icon
+    return _texture_cache[key] as Texture2D
+
+
+static func biome_texture(map_id: int) -> Texture2D:
+    var i: int = clampi(map_id - 1, 0, 2)
+    var key: StringName = StringName("biome_%d" % i)
+    if not _texture_cache.has(key):
+        var source: Image = BIOME_ATLAS.get_image()
+        var tile: Image = source.get_region(Rect2i(i * 32, 0, 32, 32))
+        tile.resize(128, 128, Image.INTERPOLATE_BILINEAR)
+        _texture_cache[key] = ImageTexture.create_from_image(tile)
+    return _texture_cache[key] as Texture2D
+
+
+static func event_icon(kind: int) -> Texture2D:
+    var i: int = clampi(kind, 0, 2)
+    var key: StringName = StringName("event_%d" % i)
+    if not _texture_cache.has(key):
+        var icon: AtlasTexture = AtlasTexture.new()
+        icon.atlas = BIOME_ATLAS
+        icon.region = Rect2(i * 32, 32, 32, 32)
         icon.filter_clip = true
         _texture_cache[key] = icon
     return _texture_cache[key] as Texture2D

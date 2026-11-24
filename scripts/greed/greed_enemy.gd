@@ -21,6 +21,7 @@ var body_color: Color = Color("dd6d63")
 var body_size: float = 12.0
 var survivor_variant: int = 0
 var survivor_combat: bool = false
+var biome_enemy: int = 0
 var _skill_timer: float = 3.5
 var _warning_left: float = 0.0
 var _warning_position: Vector2 = Vector2.ZERO
@@ -52,6 +53,7 @@ func configure(core: GreedCore, config: Dictionary, health_scale: float = 1.0) -
     body_color = Color("a557d4") if boss else (Color("e39b4b") if elite else Color("dd6d63"))
     survivor_variant = int(config.get("variant", 0))
     survivor_combat = bool(config.get("survivor_combat", false))
+    biome_enemy = clampi(int(config.get("biome_enemy", 0)), 0, 3)
     if survivor_variant == 5:
         body_size = 8.0
     if survivor_variant == 1:

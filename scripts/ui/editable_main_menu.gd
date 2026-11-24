@@ -142,8 +142,8 @@ func _apply_locale() -> void:
         character_picker.select(SurvivorCharacters.selected)
     if map_picker != null:
         map_picker.clear()
-        map_picker.add_item(_t("Classic", "经典花园"))
-        map_picker.add_item(_t("Explore", "探索花园"))
+        for i: int in range(SurvivorMaps.NAMES_EN.size()):
+            map_picker.add_item(_t(SurvivorMaps.NAMES_EN[i], SurvivorMaps.NAMES_ZH[i]))
         map_picker.select(SurvivorMaps.selected)
     if archive_title == null:
         return
@@ -218,7 +218,7 @@ func _select_character(index: int) -> void:
 
 
 func _select_map(index: int) -> void:
-    SurvivorMaps.selected = clampi(index, 0, 1)
+    SurvivorMaps.selected = clampi(index, 0, 3)
     settings.survivor_map = SurvivorMaps.selected
     settings.save_settings()
 

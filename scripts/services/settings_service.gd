@@ -41,7 +41,7 @@ func load_settings() -> void:
 
     survivor_difficulty = clampi(int(config.get_value("gameplay", "survivor_difficulty", 1)), 0, 2)
     survivor_character = clampi(int(config.get_value("gameplay", "survivor_character", 0)), 0, 2)
-    survivor_map = clampi(int(config.get_value("gameplay", "survivor_map", 0)), 0, 1)
+    survivor_map = clampi(int(config.get_value("gameplay", "survivor_map", 0)), 0, 3)
     if version < CURRENT_VERSION:
         save_settings()
 
