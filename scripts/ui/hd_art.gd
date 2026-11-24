@@ -30,8 +30,19 @@ static func weapon(id_value: StringName) -> Texture2D:
     return image if image != null else PixelArtAssets.blessing_icon(id_value)
 
 static func portrait(character_id: int) -> Texture2D:
-    var frame: Texture2D = SurvivorAnimation.display_frame(character_id, SurvivorAnimation.State.IDLE, 0.0)
-    return frame if frame != null else actor(SurvivorCharacters.art_index(character_id))
+    var sheet: Texture2D = load_png("animations/hero_%d" % character_id)
+    if sheet != null:
+        var cell: int = floori(float(sheet.get_width()) / 4.0)
+        if cell >= 128 and sheet.get_width() == cell * 4 and sheet.get_height() == cell * 5:
+            var key: String = "portrait_%d" % character_id
+            if not _cache.has(key):
+                var region: AtlasTexture = AtlasTexture.new()
+                region.atlas = sheet
+                region.region = Rect2(0, 0, cell, cell)
+                region.filter_clip = true
+                _cache[key] = region
+            return _cache[key] as Texture2D
+    return actor(SurvivorCharacters.art_index(character_id))
 
 static func fit(texture_value: Texture2D, display_pixels: float) -> float:
     if texture_value == null:

@@ -141,16 +141,16 @@ func _texture_for_node(node: Node) -> Texture2D:
 func _configure_sprite(node: Node, sprite: Sprite2D) -> void:
     if node is GreedHeroPlant:
         sprite.position = Vector2(0.0, -5.0)
-        sprite.scale = Vector2.ONE * 0.70
+        sprite.scale = Vector2.ONE * 0.70 * HDArt.fit(sprite.texture, 56.0)
         sprite.z_index = 5
     elif node is GreedPlant:
         sprite.position = Vector2(0.0, -2.0)
-        sprite.scale = Vector2.ONE * 0.39
+        sprite.scale = Vector2.ONE * 0.39 * HDArt.fit(sprite.texture, 56.0)
         sprite.z_index = 5
     elif node is GreedEnemy:
         var enemy: GreedEnemy = node as GreedEnemy
         sprite.position = Vector2(0.0, -3.0)
-        sprite.scale = Vector2.ONE * (0.92 if enemy.boss else (0.53 if enemy.elite else 0.40))
+        sprite.scale = Vector2.ONE * (0.92 if enemy.boss else (0.53 if enemy.elite else 0.40)) * HDArt.fit(sprite.texture, 56.0)
         sprite.z_index = 4
     elif node is GreedProjectile:
         sprite.scale = Vector2.ONE * 0.24
@@ -171,9 +171,10 @@ func _update_sprite(node: Node, sprite: Sprite2D) -> void:
         if hero.is_dashing():
             sprite.scale = Vector2.ONE * 0.75
         sprite.modulate = Color(1.0, 0.72, 0.72) if float(hero.get("_hit_flash")) > 0.0 else Color.WHITE
-        if int(hero.config.get("character_index", 0)) == 3:
+        var character_id: int = int(hero.config.get("character_index", 0))
+        if character_id == 3 and HDArt.load_png("animations/hero_3") == null:
             sprite.modulate *= Color(0.88, 0.72, 1.0)
-        elif int(hero.config.get("character_index", 0)) == 4:
+        elif character_id == 4 and HDArt.load_png("animations/hero_4") == null:
             sprite.modulate *= Color(0.78, 0.91, 0.52)
         if hero.config.has("character_index"):
             var state: int = SurvivorAnimation.state(hero)

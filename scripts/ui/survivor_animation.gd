@@ -52,7 +52,7 @@ static func display_frame(character_id: int, animation_state: int, elapsed: floa
     var sheet: Texture2D = HDArt.load_png("animations/hero_%d" % character_id)
     if sheet == null:
         return frame(character_id, animation_state, elapsed)
-    var cell: int = sheet.get_width() / FRAMES
+    var cell: int = floori(float(sheet.get_width()) / float(FRAMES))
     if cell < 128 or sheet.get_width() != cell * FRAMES or sheet.get_height() != cell * 5:
         return frame(character_id, animation_state, elapsed)
     var one_shot: bool = animation_state >= State.ATTACK
