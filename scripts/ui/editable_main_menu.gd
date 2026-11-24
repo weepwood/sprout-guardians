@@ -16,6 +16,7 @@ var archive_back_button: Button
 
 func _ready() -> void:
     SurvivorChallenge.selected = false
+    SurvivorEndurance.selected = false
     settings = SettingsService.new()
     settings.load_settings()
     SurvivorBalance.selected_difficulty = settings.survivor_difficulty
@@ -410,23 +411,29 @@ func _show_character_screen() -> void:
         column.add_child(button)
     var back: Button = Button.new()
     back.position = Vector2(20, 306)
-    back.size = Vector2(165, 36)
+    back.size = Vector2(100, 36)
     back.text = _t("BACK", "返回")
     back.pressed.connect(_hide_character_screen)
     character_screen.add_child(back)
     var start: Button = Button.new()
-    start.position = Vector2(195, 306)
-    start.size = Vector2(205, 36)
+    start.position = Vector2(126, 306)
+    start.size = Vector2(154, 36)
     start.text = _t("START RUN", "开始冒险")
     start.pressed.connect(_start_screen_run.bind(false))
     character_screen.add_child(start)
     var challenge: Button = Button.new()
-    challenge.position = Vector2(410, 306)
-    challenge.size = Vector2(210, 36)
-    challenge.text = _t("EXPERT CHALLENGE", "专家挑战")
-    challenge.tooltip_text = _t("Fixed seed · Night garden · no permanent bonuses", "固定种子 · 夜间花园 · 禁用永久加成")
+    challenge.position = Vector2(286, 306)
+    challenge.size = Vector2(170, 36)
+    challenge.text = _t("DAILY CHALLENGE", "每日挑战")
+    challenge.tooltip_text = SurvivorChallenge.date_key() + " · " + _t("UTC seed · Night garden · no permanent bonuses", "UTC每日种子 · 夜间花园 · 禁用永久加成")
     challenge.pressed.connect(_start_screen_run.bind(true))
     character_screen.add_child(challenge)
+    var endless: Button = Button.new()
+    endless.position = Vector2(462, 306)
+    endless.size = Vector2(158, 36)
+    endless.text = _t("ENDLESS", "无尽模式")
+    endless.pressed.connect(_start_endless)
+    character_screen.add_child(endless)
     back.grab_focus()
 
 func _choose_screen_hero(index: int) -> void:
@@ -444,4 +451,11 @@ func _hide_character_screen() -> void:
 
 func _start_screen_run(challenge: bool) -> void:
     SurvivorChallenge.selected = challenge
+    SurvivorEndurance.selected = false
+    _open_level_select()
+
+
+func _start_endless() -> void:
+    SurvivorChallenge.selected = false
+    SurvivorEndurance.selected = true
     _open_level_select()

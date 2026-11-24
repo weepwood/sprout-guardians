@@ -129,6 +129,13 @@ func record_survivor_result(victory: bool, elapsed_seconds: float, reached_level
     progress["events"] = int(progress["events"]) + maxi(0, int(details.get("events", 0)))
     if victory and bool(details.get("challenge", false)):
         progress["challenge_wins"] = int(progress["challenge_wins"]) + 1
+        var day: String = String(details.get("challenge_date", ""))
+        if not day.is_empty() and day != String(progress["last_daily_win"]):
+            progress["last_daily_win"] = day
+            progress["seeds"] = mini(999999, int(progress["seeds"]) + 15)
+    if bool(details.get("endless", false)):
+        progress["endless_best_seconds"] = maxi(int(progress["endless_best_seconds"]), safe_duration)
+        progress["endless_best_bosses"] = maxi(int(progress["endless_best_bosses"]), int(details.get("bosses", 0)))
     data["survivor_progress"] = progress
     if save_game():
         return true
@@ -265,6 +272,9 @@ func get_survivor_progress() -> Dictionary:
         "damage_rank": clampi(int(raw.get("damage_rank", 0)), 0, 3),
         "speed_rank": clampi(int(raw.get("speed_rank", 0)), 0, 3),
         "challenge_wins": maxi(0, int(raw.get("challenge_wins", 0))),
+        "last_daily_win": String(raw.get("last_daily_win", "")),
+        "endless_best_seconds": maxi(0, int(raw.get("endless_best_seconds", 0))),
+        "endless_best_bosses": maxi(0, int(raw.get("endless_best_bosses", 0))),
         "claimed": _sanitize_claims(raw.get("claimed", [])),
         "evolutions": maxi(0, int(raw.get("evolutions", 0))),
         "events": maxi(0, int(raw.get("events", 0))),

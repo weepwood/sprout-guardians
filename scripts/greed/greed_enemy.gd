@@ -30,6 +30,7 @@ var _skill_timer: float = 3.5
 var _warning_left: float = 0.0
 var _warning_position: Vector2 = Vector2.ZERO
 var _warning_radius: float = 0.0
+var _skill_casts: int = 0
 var _warning_sprite: Sprite2D
 var _summoned: bool = false
 var _behavior_clock: float = 0.0
@@ -241,14 +242,23 @@ func _update_skill(delta: float) -> void:
             skill_resolved.emit(_warning_position, boss)
             if target.global_position.distance_to(_warning_position) <= _warning_radius:
                 core_contact.emit(self, 2 if boss else 1)
-            _skill_timer = (float(_boss_rules["phase_cooldown"]) if get_health_ratio() <= 0.5 else float(_boss_rules["cooldown"])) if boss else 5.0
+            if boss and boss_profile == 1 and _skill_casts % 3 == 0:
+                summon_requested.emit(global_position)
+            _skill_timer = (float(_boss_rules["phase_cooldown"]) if get_health_ratio() <= 0.5 else float(_boss_rules["cooldown"])) if boss else (6.0 if biome_enemy == 3 else 5.0)
         return
     _skill_timer -= delta
     if _skill_timer > 0.0 or global_position.distance_to(target.global_position) > 250.0:
         return
     _warning_duration = float(_boss_rules["warning"]) if boss else 0.9
     _warning_left = _warning_duration
+    _skill_casts += 1
     _warning_position = target.global_position
+    # Distinct secondary behavior, still telegraphed and dodgeable.
+    if boss and boss_profile == 2 and _skill_casts % 2 == 0:
+        _warning_position += (target.global_position - global_position).normalized() * 24.0
+    if survivor_variant == 3 and biome_enemy == 3:
+        _warning_duration = 1.15
+        _warning_left = _warning_duration
     _warning_radius = float(_boss_rules["radius"]) if boss else 25.0
     if not is_instance_valid(_warning_sprite):
         _warning_sprite = Sprite2D.new()

@@ -13,6 +13,9 @@ var map_id: int = SurvivorMaps.CLASSIC
 var world_camera: Camera2D
 var simulation_character: int = 0
 var challenge_active: bool = false
+var challenge_date: String = ""
+var damage_by_enemy: Dictionary = {"contact": 0, "ranged": 0, "boss": 0}
+var _current_threat: String = "contact"
 var damage_by_source: Dictionary = {"hero": 0.0, "familiar": 0.0, "arsenal": 0.0}
 var damage_received: int = 0
 var _previous_health: int = -1
@@ -66,8 +69,11 @@ var familiar_spawn_sprout: Marker2D
 
 func _ready() -> void:
     challenge_active = SurvivorChallenge.selected and not simulation_mode
+    if not simulation_mode:
+        endless_mode = SurvivorEndurance.selected and not challenge_active
     if challenge_active:
-        run_seed = SurvivorChallenge.SEED
+        challenge_date = SurvivorChallenge.date_key()
+        run_seed = SurvivorChallenge.seed_for(challenge_date)
     if not simulation_mode:
         run_save = SaveGameService.new()
         run_save.load_game()
@@ -261,6 +267,8 @@ func _spawn_survivor_enemy(force_elite: bool, force_boss: bool) -> GreedEnemy:
         config = SurvivorBalance.enemy_config(survival_elapsed, difficulty, false, false, SurvivorMaps.exclusive_variant(map_id))
         config["biome_enemy"] = map_id
         config["health"] = float(config["health"]) * 1.12
+    if endless_mode:
+        config["health"] = float(config["health"]) * SurvivorEndurance.enemy_multiplier(survival_elapsed)
     return _spawn_configured_enemy(config, _survivor_spawn_edge())
 
 
@@ -272,7 +280,7 @@ func _spawn_configured_enemy(config: Dictionary, position_value: Vector2) -> Gre
     enemy.configure(hero_plant, config, 1.0)
     enemy.damaged.connect(_on_enemy_damaged)
     enemy.defeated.connect(_on_enemy_defeated)
-    enemy.core_contact.connect(_on_enemy_core_contact)
+    enemy.core_contact.connect(_on_attributed_contact)
     enemy.summon_requested.connect(_on_summon_requested)
     enemy.skill_resolved.connect(_on_skill_resolved)
     return enemy
@@ -588,7 +596,7 @@ func _finish_run(victory: bool) -> void:
     if run_save != null and not simulation_mode:
         var saved: bool = run_save.record_survivor_result(
             victory, survival_elapsed, hero_plant.level if is_instance_valid(hero_plant) else 1, enemies_defeated,
-            {"damage": total_damage, "xp": total_xp, "map": map_id, "difficulty": difficulty, "evolutions": evolution_announced.size(), "events": map_events.completed, "source_damage": damage_by_source.duplicate(), "damage_received": damage_received, "challenge": challenge_active}
+            {"damage": total_damage, "xp": total_xp, "map": map_id, "difficulty": difficulty, "evolutions": evolution_announced.size(), "events": map_events.completed, "source_damage": damage_by_source.duplicate(), "damage_received": damage_received, "challenge": challenge_active, "challenge_date": challenge_date, "endless": endless_mode, "bosses": bosses_defeated, "damage_by_enemy": damage_by_enemy.duplicate()}
         )
         if run_trace != null:
             run_trace.note("run_recorded", "saved=%s victory=%s kills=%d" % [saved, victory, enemies_defeated])
@@ -830,7 +838,9 @@ func _record_source_damage(source: String, actual_damage: float) -> void:
 
 func _track_health(current: int, _maximum: int) -> void:
     if _previous_health >= 0 and current < _previous_health:
-        damage_received += _previous_health - current
+        var loss: int = _previous_health - current
+        damage_received += loss
+        damage_by_enemy[_current_threat] = int(damage_by_enemy.get(_current_threat, 0)) + loss
     _previous_health = current
 
 
@@ -875,4 +885,11 @@ func _show_result_workspace(victory: bool) -> void:
 
 func _leave_result() -> void:
     SurvivorChallenge.selected = false
+    SurvivorEndurance.selected = false
     _return_to_menu()
+
+
+func _on_attributed_contact(enemy: GreedEnemy, damage: int) -> void:
+    _current_threat = "boss" if enemy.boss else ("ranged" if enemy.survivor_variant == 3 else "contact")
+    _on_enemy_core_contact(enemy, damage)
+    _current_threat = "contact"
